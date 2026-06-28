@@ -41,6 +41,8 @@ export default function PlaceFilters({
   const access = (params.get("access") || "").split(",").map((s) => s.trim()).filter(Boolean);
   const toddler = params.get("toddler") === "1";
   const rain = params.get("rain") === "1";
+  const outdoor = params.get("outdoor") === "1";
+  const free = params.get("free") === "1";
   const loc = params.get("loc") || "";
 
   function update(next: Record<string, string | null>) {
@@ -54,8 +56,8 @@ export default function PlaceFilters({
   const toggleIn = (list: string[], v: string) =>
     list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
 
-  const hasFilters = cats.length > 0 || access.length > 0 || toddler || rain || loc;
-  const clearAll = () => update({ cat: null, access: null, toddler: null, rain: null, loc: null });
+  const hasFilters = cats.length > 0 || access.length > 0 || toddler || rain || outdoor || free || loc;
+  const clearAll = () => update({ cat: null, access: null, toddler: null, rain: null, outdoor: null, free: null, loc: null });
 
   // Filter out excluded categories, keeping any that are currently active so
   // a URL-shared filter still shows the active pill even if it's "hidden".
@@ -150,10 +152,22 @@ export default function PlaceFilters({
             🧸 Toddler-friendly
           </button>
           <button
-            onClick={() => update({ rain: rain ? null : "1" })}
+            onClick={() => update({ free: free ? null : "1" })}
+            className={`filter-pill ${free ? "filter-pill-active" : ""}`}
+          >
+            💷 Free entry
+          </button>
+          <button
+            onClick={() => update({ rain: rain ? null : "1", outdoor: null })}
             className={`filter-pill ${rain ? "filter-pill-active" : ""}`}
           >
             🌧️ Rainy day
+          </button>
+          <button
+            onClick={() => update({ outdoor: outdoor ? null : "1", rain: null })}
+            className={`filter-pill ${outdoor ? "filter-pill-active" : ""}`}
+          >
+            ☀️ Sunny day
           </button>
         </div>
       </div>
