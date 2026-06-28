@@ -35,6 +35,12 @@ export default function AdminToolGroups({ pendingCount }: { pendingCount: number
           badge: pendingCount,
         },
         {
+          href: "/admin/reviews",
+          label: "Reviews",
+          emoji: "⭐",
+          description: "Approve or hide parent reviews",
+        },
+        {
           href: "/admin/events",
           label: "Events search",
           emoji: "🔎",
@@ -111,22 +117,10 @@ export default function AdminToolGroups({ pendingCount }: { pendingCount: number
           description: "DM unclaimed venues to take their page",
         },
         {
-          href: "/admin/sponsor-outreach",
-          label: "Sponsor leads",
-          emoji: "💈",
-          description: "Find local hairdressers & beauty salons on FB to pitch",
-        },
-        {
           href: "/admin/venues-dedupe",
           label: "Dedupe venues",
           emoji: "🧹",
           description: "Merge 'X' / 'The X' duplicates safely",
-        },
-        {
-          href: "/admin/sports-merge",
-          label: "Merge legacy sports",
-          emoji: "🏟️",
-          description: "Consolidate same-day sports rows into one",
         },
         {
           href: "/admin/events-dedupe",
@@ -139,24 +133,6 @@ export default function AdminToolGroups({ pendingCount }: { pendingCount: number
           label: "Clean venue slugs",
           emoji: "🧼",
           description: "Strip random suffixes from old import URLs",
-        },
-        {
-          href: "/admin/artists",
-          label: "All artists",
-          emoji: "🎤",
-          description: "Browse & edit artist pages",
-        },
-        {
-          href: "/admin/artist-photos",
-          label: "Artist photos",
-          emoji: "📷",
-          description: "Pull missing pics from Facebook (with preview)",
-        },
-        {
-          href: "/admin/festivals",
-          label: "Festivals",
-          emoji: "🎵",
-          description: "Manage festival landing pages",
         },
       ],
     },
