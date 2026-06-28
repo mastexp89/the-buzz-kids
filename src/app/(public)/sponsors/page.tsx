@@ -36,7 +36,7 @@ export default async function SponsorsDirectoryPage() {
       <p className="eyebrow mb-2">Backed by the locals</p>
       <h1 className="h-display text-4xl sm:text-5xl mb-3">Local businesses on The Buzz Guide</h1>
       <p className="text-buzz-mute mb-10 max-w-2xl">
-        The takeaways, taxis, and local businesses that keep The Buzz Guide running.
+        The takeaways, taxis and local businesses that keep The Buzz Guide running.
         If you're heading out tonight, give them a shout — they support what we do.
       </p>
 
@@ -143,7 +143,7 @@ function BecomeASponsorCard() {
         </h2>
         <p className="text-buzz-mute mt-1">
           Reach locals heading out tonight. Three packages from £30/month —
-          rotating placements on the homepage, in the app, and on our socials.
+          rotating placements on the homepage, in the app and on our socials.
         </p>
       </div>
 

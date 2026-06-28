@@ -43,7 +43,7 @@ export default async function AboutPage() {
       <h2 className="h-display text-2xl mt-10 mb-2">For venues</h2>
       <p className="text-buzz-mute leading-relaxed">
         Free to list. Add your gigs, photos and venue details, and they'll show up wherever
-        people are looking — on the city page, on your venue page, and via search. Optional paid
+        people are looking — on the city page, on your venue page and via search. Optional paid
         promotions are available if you want a gig pinned or featured. Got questions?{" "}
         <a href="mailto:admin@thebuzzguide.co.uk?subject=Listing%20a%20venue" className="text-buzz-accent">Get in touch</a>.
       </p>

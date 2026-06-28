@@ -98,7 +98,7 @@ export default async function SponsorProfilePage({
 
       <p className="text-xs text-buzz-mute mt-6 max-w-xl">
         {sponsor.name} is a paid sponsor of The Buzz Guide. Sponsorships keep the
-        listings free for venues, artists, and event organisers. Want to advertise?{" "}
+        listings free for venues, artists and event organisers. Want to advertise?{" "}
         <Link href="/advertise" className="text-buzz-accent hover:underline">
           See packages →
         </Link>

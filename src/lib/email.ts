@@ -604,7 +604,7 @@ function welcomeVariantFor(accountType: string): WelcomeVariant {
         heading: "Welcome — let's get you set up",
         preheader: "Claim your organiser page and add events across multiple venues.",
         intro:
-          "You're signed up as an event organiser. From your dashboard you can claim your page, add events at any venue on the site, and grow your following.",
+          "You're signed up as an event organiser. From your dashboard you can claim your page, add events at any venue on the site and grow your following.",
         bullets: [
           ["📋 Claim your page", "Find your organisation in the directory and take ownership"],
           ["🎵 Add events", "Pick any venue — events appear on theirs + yours"],

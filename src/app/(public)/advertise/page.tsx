@@ -55,7 +55,7 @@ export default function AdvertisePage() {
           <p className="eyebrow mb-2">Banner placements</p>
           <h3 className="h-display text-2xl mb-2">Across the site.</h3>
           <p className="text-sm text-buzz-mute">
-            Tasteful native ads on the home page, city pages, and event pages. Targeted by genre
+            Tasteful native ads on the home page, city pages and event pages. Targeted by genre
             or by venue if you want.
           </p>
         </div>

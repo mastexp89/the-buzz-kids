@@ -55,7 +55,7 @@ export default async function Home() {
             </h1>
             <p className="mt-6 text-buzz-mute max-w-xl text-lg">
               Kid-friendly things to do near you — soft play, holiday clubs, farm days,
-              kids' theatre and messy play. Filter by age, price, and whether it's
+              kids' theatre and messy play. Filter by age, price and whether it's
               rain or shine.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -81,7 +81,7 @@ export default async function Home() {
               <Link href="/surprise" className="btn-secondary btn-lg">🎲 Surprise me</Link>
             </div>
             <p className="mt-4 text-sm text-buzz-mute">
-              Want to save to your bucket list, leave reviews, and get holiday activity alerts?{" "}
+              Want to save to your bucket list, leave reviews and get holiday activity alerts?{" "}
               <Link href="/signup?as=fan" className="text-buzz-accent hover:text-buzz-accent2 font-medium">
                 ♡ Sign up free
               </Link>
@@ -165,7 +165,7 @@ export default async function Home() {
         <div className="grid sm:grid-cols-3 gap-4">
           {[
             { n: "01", t: "Pick your area", d: "Choose your local area — we cover Scottish towns and we're rolling out fast." },
-            { n: "02", t: "Filter for your kids", d: "Age, price, indoor or outdoor, and what they're into. We'll show you what fits." },
+            { n: "02", t: "Filter for your kids", d: "Age, price, indoor or outdoor and what they're into. We'll show you what fits." },
             { n: "03", t: "Go have fun", d: "Times, prices, booking links and accessibility info — all in one place." },
           ].map((s) => (
             <div key={s.n} className="card p-6 lift">
@@ -187,7 +187,7 @@ export default async function Home() {
             Never miss a great day out.
           </h2>
           <p className="max-w-xl mx-auto text-buzz-mute mb-6">
-            Save places and activities to your bucket list, leave reviews for other parents,
+            Save places and activities to your bucket list, leave reviews for other parents
             and get alerts when new sessions drop for the school holidays. Free, no spam.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
@@ -215,7 +215,7 @@ export default async function Home() {
           <p className="text-xs uppercase tracking-[0.2em] font-bold mb-2">For clubs, venues &amp; activity providers</p>
           <h2 className="h-display text-4xl sm:text-5xl mb-3">List your activities.<br />Free, forever.</h2>
           <p className="max-w-lg mx-auto text-white/85 mb-6">
-            Free for soft plays, farms, libraries, leisure trusts, theatres and holiday-club providers. Reach local families looking for things to do — this weekend, this holiday, and beyond.
+            Free for soft plays, farms, libraries, leisure trusts, theatres and holiday-club providers. Reach local families looking for things to do — this weekend, this holiday and beyond.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Link href="/signup?as=venue" className="inline-flex items-center gap-2 rounded-lg bg-white text-buzz-accent font-bold px-6 py-3 hover:bg-white/90 transition">

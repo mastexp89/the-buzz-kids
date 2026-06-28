@@ -82,7 +82,7 @@ export default function PrivacyPage() {
           <p>We only collect data that's needed to make the service work:</p>
           <ul className="list-disc pl-6 space-y-2 mt-2">
             <li>
-              <strong>Account info</strong> — email address, display name, and password (passwords
+              <strong>Account info</strong> — email address, display name and password (passwords
               are stored encrypted by our authentication provider). For organiser accounts, we also
               store the details you choose to provide about your activity or venue (name, address,
               postcode, phone, opening hours, prices and links).
@@ -117,7 +117,7 @@ export default function PrivacyPage() {
           <h2 className="font-display text-2xl uppercase mb-2 mt-6">How we use it</h2>
           <ul className="list-disc pl-6 space-y-2 mt-2">
             <li>To run your account and let you sign in.</li>
-            <li>To show organiser listings, and approved reviews, publicly on the site.</li>
+            <li>To show organiser listings and approved reviews publicly on the site.</li>
             <li>To let you save places to your bucket list and plan days out.</li>
             <li>To send transactional emails — listing approvals, password resets, signup confirmations.</li>
             <li>To calculate distance to venues if you opt into "Near me".</li>

@@ -166,7 +166,7 @@ function DeleteAccountSection() {
         <p className="eyebrow text-[10px] mb-1 text-rose-400">Danger zone</p>
         <h2 className="font-display text-xl uppercase">Delete my account</h2>
         <p className="help mt-2">
-          Permanently deletes your profile, any venues you own, gigs you've created, and uploaded photos.
+          Permanently deletes your profile, any venues you own, gigs you've created and uploaded photos.
           This can't be undone. <a href="/delete-account" className="text-buzz-accent hover:text-buzz-accent2">See what's kept and what's removed</a>.
         </p>
       </div>

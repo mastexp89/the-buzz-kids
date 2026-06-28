@@ -17,7 +17,7 @@ function buildWelcomeBody(kind: WelcomeKind, displayName: string): string {
     case "venue":
       return `Welcome aboard! 🐝
 
-${displayName} is now live on The Buzz Guide — you're all set up. From your dashboard you can add events, update opening hours, upload photos, and respond to gig requests from artists.
+${displayName} is now live on The Buzz Guide — you're all set up. From your dashboard you can add events, update opening hours, upload photos and respond to gig requests from artists.
 
 📸 Quickest way to add a gig: hit "Upload poster", drop the image in, and our AI reads the title, date, time and price straight off the poster — you just review and approve. Way faster than typing the details in by hand.
 
@@ -31,7 +31,7 @@ Any questions, just reply to this message and we'll come back to you. Thanks for
     case "organiser":
       return `Welcome aboard! 📋
 
-${displayName} is now live on The Buzz Guide. From your dashboard you can manage events, update your profile, and link past + future shows to your page.
+${displayName} is now live on The Buzz Guide. From your dashboard you can manage events, update your profile and link past + future shows to your page.
 
 Any questions, just reply to this message and we'll come back to you. Thanks for joining.`;
   }
