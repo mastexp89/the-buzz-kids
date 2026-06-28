@@ -31,19 +31,6 @@ type Venue = {
   city: { name: string; slug: string } | null;
 };
 
-type ExtractedEvent = {
-  id?: string;
-  title: string;
-  starts_at: string;
-  ends_at: string | null;
-  recurring: { pattern: string; until: string | null } | null;
-  type?: string;
-  genres: string[];
-  description: string;
-  confidence: number;
-  evidence: string;
-};
-
 const SOURCES = [
   { value: "manual_upload", label: "Manual upload" },
   { value: "facebook", label: "Facebook" },
@@ -336,7 +323,6 @@ export default function ExtractClient({ venues }: { venues: Venue[] }) {
                             })}
                           </>
                         )}
-                        {e.type ? <span className="text-buzz-text/60"> · {e.type.replace("_", " ")}</span> : null}
                         {e.recurring && (
                           <span className="text-buzz-accent"> · {e.recurring.pattern}</span>
                         )}
