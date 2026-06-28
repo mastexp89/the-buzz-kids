@@ -77,8 +77,7 @@ export default async function Home() {
                     Browse {c.name} →
                   </Link>
                 ))}
-              <Link href="/plan" className="btn-secondary btn-lg">✨ Plan a day out</Link>
-              <Link href="/browse" className="btn-secondary btn-lg">Browse everywhere →</Link>
+<Link href="/browse" className="btn-secondary btn-lg">Browse everywhere →</Link>
               <Link href="/surprise" className="btn-secondary btn-lg">🎲 Surprise me</Link>
             </div>
             <p className="mt-4 text-sm text-buzz-mute">
