@@ -295,7 +295,7 @@ export default function DiscoverVenuesClient({ cities }: { cities: City[] }) {
 
       {phase === "discovering" && (
         <div className="card p-8 text-center text-buzz-mute">
-          Searching Google Maps for pubs across each town…
+          Searching for family places across each town…
           <br />
           <span className="text-xs">
             This usually takes 20–60 seconds. Don't navigate away.
@@ -453,7 +453,7 @@ export default function DiscoverVenuesClient({ cities }: { cities: City[] }) {
                 disabled={picked.size === 0 || phase === "adding"}
                 className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {phase === "adding" ? "Adding…" : `+ Add ${picked.size} venues`}
+                {phase === "adding" ? "Adding…" : `+ Add ${picked.size} places`}
               </button>
             </div>
           </div>
@@ -464,7 +464,7 @@ export default function DiscoverVenuesClient({ cities }: { cities: City[] }) {
         <div className="card p-8 text-center">
           <h2 className="h-display text-3xl mb-2">Done ✓</h2>
           <p className="text-buzz-mute mb-1">
-            Added <strong className="text-emerald-400">{addedCount}</strong> new venues to{" "}
+            Added <strong className="text-emerald-400">{addedCount}</strong> new places to{" "}
             {discoveryMeta?.cityName ?? citySlug}.
           </p>
           {skippedCount > 0 && (
@@ -473,13 +473,13 @@ export default function DiscoverVenuesClient({ cities }: { cities: City[] }) {
             </p>
           )}
           <p className="text-xs text-buzz-mute mb-6 max-w-md mx-auto">
-            Next step: head to <strong>📘 Venue FB URLs</strong> to fill in
-            Facebook pages for the new venues, then run the FB scraper to
-            pull their events.
+            Next step: head to <strong>📘 Place FB URLs</strong> to fill in
+            Facebook pages for the new places, then run the FB scraper to
+            pull their sessions.
           </p>
           <div className="flex flex-wrap gap-2 justify-center">
             <button type="button" onClick={reset} className="btn-secondary">
-              Discover another city
+              Discover another area
             </button>
             <a href="/admin/venues-facebook" className="btn-primary">
               📘 Fill FB URLs →

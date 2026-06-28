@@ -20,7 +20,12 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { revalidatePath } from "next/cache";
 
-const OVERPASS_API = "https://overpass-api.de/api/interpreter";
+// Primary + mirror in priority order. Overpass-api.de gives 504 under load;
+// the Kumi mirror is independent and usually available when the main is not.
+const OVERPASS_MIRRORS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+];
 const APIFY_API = "https://api.apify.com/v2";
 const APIFY_GMAPS_ACTOR = "compass~crawler-google-places";
 
@@ -34,6 +39,35 @@ function normaliseVenueName(name: string): string {
     .trim()
     .replace(/^the\s+/, "")
     .replace(/[^a-z0-9]+/g, "");
+}
+
+function osmCategory(tags: Record<string, string>): string {
+  const a = tags.amenity;
+  const l = tags.leisure;
+  const t = tags.tourism;
+  if (a === "library") return "Library";
+  if (a === "cinema") return "Cinema";
+  if (a === "community_centre") return "Community centre";
+  if (a === "arts_centre") return "Arts centre";
+  if (a === "theatre") return "Theatre";
+  if (a === "leisure_centre") return "Leisure centre";
+  if (a === "swimming_pool" || l === "swimming_pool") return "Swimming pool";
+  if (a === "bowling_alley") return "Bowling alley";
+  if (a === "indoor_play") return "Indoor play";
+  if (l === "playground") return "Playground";
+  if (l === "sports_centre") return "Sports centre";
+  if (l === "water_park") return "Water park";
+  if (l === "ice_rink") return "Ice rink";
+  if (l === "trampoline_park") return "Trampoline park";
+  if (l === "climbing") return "Climbing centre";
+  if (l === "miniature_golf") return "Mini golf";
+  if (t === "zoo") return "Zoo";
+  if (t === "museum") return "Museum";
+  if (t === "theme_park") return "Theme park";
+  if (t === "aquarium") return "Aquarium";
+  if (t === "gallery") return "Gallery";
+  if (t === "attraction") return "Attraction";
+  return "Activity";
 }
 
 export type DiscoveredVenue = {
@@ -120,12 +154,10 @@ export async function discoverVenuesForCity(
   //   1. ADMIN AREA: any area with name=<town> (any admin_level). Strict
   //      polygon match — won't bleed across town boundaries.
   //   2. PLACE NODE FALLBACK: any node tagged place=town/village/hamlet/etc
-  //      with that name; we then pull pubs within a 3km radius of it.
+  //      with that name; we then pull places within a 3km radius of it.
   //
-  // We union the results and dedupe by name, so pubs found by both
-  // strategies appear once. Amenity filter widened to pub | bar |
-  // nightclub | biergarten | social_club so we catch more venue types
-  // OSM mappers sometimes use.
+  // We union the results and dedupe by name, so places found by both
+  // strategies appear once.
   const escapedNames = towns.map((t) => t.replace(/"/g, '\\"'));
   const areaClauses = escapedNames
     .map((t) => `area["name"="${t}"]["admin_level"];`)
@@ -134,7 +166,14 @@ export async function discoverVenuesForCity(
     .map((t) => `node["place"~"^(city|town|village|hamlet|suburb|locality)$"]["name"="${t}"];`)
     .join("\n  ");
 
-  const amenityFilter = `["amenity"~"^(pub|bar|nightclub|biergarten|social_club)$"]`;
+  // Kids/family venue types in OSM. Three separate tag keys to union:
+  //   amenity — built facilities (library, cinema, leisure centre…)
+  //   leisure — recreational spaces (playground, sports centre, ice rink…)
+  //   tourism — visitor attractions (museum, zoo, theme park…)
+  // We skip generic parks/nature_reserves — too many unnamed nodes.
+  const amenityF = `["amenity"~"^(library|cinema|community_centre|arts_centre|theatre|leisure_centre|swimming_pool|bowling_alley|indoor_play)$"]`;
+  const leisureF = `["leisure"~"^(playground|sports_centre|swimming_pool|water_park|ice_rink|climbing|miniature_golf|fitness_centre|trampoline_park)$"]`;
+  const tourismF = `["tourism"~"^(zoo|museum|theme_park|attraction|aquarium|gallery)$"]`;
 
   const overpassQuery = `
 [out:json][timeout:30];
@@ -145,38 +184,50 @@ export async function discoverVenuesForCity(
   ${placeClauses}
 )->.centers;
 (
-  node(area.areas)${amenityFilter};
-  way(area.areas)${amenityFilter};
-  node(around.centers:3000)${amenityFilter};
-  way(around.centers:3000)${amenityFilter};
+  node(area.areas)${amenityF};
+  way(area.areas)${amenityF};
+  node(area.areas)${leisureF};
+  way(area.areas)${leisureF};
+  node(area.areas)${tourismF};
+  way(area.areas)${tourismF};
+  node(around.centers:3000)${amenityF};
+  way(around.centers:3000)${amenityF};
+  node(around.centers:3000)${leisureF};
+  way(around.centers:3000)${leisureF};
+  node(around.centers:3000)${tourismF};
+  way(around.centers:3000)${tourismF};
 );
 out center tags;
 `.trim();
 
   let elements: any[] = [];
-  try {
-    const res = await fetch(OVERPASS_API, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        // Overpass's Apache rejects requests without an explicit Accept
-        // header (returns 406). Identify ourselves in User-Agent — best
-        // practice for OSM endpoints + helps if they ever need to contact
-        // about heavy use.
-        Accept: "application/json",
-        "User-Agent": "TheBuzzGuide/1.0 (https://www.thebuzzguide.co.uk)",
-      },
-      body: `data=${encodeURIComponent(overpassQuery)}`,
-    });
-    if (!res.ok) {
+  // Try each Overpass mirror in order — the primary sometimes gives 504 under load.
+  let overpassError = "";
+  for (const endpoint of OVERPASS_MIRRORS) {
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Accept: "application/json",
+          "User-Agent": "TheBuzzKids/1.0 (https://www.thebuzzkids.co.uk)",
+        },
+        body: `data=${encodeURIComponent(overpassQuery)}`,
+        signal: AbortSignal.timeout(28000),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        elements = Array.isArray(json?.elements) ? json.elements : [];
+        overpassError = "";
+        break;
+      }
       const text = await res.text();
-      return { error: `Overpass ${res.status}: ${text.slice(0, 400)}` };
+      overpassError = `Overpass ${res.status}: ${text.slice(0, 300)}`;
+    } catch (e: any) {
+      overpassError = `Overpass request failed: ${e?.message ?? e}`;
     }
-    const json = await res.json();
-    elements = Array.isArray(json?.elements) ? json.elements : [];
-  } catch (e: any) {
-    return { error: `Overpass request failed: ${e?.message ?? e}` };
   }
+  if (overpassError) return { error: overpassError };
 
   // Pull the existing venue names in this city so we can flag duplicates.
   // Normalise: lowercase, drop leading "the ", strip non-alphanumerics. So
@@ -234,7 +285,7 @@ out center tags;
       phone: tags["phone"] ?? tags["contact:phone"] ?? null,
       latitude: lat,
       longitude: lon,
-      category: tags.amenity === "bar" ? "Bar" : "Pub",
+      category: osmCategory(tags),
       rating: null,       // OSM doesn't carry ratings
       reviewCount: null,  // ditto
       googleMapsUrl: lat && lon

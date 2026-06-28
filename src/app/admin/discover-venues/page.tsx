@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import DiscoverVenuesClient from "./DiscoverVenuesClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Discover venues — The Buzz Guide admin" };
+export const metadata = { title: "Discover places — The Buzz Kids admin" };
 
 export default async function DiscoverVenuesPage() {
   const supabase = await createClient();
@@ -37,15 +37,15 @@ export default async function DiscoverVenuesPage() {
         ← Back to admin
       </Link>
       <p className="eyebrow mt-3 mb-1">Admin</p>
-      <h1 className="h-display text-4xl sm:text-5xl mb-2">🗺️ Discover venues</h1>
+      <h1 className="h-display text-4xl sm:text-5xl mb-2">🗺️ Discover places</h1>
       <p className="text-buzz-mute mb-8 max-w-2xl">
-        Auto-fills a region's venues from <strong>OpenStreetMap</strong> (free,
+        Auto-fills a region's places from <strong>OpenStreetMap</strong> (free,
         no usage limits, strictly bounded by town boundary). Pick a city,
         click <strong>Discover</strong>, review what comes back, tick the ones
-        that look right, and bulk-create the lot. Each new venue lands as
+        that look right, and bulk-create the lot. Each new place lands as
         approved with whatever OSM has on it — name + lat/lng always, plus
         address / website / phone where the OSM mappers have filled them in.
-        Anything missing fills itself in later via the Venue FB URLs tool's
+        Anything missing fills itself in later via the Place FB URLs tool's
         website-scrape step.
       </p>
 

@@ -85,7 +85,7 @@ export default function AnalyticsClient({
 
       <section className="mb-10">
         <h2 className="font-display text-2xl uppercase mb-3">
-          Top venues <span className="text-buzz-mute text-sm font-normal">({venueRows.length})</span>
+          Top places <span className="text-buzz-mute text-sm font-normal">({venueRows.length})</span>
         </h2>
         {venueRows.length === 0 ? (
           <Empty />
@@ -95,7 +95,7 @@ export default function AnalyticsClient({
               <thead className="bg-buzz-surface/40 text-xs uppercase tracking-wide text-buzz-mute">
                 <tr>
                   <th className="text-left px-4 py-3 w-10">#</th>
-                  <th className="text-left px-4 py-3">Venue</th>
+                  <th className="text-left px-4 py-3">Place</th>
                   <th className="text-right px-4 py-3 w-20">Views</th>
                   <th className="text-right px-4 py-3 w-20">Clicks</th>
                   <th className="text-left px-4 py-3">Top click types</th>
@@ -115,7 +115,7 @@ export default function AnalyticsClient({
                           {r.venue.name}
                         </Link>
                       ) : (
-                        <span className="text-buzz-mute italic">Deleted venue ({r.id.slice(0, 8)}…)</span>
+                        <span className="text-buzz-mute italic">Deleted place ({r.id.slice(0, 8)}…)</span>
                       )}
                     </td>
                     <td className="px-4 py-2 text-right font-mono">{r.views.toLocaleString()}</td>
@@ -144,7 +144,7 @@ export default function AnalyticsClient({
                 <tr>
                   <th className="text-left px-4 py-3 w-10">#</th>
                   <th className="text-left px-4 py-3">Event</th>
-                  <th className="text-left px-4 py-3">Venue</th>
+                  <th className="text-left px-4 py-3">Place</th>
                   <th className="text-right px-4 py-3 w-24">Views</th>
                 </tr>
               </thead>
