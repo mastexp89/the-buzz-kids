@@ -28,6 +28,23 @@ export default async function Footer() {
 
   return (
     <footer className="border-t border-buzz-border mt-16 bg-buzz-bg">
+      {/* Cross-promo to the grown-ups' sister site — on every page via the footer. */}
+      <div className="border-b border-buzz-border bg-buzz-card">
+        <div className="container-page py-4 flex flex-col sm:flex-row items-center justify-center gap-3 text-center text-sm">
+          <span className="text-buzz-mute">
+            A night out without the kids? <strong className="text-buzz-text">The Buzz Guide</strong> is our grown-ups' sister site — gigs, DJs, comedy &amp; events across Scotland.
+          </span>
+          <a
+            href="https://www.thebuzzguide.co.uk"
+            target="_blank"
+            rel="noopener"
+            className="btn-secondary !py-1.5 !px-4 whitespace-nowrap shrink-0"
+          >
+            Visit The Buzz Guide →
+          </a>
+        </div>
+      </div>
+
       <div className="container-page py-10 flex flex-col sm:flex-row items-center sm:items-start sm:justify-between gap-6">
         <div className="flex flex-col items-center sm:items-start gap-2">
           <div className="flex items-center gap-2">
