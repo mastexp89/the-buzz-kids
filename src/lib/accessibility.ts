@@ -49,6 +49,32 @@ export function facetsFor(values: string[] | null | undefined): AccessFacet[] {
   return ACCESS_FACETS.filter((f) => set.has(f.key));
 }
 
+// High-level "at a glance" badges shown over a place's photo, derived from its
+// facets + age range. These summarise the detailed facets into the three
+// things parents scan for first.
+export type SummaryBadge = { key: "toddler" | "sensory" | "accessible"; label: string; icon: string; bg: string };
+
+export function summaryBadges(
+  accessibility: string[] | null | undefined,
+  ageMin: number | null | undefined,
+): SummaryBadge[] {
+  const set = new Set(accessibility ?? []);
+  const out: SummaryBadge[] = [];
+  // Toddler-friendly: suitable from toddler age, or buggy access offered.
+  if ((ageMin != null && ageMin <= 2) || set.has("buggy-friendly")) {
+    out.push({ key: "toddler", label: "Toddler-friendly", icon: "🧸", bg: "#F9A11B" });
+  }
+  // Sensory: any of the sensory-comfort facets.
+  if (["autism-friendly", "sensory-session", "quiet-space", "ear-defenders"].some((k) => set.has(k))) {
+    out.push({ key: "sensory", label: "Sensory", icon: "✨", bg: "#6FA713" });
+  }
+  // Accessible: step-free / wheelchair.
+  if (set.has("wheelchair-accessible")) {
+    out.push({ key: "accessible", label: "Accessible", icon: "♿", bg: "#1FA9E0" });
+  }
+  return out;
+}
+
 // Questions worth a quick call before visiting with a child who has
 // additional needs — our own wording, shown on the /accessibility guide.
 export const ACCESS_QUESTIONS: string[] = [

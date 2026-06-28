@@ -6,9 +6,9 @@ import EventCard from "@/components/EventCard";
 import EventsList from "@/components/EventsList";
 import EventFilters from "@/components/EventFilters";
 import { AccessibilityLegend } from "@/components/AccessibilityBadges";
-import CollapsibleVenueGrid from "@/components/CollapsibleVenueGrid";
+import PlaceCard from "@/components/PlaceCard";
+import CityViewToggle from "@/components/CityViewToggle";
 import CitySwitcher from "@/components/CitySwitcher";
-import SponsorBanner from "@/components/SponsorBanner";
 import { dateRangeFor, type DateFilter } from "@/lib/dateRange";
 import { formatDateRangeLabel, effectiveEndTime } from "@/lib/utils";
 import { trackPageView } from "@/lib/track";
@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ city: string }>;
-  searchParams: Promise<{ when?: string; genre?: string }>;
+  searchParams: Promise<{ when?: string; genre?: string; view?: string }>;
 };
 
 export async function generateMetadata({ params }: Props) {
@@ -49,6 +49,10 @@ export default async function CityPage({ params, searchParams }: Props) {
   // ("What's on in Dundee tonight?") before drilling into a venue or
   // event. Source field lets analytics distinguish from detail views.
   trackPageView({ source: `city_${city.slug}` });
+
+  // Place-primary model: a town leads with its always-on Places directory,
+  // with the dated What's-on events feed one toggle away.
+  const view: "places" | "whatson" = sp.view === "whatson" ? "whatson" : "places";
 
   const when = (sp.when as DateFilter) || "today";
   const genreParam = sp.genre || "";
@@ -150,12 +154,19 @@ export default async function CityPage({ params, searchParams }: Props) {
     }
   }
 
-  const { data: venues } = await supabase
+  // Places directory: always-on attractions + venues that are also open to
+  // visit (venue_type attraction | both), with their categories for filtering.
+  const { data: rawPlaces } = await supabase
     .from("venues")
-    .select("*")
+    .select("*, venue_genres ( genre:genres ( name, slug ) )")
     .eq("city_id", city.id)
     .eq("approved", true)
+    .in("venue_type", ["attraction", "both"])
     .order("name");
+  const places = (rawPlaces ?? []).map((p: any) => ({
+    ...p,
+    categories: (p.venue_genres ?? []).map((vg: any) => vg.genre).filter(Boolean),
+  }));
 
   const dateLabel = formatDateRangeLabel(when);
 
@@ -165,7 +176,7 @@ export default async function CityPage({ params, searchParams }: Props) {
         <div className="container-page py-10 sm:py-14">
           <CitySwitcher cities={cities ?? []} current={city.slug} />
           <div className="mt-4 flex flex-col gap-2">
-            <p className="eyebrow">{dateLabel} in</p>
+            <p className="eyebrow">{view === "places" ? "Things to do in" : `${dateLabel} in`}</p>
             <h1 className="h-display text-5xl sm:text-7xl">
               {city.name}<span className="text-buzz-accent">.</span>
             </h1>
@@ -176,9 +187,13 @@ export default async function CityPage({ params, searchParams }: Props) {
             )}
             <div className="flex flex-wrap items-center gap-3 mt-1">
               <p className="text-buzz-mute">
-                {events.length === 0
-                  ? "Nothing matches that filter yet."
-                  : `${events.length} ${events.length === 1 ? "activity" : "activities"} found.`}
+                {view === "places"
+                  ? (places.length === 0
+                      ? "No places listed here yet."
+                      : `${places.length} ${places.length === 1 ? "place" : "places"} to explore.`)
+                  : (events.length === 0
+                      ? "Nothing matches that filter yet."
+                      : `${events.length} ${events.length === 1 ? "activity" : "activities"} found.`)}
               </p>
               <Link href={`/${city.slug}/map`} className="text-sm text-buzz-accent hover:text-buzz-accent2">
                 🗺️ Map view →
@@ -188,61 +203,74 @@ export default async function CityPage({ params, searchParams }: Props) {
         </div>
       </section>
 
-      {/* Paid sponsor banner — rotates through live Popular + Premium sponsors
-          targeting this city (or nationwide). Silently disappears when none. */}
-      <SponsorBanner citySlug={city.slug} />
+      {/* Places to go (always-on) | What's on (dated events) */}
+      <div className="container-page pt-6">
+        <CityViewToggle view={view} />
+      </div>
 
       <div className="container-page py-8">
-        <div className="mb-8">
-          <Suspense fallback={<div className="card p-4 text-buzz-mute">Loading filters…</div>}>
-            <EventFilters genres={genres ?? []} />
-          </Suspense>
-        </div>
-
-        {/* Legend so parents know what the accessibility / sensory icons on
-            each listing mean, with a link to the full guide. */}
-        <div className="mb-8">
-          <AccessibilityLegend />
-        </div>
-
-        {/* Featured / pinned gigs */}
-        {featured.length > 0 && (
-          <section className="mb-10">
-            <p className="eyebrow mb-3">📌 Featured</p>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {featured.map((e) => <EventCard key={e.id} event={e} citySlug={city.slug} />)}
+        {view === "places" ? (
+          /* ---------- PLACES TO GO — the always-on directory ---------- */
+          <>
+            <div className="mb-8">
+              <AccessibilityLegend />
             </div>
-          </section>
-        )}
-
-        {events.length === 0 ? (
-          <div className="card p-12 text-center">
-            <div className="text-5xl mb-3">🐝</div>
-            <h2 className="h-display text-3xl mb-2">No buzz here yet</h2>
-            <p className="text-buzz-mute max-w-md mx-auto">
-              Try a wider date range or a different activity. Run a club or venue?{" "}
-              <Link href="/signup?as=venue" className="text-buzz-accent hover:text-buzz-accent2">List your activity free</Link>.
-            </p>
-          </div>
+            {places.length === 0 ? (
+              <div className="card p-12 text-center">
+                <div className="text-5xl mb-3">🐝</div>
+                <h2 className="h-display text-3xl mb-2">No places here yet</h2>
+                <p className="text-buzz-mute max-w-md mx-auto">
+                  We're still adding {city.name} spots. Run a soft play, farm, club or attraction?{" "}
+                  <Link href="/signup?as=venue" className="text-buzz-accent hover:text-buzz-accent2">List your place free</Link>.
+                </p>
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {places.map((p: any) => <PlaceCard key={p.id} place={p} citySlug={city.slug} />)}
+              </div>
+            )}
+          </>
         ) : (
-          <EventsList
-            events={events.filter((e) => !featuredIds.has(e.id))}
-            citySlug={city.slug}
-            groupByDay={groupByDay}
-            groups={groupByDay ? Object.entries(groups).map(([dayKey, dayEvents]) => ({
-              day: dayKey,
-              date: new Date(dayKey),
-              items: dayEvents,
-            })) : undefined}
-          />
-        )}
-
-        {venues && venues.length > 0 && (
-          <section className="mt-20 pt-10 border-t border-buzz-border">
-            <p className="eyebrow mb-2">The places</p>
-            <h2 className="h-display text-3xl sm:text-4xl mb-6">Places to go</h2>
-            <CollapsibleVenueGrid venues={venues} citySlug={city.slug} />
-          </section>
+          /* ---------- WHAT'S ON — the dated events feed ---------- */
+          <>
+            <div className="mb-8">
+              <Suspense fallback={<div className="card p-4 text-buzz-mute">Loading filters…</div>}>
+                <EventFilters genres={genres ?? []} />
+              </Suspense>
+            </div>
+            <div className="mb-8">
+              <AccessibilityLegend />
+            </div>
+            {featured.length > 0 && (
+              <section className="mb-10">
+                <p className="eyebrow mb-3">📌 Featured</p>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {featured.map((e) => <EventCard key={e.id} event={e} citySlug={city.slug} />)}
+                </div>
+              </section>
+            )}
+            {events.length === 0 ? (
+              <div className="card p-12 text-center">
+                <div className="text-5xl mb-3">🐝</div>
+                <h2 className="h-display text-3xl mb-2">No buzz here yet</h2>
+                <p className="text-buzz-mute max-w-md mx-auto">
+                  Try a wider date range or a different activity. Run a club or venue?{" "}
+                  <Link href="/signup?as=venue" className="text-buzz-accent hover:text-buzz-accent2">List your activity free</Link>.
+                </p>
+              </div>
+            ) : (
+              <EventsList
+                events={events.filter((e) => !featuredIds.has(e.id))}
+                citySlug={city.slug}
+                groupByDay={groupByDay}
+                groups={groupByDay ? Object.entries(groups).map(([dayKey, dayEvents]) => ({
+                  day: dayKey,
+                  date: new Date(dayKey),
+                  items: dayEvents,
+                })) : undefined}
+              />
+            )}
+          </>
         )}
       </div>
     </div>
