@@ -52,8 +52,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <main className="flex-1">{children}</main>
           <Footer />
         </NearMeProvider>
-        <Analytics />
-        <SpeedInsights />
+        {process.env.NODE_ENV === "production" && <Analytics />}
+        {process.env.NODE_ENV === "production" && <SpeedInsights />}
         <Script src="https://control-room-php6.onrender.com/px.js" strategy="afterInteractive" />
       </body>
     </html>
