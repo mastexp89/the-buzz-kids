@@ -5,22 +5,20 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import type { Genre } from "@/lib/types";
 import NearMeButton, { SortToggle } from "@/components/NearMeButton";
 
-// Curated list of "popular" genre slugs shown by default. The DB has 25+
-// genres and the previous alphabetical slice meant niche genres (Blues,
-// Classical) elbowed out the things fans actually filter by (Karaoke,
-// Sports, Tribute). Slugs missing from the DB are silently skipped, so
-// this stays safe to edit.
+// Curated "popular" activity-category slugs shown by default. The DB has
+// 25+ categories; this surfaces the ones families filter by most. Slugs
+// missing from the DB are silently skipped, so this stays safe to edit.
 // Order matters — chips appear in this order, left to right.
 const POPULAR_GENRE_SLUGS = [
   // First 4 also show on mobile — most-filtered things go here.
-  "karaoke",
-  "covers",
-  "acoustic",
-  "comedy",
+  "soft-play",
+  "holiday-club",
+  "farm-animals",
+  "arts-crafts",
   // Desktop also shows these.
-  "electronic",
-  "open-mic",
-  "sports",
+  "sports-camp",
+  "theatre",
+  "days-out",
 ];
 
 // On mobile, only the first N popular chips show by default. The rest
@@ -28,8 +26,25 @@ const POPULAR_GENRE_SLUGS = [
 // full popular row is visible and only the "others" tail hides.
 const MOBILE_VISIBLE_COUNT = 4;
 
+// Pill colours from The Buzz Kids logo. Category chips cycle through these
+// so the filter row reads playful/colourful rather than all-gold. Each
+// entry carries the solid fill (active state) + a soft tint (resting state).
+const CHIP_COLOURS = [
+  { solid: "#EC1E8C", on: "#ffffff", tintBg: "#FBE0EC", tintText: "#A3174F" }, // pink
+  { solid: "#1FA9E0", on: "#ffffff", tintBg: "#DCF1FA", tintText: "#0C6087" }, // cyan
+  { solid: "#6FA713", on: "#ffffff", tintBg: "#E6F6E0", tintText: "#3B6D11" }, // lime
+  { solid: "#F9A11B", on: "#1F1B16", tintBg: "#FFEDC2", tintText: "#854F0B" }, // gold
+];
+
+function chipStyle(i: number, active: boolean): React.CSSProperties {
+  const c = CHIP_COLOURS[i % CHIP_COLOURS.length];
+  return active
+    ? { backgroundColor: c.solid, color: c.on, borderColor: c.solid }
+    : { backgroundColor: c.tintBg, color: c.tintText, borderColor: "transparent" };
+}
+
 const DATE_OPTIONS = [
-  { value: "today", label: "Today / Tonight" },
+  { value: "today", label: "Today" },
   { value: "tomorrow", label: "Tomorrow" },
   { value: "weekend", label: "This weekend" },
   { value: "week", label: "This week" },
@@ -109,7 +124,7 @@ export default function EventFilters({ genres }: { genres: Genre[] }) {
             // mobile + desktop — the input was overshadowing the chips
             // sitting beside it.
             className="input max-w-[160px] !py-1 !px-2 !text-xs"
-            style={{ colorScheme: "dark" }}
+            style={{ colorScheme: "light" }}
             value={customDate || todayIso}
             onChange={(e) => update({ when: e.target.value || "today" })}
             aria-label="Pick a date"
@@ -118,18 +133,19 @@ export default function EventFilters({ genres }: { genres: Genre[] }) {
       </div>
 
       <div>
-        <div className="label">Genre</div>
+        <div className="label">Activity</div>
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => update({ genre: null })}
             className={currentGenres.length === 0 ? "chip-accent" : "chip"}
           >
-            Any genre
+            Any activity
           </button>
 
           {/* Popular chips. First MOBILE_VISIBLE_COUNT always show. Chips
               past that index are hidden on mobile (until expanded) but
-              visible on sm+ at all times. */}
+              visible on sm+ at all times. Each chip takes a colour from the
+              logo palette (by overall index) so the row stays colourful. */}
           {popular.map((g, i) => {
             const active = currentGenres.includes(g.slug);
             const mobileHidden = !expanded && i >= MOBILE_VISIBLE_COUNT;
@@ -137,7 +153,8 @@ export default function EventFilters({ genres }: { genres: Genre[] }) {
               <button
                 key={g.id}
                 onClick={() => toggleGenre(g.slug)}
-                className={`${active ? "chip-accent" : "chip"} ${mobileHidden ? "hidden sm:inline-flex" : "inline-flex"}`}
+                style={chipStyle(i, active)}
+                className={`chip ${mobileHidden ? "hidden sm:inline-flex" : "inline-flex"}`}
               >
                 {g.name}
               </button>
@@ -146,13 +163,14 @@ export default function EventFilters({ genres }: { genres: Genre[] }) {
 
           {/* Everything else — hidden on every screen size until expanded. */}
           {expanded &&
-            others.map((g) => {
+            others.map((g, j) => {
               const active = currentGenres.includes(g.slug);
               return (
                 <button
                   key={g.id}
                   onClick={() => toggleGenre(g.slug)}
-                  className={active ? "chip-accent" : "chip"}
+                  style={chipStyle(popular.length + j, active)}
+                  className="chip"
                 >
                   {g.name}
                 </button>
