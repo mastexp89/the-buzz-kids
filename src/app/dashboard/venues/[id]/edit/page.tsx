@@ -12,15 +12,19 @@ export default async function EditVenuePage({ params }: { params: Promise<{ id: 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const [{ data: me }, { data: venue }, { data: cities }] = await Promise.all([
+  const [{ data: me }, { data: venue }, { data: cities }, { data: genres }] = await Promise.all([
     supabase.from("profiles").select("role").eq("id", user.id).maybeSingle(),
     supabase.from("venues").select("*").eq("id", id).maybeSingle(),
     supabase.from("cities").select("*").eq("active", true).order("name"),
+    supabase.from("genres").select("*").order("name"),
   ]);
 
   if (!venue) notFound();
   const isAdmin = me?.role === "admin";
   if (venue.owner_id !== user.id && !isAdmin) notFound();
+
+  const { data: vgRows } = await supabase.from("venue_genres").select("genre:genres(slug)").eq("venue_id", venue.id);
+  const currentCategories = (vgRows ?? []).map((r: any) => r.genre?.slug).filter(Boolean);
 
   // Admin-only: load every event at this venue so the side panel can show
   // a delete button per row. Skip the fetch entirely for non-admins.
@@ -54,7 +58,7 @@ export default async function EditVenuePage({ params }: { params: Promise<{ id: 
     return (
       <div className="flex flex-col gap-6 max-w-3xl">
         {header}
-        <VenueForm venue={venue} cities={cities ?? []} />
+        <VenueForm venue={venue} cities={cities ?? []} categories={genres ?? []} currentCategories={currentCategories} />
       </div>
     );
   }
@@ -65,7 +69,7 @@ export default async function EditVenuePage({ params }: { params: Promise<{ id: 
       <div className="grid lg:grid-cols-[300px_1fr] gap-6 items-start">
         <AdminEventsPanel venueId={venue.id} events={venueEvents} />
         <div className="max-w-3xl">
-          <VenueForm venue={venue} cities={cities ?? []} isAdmin={isAdmin} />
+          <VenueForm venue={venue} cities={cities ?? []} categories={genres ?? []} currentCategories={currentCategories} isAdmin={isAdmin} />
         </div>
       </div>
     </div>

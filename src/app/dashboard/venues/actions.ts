@@ -43,6 +43,43 @@ export async function saveVenue(formData: FormData) {
   const youtube = String(formData.get("youtube") ?? "").trim() || null;
   const gallery_image_urls = formData.getAll("gallery").map(String).filter(Boolean);
 
+  // --- Kids' listing fields ---
+  const intIn = (key: string, lo: number, hi: number): number | null => {
+    const s = String(formData.get(key) ?? "").trim();
+    if (s === "") return null;
+    const n = Number(s);
+    return Number.isFinite(n) ? Math.round(Math.max(lo, Math.min(hi, n))) : null;
+  };
+  const venue_type = (() => {
+    const v = String(formData.get("venue_type") ?? "attraction").trim();
+    return ["attraction", "programmes", "both"].includes(v) ? v : "attraction";
+  })();
+  const age_min = intIn("age_min", 0, 18);
+  const age_max = intIn("age_max", 0, 18);
+  const is_free = formData.get("is_free") === "on" || formData.get("is_free") === "true";
+  const priceRaw = String(formData.get("price_from") ?? "").trim();
+  const price_from = priceRaw === "" || !Number.isFinite(Number(priceRaw)) ? null : Math.max(0, Number(priceRaw));
+  const price_note = String(formData.get("price_note") ?? "").trim() || null;
+  const setting = (() => {
+    const v = String(formData.get("setting") ?? "").trim();
+    return ["indoor", "outdoor", "both"].includes(v) ? v : null;
+  })();
+  const booking_required = formData.get("booking_required") === "on" || formData.get("booking_required") === "true";
+  const booking_url = String(formData.get("booking_url") ?? "").trim() || null;
+  const accessibility = formData.getAll("accessibility").map(String).filter(Boolean);
+  const categorySlugs = formData.getAll("category").map(String).filter(Boolean);
+  const kidsFields = { venue_type, age_min, age_max, is_free, price_from, price_note, setting, booking_required, booking_url, accessibility };
+
+  // Replace a venue's category tags (venue_genres) with the chosen slugs.
+  async function syncCategories(client: any, vId: string, slugs: string[]) {
+    await client.from("venue_genres").delete().eq("venue_id", vId);
+    if (slugs.length === 0) return;
+    const { data: gs } = await client.from("genres").select("id, slug").in("slug", slugs);
+    if (gs && gs.length > 0) {
+      await client.from("venue_genres").insert(gs.map((g: any) => ({ venue_id: vId, genre_id: g.id })));
+    }
+  }
+
   if (!name || !city_id) return { error: "Name and city are required." };
 
   // Geocode postcode → lat/long (UK only, free, no auth)
@@ -99,10 +136,12 @@ export async function saveVenue(formData: FormData) {
         instagram, facebook, twitter, tiktok, spotify, youtube,
         gallery_image_urls,
         latitude, longitude,
+        ...kidsFields,
         ...(slugUpdate ? { slug: slugUpdate } : {}),
       })
       .eq("id", venueId);
     if (error) return { error: error.message };
+    await syncCategories(supabase, venueId, categorySlugs);
 
     const citySlug = (existing.city as any)?.slug ?? "dundee";
 
@@ -163,8 +202,10 @@ export async function saveVenue(formData: FormData) {
       instagram, facebook, twitter, tiktok, spotify, youtube,
       gallery_image_urls,
       latitude, longitude,
+      ...kidsFields,
     }).select("id").single();
     if (error) return { error: error.message };
+    await syncCategories(supabase, created.id, categorySlugs);
 
     // Email admin so they can review the new venue
     const { data: cityRow } = await supabase.from("cities").select("name").eq("id", city_id).maybeSingle();

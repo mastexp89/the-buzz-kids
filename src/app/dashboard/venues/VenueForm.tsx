@@ -2,21 +2,28 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { City, Venue } from "@/lib/types";
+import type { City, Venue, Genre } from "@/lib/types";
 import { saveVenue } from "./actions";
 import ImageUploader from "@/components/ImageUploader";
 import GalleryUploader from "@/components/GalleryUploader";
 import OpeningHoursEditor, { type OpeningHours } from "@/components/OpeningHoursEditor";
+import { ACCESS_FACETS } from "@/lib/accessibility";
 
 export default function VenueForm({
   venue,
   cities,
+  categories = [],
+  currentCategories = [],
   ownerOverride,
   redirectAfterCreate,
   isAdmin = false,
 }: {
   venue: Venue | null;
   cities: City[];
+  /** Activity categories to choose from (the genres taxonomy). */
+  categories?: Genre[];
+  /** Slugs of the categories this venue already has. */
+  currentCategories?: string[];
   /** Admin-only: assign the new venue to this user instead of the current admin */
   ownerOverride?: string;
   /** Override where to send the user after a successful create */
@@ -24,6 +31,8 @@ export default function VenueForm({
   /** Show the admin-only slug edit field */
   isAdmin?: boolean;
 }) {
+  const v = venue as any;
+  const currentAccess: string[] = Array.isArray(v?.accessibility) ? v.accessibility : [];
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -125,7 +134,98 @@ export default function VenueForm({
       <div className="sm:col-span-2">
         <label className="label">Description</label>
         <textarea className="input min-h-[120px]" name="description" defaultValue={venue?.description ?? ""}
-          placeholder="What's your venue about? Sound system, capacity, regular nights…" />
+          placeholder="What's it like for families? What can the kids do, and what's handy to know…" />
+      </div>
+
+      {/* ---- For families: what powers the kids filters + badges ---- */}
+      <div className="sm:col-span-2 grid sm:grid-cols-2 gap-4 border-t border-buzz-border/60 pt-5 mt-2">
+        <div className="sm:col-span-2 mb-1">
+          <p className="eyebrow text-[10px]">For families</p>
+          <p className="help">This is what powers the filters and badges parents search by.</p>
+        </div>
+
+        <div className="sm:col-span-2">
+          <label className="label">What kind of place is it?</label>
+          <div className="flex flex-col gap-1.5 text-sm">
+            {[
+              ["attraction", "Always open to visit (soft play, park, farm…)"],
+              ["programmes", "Runs dated sessions / events (classes, camps, shows)"],
+              ["both", "Both — open to visit AND runs events"],
+            ].map(([val, lbl]) => (
+              <label key={val} className="flex items-center gap-2">
+                <input type="radio" name="venue_type" value={val} defaultChecked={(v?.venue_type ?? "attraction") === val} /> {lbl}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="label">Suitable ages</label>
+          <div className="flex items-center gap-2">
+            <input className="input !w-20" type="number" name="age_min" min={0} max={18} defaultValue={v?.age_min ?? ""} placeholder="0" />
+            <span className="text-buzz-mute">to</span>
+            <input className="input !w-20" type="number" name="age_max" min={0} max={18} defaultValue={v?.age_max ?? ""} placeholder="12" />
+          </div>
+          <p className="help">Leave blank for all ages.</p>
+        </div>
+
+        <div>
+          <label className="label">Indoor or outdoor?</label>
+          <div className="flex flex-wrap gap-3 text-sm mt-2">
+            {[["indoor", "Indoor"], ["outdoor", "Outdoor"], ["both", "Both"]].map(([val, lbl]) => (
+              <label key={val} className="flex items-center gap-1.5">
+                <input type="radio" name="setting" value={val} defaultChecked={v?.setting === val} /> {lbl}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="label">Price</label>
+          <label className="flex items-center gap-2 text-sm mb-2">
+            <input type="checkbox" name="is_free" defaultChecked={!!v?.is_free} /> Free to visit
+          </label>
+          <div className="flex items-center gap-2">
+            <span className="text-buzz-mute text-sm">From £</span>
+            <input className="input !w-24" type="number" step="0.01" name="price_from" min={0} defaultValue={v?.price_from ?? ""} placeholder="6.50" />
+          </div>
+          <input className="input mt-2" name="price_note" defaultValue={v?.price_note ?? ""} placeholder="e.g. £6.50 per child, adults free" />
+        </div>
+
+        <div>
+          <label className="label">Booking</label>
+          <label className="flex items-center gap-2 text-sm mb-2">
+            <input type="checkbox" name="booking_required" defaultChecked={!!v?.booking_required} /> Booking needed
+          </label>
+          <input className="input" type="url" name="booking_url" defaultValue={v?.booking_url ?? ""} placeholder="https://…booking link" />
+        </div>
+
+        {categories.length > 0 && (
+          <div className="sm:col-span-2">
+            <label className="label">Categories</label>
+            <p className="help mb-2">Pick all that fit — these are how families filter.</p>
+            <div className="flex flex-wrap gap-2">
+              {categories.map((g) => (
+                <label key={g.id} className="chip cursor-pointer">
+                  <input type="checkbox" name="category" value={g.slug} defaultChecked={currentCategories.includes(g.slug)} className="mr-1.5" /> {g.name}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="sm:col-span-2">
+          <label className="label">Accessibility &amp; sensory</label>
+          <p className="help mb-2">Tick anything you offer — only tick what you can confirm.</p>
+          <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1.5">
+            {ACCESS_FACETS.map((f) => (
+              <label key={f.key} className="flex items-center gap-2 text-sm">
+                <input type="checkbox" name="accessibility" value={f.key} defaultChecked={currentAccess.includes(f.key)} />
+                <span aria-hidden>{f.icon}</span> {f.label}
+              </label>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="sm:col-span-2">
