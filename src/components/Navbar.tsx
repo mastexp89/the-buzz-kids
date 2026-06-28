@@ -21,6 +21,7 @@ export default async function Navbar() {
   const mobileItems: { href: string; label: string; accent?: boolean }[] = [
     { href: "/", label: "Home" },
     { href: "/about", label: "About" },
+    { href: "/accessibility", label: "Sensory & Access" },
     { href: "/signup?as=venue", label: "List an activity" },
   ];
   if (user) {
@@ -49,6 +50,7 @@ export default async function Navbar() {
         <nav className="hidden sm:flex items-center gap-2 text-sm font-medium">
           <Link href="/" className="px-3 py-2 rounded-lg hover:bg-buzz-card transition">Home</Link>
           <Link href="/about" className="px-3 py-2 rounded-lg hover:bg-buzz-card transition">About</Link>
+          <Link href="/accessibility" className="px-3 py-2 rounded-lg hover:bg-buzz-card transition">Sensory &amp; Access</Link>
           <Link href="/signup?as=venue" className="px-3 py-2 rounded-lg hover:bg-buzz-card transition">List an activity</Link>
           {user ? (
             <>
