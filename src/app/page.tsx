@@ -5,6 +5,90 @@ import { trackPageView } from "@/lib/track";
 
 export const dynamic = "force-dynamic";
 
+// ---------------------------------------------------------------------------
+// Coming-soon holding page
+// ---------------------------------------------------------------------------
+// Set COMING_SOON=true in Vercel env vars to show this instead of the full
+// homepage. All other routes (admin, city pages, auth) stay accessible.
+// Remove the env var (or set it to anything other than "true") to launch.
+// ---------------------------------------------------------------------------
+async function ComingSoon() {
+  const supabase = await createClient();
+  const { data: cities } = await supabase
+    .from("cities")
+    .select("name, slug, active")
+    .order("name");
+  const active = (cities ?? []).filter((c) => c.active);
+  const upcoming = (cities ?? []).filter((c) => !c.active);
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-grain px-6 py-20 text-center">
+      <div className="mb-8 relative w-28 h-28 sm:w-36 sm:h-36">
+        <Image src="/logo.png" alt="The Buzz Kids" fill className="object-contain" priority />
+      </div>
+
+      <p className="eyebrow mb-3">Coming soon</p>
+
+      <h1 className="h-display text-5xl sm:text-7xl mb-4 leading-none">
+        <span className="text-buzz-text">The Buzz </span>
+        <span style={{ color: "#EC1E8C" }}>K</span>
+        <span style={{ color: "#1FA9E0" }}>i</span>
+        <span style={{ color: "#6FA713" }}>d</span>
+        <span style={{ color: "#F9A11B" }}>s</span>
+        <span style={{ color: "#EC1E8C" }}>.</span>
+      </h1>
+
+      <p className="text-buzz-mute text-lg sm:text-xl max-w-lg mb-8">
+        Scotland's new family days-out guide — soft play, farms, holiday clubs,
+        museums and more. Filter by age, price and whether the sun's out.
+      </p>
+
+      {active.length > 0 && (
+        <div className="mb-8">
+          <p className="text-sm text-buzz-mute mb-3">Launching in</p>
+          <div className="flex flex-wrap justify-center gap-2">
+            {active.map((c) => (
+              <span
+                key={c.slug}
+                className="filter-pill pointer-events-none"
+              >
+                📍 {c.name}
+              </span>
+            ))}
+          </div>
+          {upcoming.length > 0 && (
+            <p className="text-xs text-buzz-mute mt-3">
+              More areas to follow — {upcoming.map((c) => c.name).join(", ")} and beyond.
+            </p>
+          )}
+        </div>
+      )}
+
+      <p className="text-buzz-mute text-sm max-w-md mb-2">
+        Run a soft play, farm, library or holiday club?
+      </p>
+      <Link
+        href="/signup?as=venue"
+        className="btn-primary"
+      >
+        List your place free — be first in the directory →
+      </Link>
+
+      <p className="mt-10 text-xs text-buzz-mute/50">
+        A sister site to{" "}
+        <a href="https://www.thebuzzguide.co.uk" target="_blank" rel="noopener" className="hover:text-buzz-mute transition">
+          The Buzz Guide
+        </a>
+        . Designed by{" "}
+        <a href="https://www.forthhost.com" target="_blank" rel="noopener" className="hover:text-buzz-mute transition">
+          Forth Host &amp; Web Design
+        </a>
+        .
+      </p>
+    </div>
+  );
+}
+
 // Format ["Dundee", "Angus"] -> "Dundee and Angus".
 // ["Dundee", "Angus", "Aberdeen"] -> "Dundee, Angus and Aberdeen".
 // Empty array returns "" so callers can guard.
@@ -15,6 +99,8 @@ function formatCityList(names: string[]): string {
 }
 
 export default async function Home() {
+  if (process.env.COMING_SOON === "true") return <ComingSoon />;
+
   const supabase = await createClient();
 
   // Track homepage views — most visitors land here first, not on a
