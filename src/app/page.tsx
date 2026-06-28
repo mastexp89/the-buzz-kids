@@ -89,43 +89,30 @@ async function ComingSoon() {
   );
 }
 
-// Format ["Dundee", "Angus"] -> "Dundee and Angus".
-// ["Dundee", "Angus", "Aberdeen"] -> "Dundee, Angus and Aberdeen".
-// Empty array returns "" so callers can guard.
-function formatCityList(names: string[]): string {
-  if (names.length === 0) return "";
-  if (names.length === 1) return names[0];
-  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
-}
 
 export default async function Home() {
   if (process.env.COMING_SOON === "true") return <ComingSoon />;
 
   const supabase = await createClient();
-
-  // Track homepage views — most visitors land here first, not on a
-  // venue / event detail page, so skipping this kills the analytics
-  // top-line. Fire-and-forget, bot filter applied inside.
   trackPageView({ source: "homepage" });
 
-  const { data: cities } = await supabase.from("cities").select("*").order("name");
+  const [{ data: cityRows }, { data: spotlightVenues }] = await Promise.all([
+    supabase.from("cities").select("name, slug").eq("active", true).order("name"),
+    supabase
+      .from("venues")
+      .select("id, name, slug, logo_url, cover_photo_url, image_url, city:cities(name, slug, active)")
+      .eq("approved", true)
+      .gt("spotlight_until", new Date().toISOString())
+      .order("spotlight_until", { ascending: false })
+      .limit(6),
+  ]);
 
-  // Spotlight venues (active venue spotlights, in active cities)
-  const nowIso = new Date().toISOString();
-  const { data: spotlightVenues } = await supabase
-    .from("venues")
-    .select("id, name, slug, logo_url, cover_photo_url, image_url, address, city:cities(name, slug, active)")
-    .eq("approved", true)
-    .gt("spotlight_until", nowIso)
-    .order("spotlight_until", { ascending: false })
-    .limit(6);
+  const activeCities = cityRows ?? [];
   const spotlight = (spotlightVenues ?? []).filter((v: any) => v.city?.active);
-
-  const activeCities = (cities ?? []).filter((c) => c.active);
-  const upcomingCities = (cities ?? []).filter((c) => !c.active);
 
   return (
     <div>
+      {/* Hero */}
       <section className="relative overflow-hidden bg-grain border-b border-buzz-border">
         <div className="absolute inset-0 -z-10 bg-gradient-to-b from-buzz-accent/10 via-transparent to-transparent" />
         <div className="container-page py-16 sm:py-24 grid md:grid-cols-[1fr_auto] gap-10 items-center">
@@ -140,77 +127,36 @@ export default async function Home() {
               <span style={{ color: "#EC1E8C" }}>.</span>
             </h1>
             <p className="mt-6 text-buzz-mute max-w-xl text-lg">
-              Kid-friendly things to do near you — soft play, holiday clubs, farm days,
-              kids' theatre and messy play. Filter by age, price and whether it's
-              rain or shine.
+              Scotland's family days-out guide — soft play, farms, museums, holiday
+              clubs and more. Filter by age, price and whether it's raining.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              {/* One "Browse <City>" button per active city. Dundee surfaces
-                  first because it's the original / largest catchment; new
-                  cities get added next to it as they go live. */}
-              {[...activeCities]
-                .sort((a, b) => {
-                  if (a.slug === "dundee") return -1;
-                  if (b.slug === "dundee") return 1;
-                  return a.name.localeCompare(b.name);
-                })
-                .map((c) => (
-                  <Link
-                    key={c.id}
-                    href={`/${c.slug}`}
-                    className="btn-primary btn-lg"
-                  >
-                    Browse {c.name} →
-                  </Link>
-                ))}
-<Link href="/browse" className="btn-secondary btn-lg">Browse everywhere →</Link>
+              <Link href="/browse" className="btn-primary btn-lg">Browse activities →</Link>
               <Link href="/surprise" className="btn-secondary btn-lg">🎲 Surprise me</Link>
             </div>
             <p className="mt-4 text-sm text-buzz-mute">
-              Want to save to your bucket list, leave reviews and get holiday activity alerts?{" "}
+              Want to save to your bucket list and get holiday alerts?{" "}
               <Link href="/signup?as=fan" className="text-buzz-accent hover:text-buzz-accent2 font-medium">
                 ♡ Sign up free
               </Link>
             </p>
-            {/* Only show the "we currently serve... expanding..." copy when
-                more than one city is live. With a single live city the
-                buttons + hero already convey it; mentioning expansion gives
-                away cities the admin's prepping in private. */}
-            {activeCities.length > 1 && (
-              <p className="mt-6 text-sm text-buzz-mute max-w-xl">
-                We currently serve {formatCityList(
-                  [...activeCities]
-                    .sort((a, b) => {
-                      if (a.slug === "dundee") return -1;
-                      if (b.slug === "dundee") return 1;
-                      return a.name.localeCompare(b.name);
-                    })
-                    .map((c) => c.name),
-                )}, with more areas being added all the time.
+            {activeCities.length > 0 && (
+              <p className="mt-5 text-xs text-buzz-mute">
+                Covering {activeCities.map((c) => c.name).join(", ")} — more areas added regularly.
               </p>
             )}
           </div>
           <div className="hidden md:block relative w-[280px] h-[280px]">
-            <Image
-              src="/logo.png"
-              alt="The Buzz Kids logo"
-              fill
-              priority
-              sizes="280px"
-              className="object-contain"
-            />
+            <Image src="/logo.png" alt="The Buzz Kids logo" fill priority sizes="280px" className="object-contain" />
           </div>
         </div>
       </section>
 
+      {/* Spotlight */}
       {spotlight.length > 0 && (
         <section className="container-page py-12 sm:py-16 border-t border-buzz-border">
-          <div className="flex items-end justify-between mb-6 gap-4">
-            <div>
-              <p className="eyebrow mb-2">🔦 Spotlight</p>
-              <h2 className="h-display text-4xl sm:text-5xl">Featured places</h2>
-            </div>
-          </div>
+          <p className="eyebrow mb-2">🔦 Spotlight</p>
+          <h2 className="h-display text-4xl sm:text-5xl mb-6">Featured places</h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {spotlight.map((v: any) => (
               <Link
@@ -223,8 +169,6 @@ export default async function Home() {
                     className="w-16 h-16 rounded-xl bg-buzz-surface shrink-0"
                     style={{
                       backgroundImage: `url(${v.logo_url || v.cover_photo_url || v.image_url})`,
-                      // logo_url / cover_photo_url are usually square branded — contain
-                      // keeps them whole. image_url is wider — cover crops cleanly.
                       backgroundSize: (v.logo_url || v.cover_photo_url) ? "contain" : "cover",
                       backgroundPosition: "center",
                       backgroundRepeat: "no-repeat",
@@ -243,6 +187,7 @@ export default async function Home() {
         </section>
       )}
 
+      {/* How it works */}
       <section className="container-page py-12 sm:py-16 border-t border-buzz-border">
         <div className="text-center mb-10">
           <p className="eyebrow mb-2">How it works</p>
@@ -250,8 +195,8 @@ export default async function Home() {
         </div>
         <div className="grid sm:grid-cols-3 gap-4">
           {[
-            { n: "01", t: "Pick your area", d: "Choose your local area — we cover Scottish towns and we're rolling out fast." },
-            { n: "02", t: "Filter for your kids", d: "Age, price, indoor or outdoor and what they're into. We'll show you what fits." },
+            { n: "01", t: "Browse everything", d: "All our areas in one place — filter by activity type, age, price and accessibility." },
+            { n: "02", t: "Filter for your kids", d: "Narrow it down to what fits — indoor, outdoor, toddler-friendly, sensory-friendly." },
             { n: "03", t: "Go have fun", d: "Times, prices, booking links and accessibility info — all in one place." },
           ].map((s) => (
             <div key={s.n} className="card p-6 lift">
@@ -263,51 +208,41 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Parent signup CTA — softer, more colourful card. Positioned before
-          the provider CTA so parents reading top-down see "this is for me"
-          first. Most homepage visitors are parents/carers. */}
+      {/* Parent CTA */}
       <section className="container-page pt-6">
         <div className="relative overflow-hidden rounded-3xl border border-buzz-accent/30 bg-buzz-card p-10 sm:p-14 text-center">
           <p className="text-xs uppercase tracking-[0.2em] font-bold mb-2 text-buzz-accent">For parents &amp; carers</p>
-          <h2 className="h-display text-4xl sm:text-5xl mb-3">
-            Never miss a great day out.
-          </h2>
+          <h2 className="h-display text-4xl sm:text-5xl mb-3">Never miss a great day out.</h2>
           <p className="max-w-xl mx-auto text-buzz-mute mb-6">
-            Save places and activities to your bucket list, leave reviews for other parents
-            and get alerts when new sessions drop for the school holidays. Free, no spam.
+            Save places to your bucket list, leave reviews for other parents and get
+            alerts when new sessions drop for the school holidays. Free, no spam.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
-            <Link
-              href="/signup?as=fan"
-              className="inline-flex items-center gap-2 rounded-lg bg-buzz-accent text-white font-bold px-6 py-3 hover:opacity-90 transition"
-            >
+            <Link href="/signup?as=fan" className="inline-flex items-center gap-2 rounded-lg bg-buzz-accent text-white font-bold px-6 py-3 hover:opacity-90 transition">
               ♡ Sign up free →
             </Link>
-            <Link
-              href="/login"
-              className="inline-flex items-center gap-2 rounded-lg bg-transparent text-buzz-text font-semibold px-6 py-3 hover:bg-buzz-surface transition border-2 border-buzz-border"
-            >
+            <Link href="/login" className="inline-flex items-center gap-2 rounded-lg bg-transparent text-buzz-text font-semibold px-6 py-3 hover:bg-buzz-surface transition border-2 border-buzz-border">
               I already have an account
             </Link>
           </div>
         </div>
       </section>
 
+      {/* Provider CTA */}
       <section className="container-page pb-20 pt-6">
         <div className="relative overflow-hidden rounded-3xl bg-buzz-accent text-white p-10 sm:p-14 text-center">
           <div className="absolute -top-8 -right-8 w-48 h-48 opacity-10">
             <Image src="/logo.png" alt="" fill className="object-contain" />
           </div>
-          <p className="text-xs uppercase tracking-[0.2em] font-bold mb-2">For clubs, venues &amp; activity providers</p>
+          <p className="text-xs uppercase tracking-[0.2em] font-bold mb-2">For clubs, places &amp; activity providers</p>
           <h2 className="h-display text-4xl sm:text-5xl mb-3">List your activities.<br />Free, forever.</h2>
           <p className="max-w-lg mx-auto text-white/85 mb-6">
-            Free for soft plays, farms, libraries, leisure trusts, theatres and holiday-club providers. Reach local families looking for things to do — this weekend, this holiday and beyond.
+            Free for soft plays, farms, libraries, leisure trusts, theatres and holiday-club providers.
+            Reach local families looking for things to do — this weekend, this holiday and beyond.
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <Link href="/signup?as=venue" className="inline-flex items-center gap-2 rounded-lg bg-white text-buzz-accent font-bold px-6 py-3 hover:bg-white/90 transition">
-              List an activity free →
-            </Link>
-          </div>
+          <Link href="/signup?as=venue" className="inline-flex items-center gap-2 rounded-lg bg-white text-buzz-accent font-bold px-6 py-3 hover:bg-white/90 transition">
+            List an activity free →
+          </Link>
         </div>
       </section>
     </div>
