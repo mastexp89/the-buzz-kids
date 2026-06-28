@@ -37,7 +37,7 @@ type ExtractedEvent = {
   starts_at: string;
   ends_at: string | null;
   recurring: { pattern: string; until: string | null } | null;
-  type: string;
+  type?: string;
   genres: string[];
   description: string;
   confidence: number;
@@ -336,7 +336,7 @@ export default function ExtractClient({ venues }: { venues: Venue[] }) {
                             })}
                           </>
                         )}
-                        <span className="text-buzz-text/60"> · {e.type.replace("_", " ")}</span>
+                        {e.type && <span className="text-buzz-text/60"> · {e.type.replace("_", " ")}</span>}
                         {e.recurring && (
                           <span className="text-buzz-accent"> · {e.recurring.pattern}</span>
                         )}
