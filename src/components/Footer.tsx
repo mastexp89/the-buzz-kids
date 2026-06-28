@@ -58,6 +58,7 @@ export default async function Footer() {
         <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-buzz-mute">
           <Link href="/about" className="hover:text-buzz-accent transition">About</Link>
           <Link href={browseHref} className="hover:text-buzz-accent transition">{browseLabel}</Link>
+          <Link href="/accessibility" className="hover:text-buzz-accent transition">Accessibility</Link>
           <Link href="/privacy" className="hover:text-buzz-accent transition">Privacy</Link>
           {user ? (
             <>

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import EventCard from "@/components/EventCard";
 import EventsList from "@/components/EventsList";
 import EventFilters from "@/components/EventFilters";
+import { AccessibilityLegend } from "@/components/AccessibilityBadges";
 import CollapsibleVenueGrid from "@/components/CollapsibleVenueGrid";
 import CitySwitcher from "@/components/CitySwitcher";
 import SponsorBanner from "@/components/SponsorBanner";
@@ -196,6 +197,12 @@ export default async function CityPage({ params, searchParams }: Props) {
           <Suspense fallback={<div className="card p-4 text-buzz-mute">Loading filters…</div>}>
             <EventFilters genres={genres ?? []} />
           </Suspense>
+        </div>
+
+        {/* Legend so parents know what the accessibility / sensory icons on
+            each listing mean, with a link to the full guide. */}
+        <div className="mb-8">
+          <AccessibilityLegend />
         </div>
 
         {/* Featured / pinned gigs */}

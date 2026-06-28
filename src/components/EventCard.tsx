@@ -3,9 +3,18 @@ import { formatEventTime, extractTownFromAddress, pickEventIcon } from "@/lib/ut
 import type { EventWithVenue } from "@/lib/types";
 import { DistancePill } from "@/components/NearMeButton";
 import EventThumb from "@/components/EventThumb";
+import { AccessibilityBadges } from "@/components/AccessibilityBadges";
 
 function isActive(iso: string | null | undefined) {
   return !!iso && new Date(iso).getTime() > Date.now();
+}
+
+// "Ages 3–8" / "Ages 5+" / "Up to 4s" / null when unspecified.
+function ageLabel(min: number | null | undefined, max: number | null | undefined): string | null {
+  if (min == null && max == null) return null;
+  if (min != null && max != null) return min === max ? `Age ${min}` : `Ages ${min}–${max}`;
+  if (min != null) return `Ages ${min}+`;
+  return `Up to ${max}s`;
 }
 
 export default function EventCard({ event, citySlug }: { event: EventWithVenue; citySlug: string }) {
@@ -78,13 +87,27 @@ export default function EventCard({ event, citySlug }: { event: EventWithVenue; 
         <p className="text-sm text-buzz-mute line-clamp-2">{event.description}</p>
       )}
 
-      <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-1">
-        {event.genres.slice(0, 3).map((g) => (
-          <span key={g.id} className="chip text-[11px]">{g.name}</span>
-        ))}
-        {event.cover_charge && (
-          <span className="ml-auto text-xs text-buzz-accent font-semibold">{event.cover_charge}</span>
-        )}
+      <div className="mt-auto flex flex-col gap-2 pt-1">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {(() => {
+            const age = ageLabel((event as any).age_min, (event as any).age_max);
+            return age ? (
+              <span className="inline-flex items-center rounded-full bg-buzz-surface border border-buzz-border px-2.5 py-1 text-[11px] font-medium">
+                {age}
+              </span>
+            ) : null;
+          })()}
+          {event.genres.slice(0, 3).map((g) => (
+            <span key={g.id} className="chip text-[11px]">{g.name}</span>
+          ))}
+          {((event as any).is_free || event.cover_charge) && (
+            <span className="ml-auto text-xs text-buzz-good font-semibold">
+              {(event as any).is_free ? "Free" : event.cover_charge}
+            </span>
+          )}
+        </div>
+        {/* Accessibility / sensory icons — renders nothing when none set. */}
+        <AccessibilityBadges items={(event as any).accessibility} size="sm" />
       </div>
     </Link>
   );
