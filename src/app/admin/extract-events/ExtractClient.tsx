@@ -336,7 +336,7 @@ export default function ExtractClient({ venues }: { venues: Venue[] }) {
                             })}
                           </>
                         )}
-                        {e.type && <span className="text-buzz-text/60"> · {e.type.replace("_", " ")}</span>}
+                        {e.type ? <span className="text-buzz-text/60"> · {e.type.replace("_", " ")}</span> : null}
                         {e.recurring && (
                           <span className="text-buzz-accent"> · {e.recurring.pattern}</span>
                         )}
