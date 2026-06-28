@@ -130,7 +130,7 @@ export default async function Home() {
                     Browse {c.name} →
                   </Link>
                 ))}
-              <Link href="/signup?as=venue" className="btn-secondary btn-lg">List an activity</Link>
+              <Link href="/surprise" className="btn-secondary btn-lg">🎲 Surprise me</Link>
             </div>
             <p className="mt-4 text-sm text-buzz-mute">
               Want to save your favourites and hear about new activities each holiday?{" "}

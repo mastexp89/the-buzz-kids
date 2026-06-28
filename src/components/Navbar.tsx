@@ -21,6 +21,7 @@ export default async function Navbar() {
   const mobileItems: { href: string; label: string; accent?: boolean }[] = [
     { href: "/", label: "Home" },
     { href: "/browse", label: "Browse all" },
+    { href: "/surprise", label: "🎲 Surprise me" },
     { href: "/about", label: "About" },
     { href: "/accessibility", label: "Sensory & Access" },
     { href: "/signup?as=venue", label: "List an activity" },
