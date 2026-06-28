@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ city: string }>;
-  searchParams: Promise<{ cat?: string; access?: string; toddler?: string; rain?: string; outdoor?: string; free?: string }>;
+  searchParams: Promise<{ cat?: string; access?: string; toddler?: string; rain?: string; outdoor?: string; free?: string; other?: string }>;
 };
 
 export async function generateMetadata({ params }: Props) {
@@ -51,6 +51,7 @@ export default async function CityPage({ params, searchParams }: Props) {
   const places = await fetchPlaces(supabase, {
     cityId: city.id,
     catSlugs: placeCats,
+    uncategorised: sp.other === "1",
     toddler: sp.toddler === "1",
     indoorOnly: sp.rain === "1",
     outdoorOnly: sp.outdoor === "1",

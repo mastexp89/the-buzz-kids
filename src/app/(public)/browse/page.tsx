@@ -14,7 +14,7 @@ export const metadata = {
 };
 
 type Props = {
-  searchParams: Promise<{ cat?: string; access?: string; toddler?: string; rain?: string; outdoor?: string; free?: string; loc?: string }>;
+  searchParams: Promise<{ cat?: string; access?: string; toddler?: string; rain?: string; outdoor?: string; free?: string; other?: string; loc?: string }>;
 };
 
 export default async function BrowsePage({ searchParams }: Props) {
@@ -34,6 +34,7 @@ export default async function BrowsePage({ searchParams }: Props) {
   const rain = sp.rain === "1";
   const outdoor = sp.outdoor === "1";
   const free = sp.free === "1";
+  const other = sp.other === "1";
   const loc = sp.loc || "";
 
   // Location filter: a single chosen town, or all active towns.
@@ -51,6 +52,7 @@ export default async function BrowsePage({ searchParams }: Props) {
     cityId,
     cityIds,
     catSlugs: cats,
+    uncategorised: other,
     toddler,
     indoorOnly: rain,
     outdoorOnly: outdoor,

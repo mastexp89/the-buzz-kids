@@ -9,6 +9,7 @@ export type PlaceQuery = {
   cityId?: string | null;        // restrict to one town (town page)
   cityIds?: string[] | null;     // restrict to a set of towns (browse = active towns)
   catSlugs?: string[];           // category filter (venue_genres)
+  uncategorised?: boolean;       // only places with NO genre assigned ("Other")
   toddler?: boolean;             // only places suitable from toddler age
   indoorOnly?: boolean;          // rainy-day: indoor or indoor+outdoor places
   outdoorOnly?: boolean;         // planner: outdoor or indoor+outdoor places
@@ -19,16 +20,23 @@ export type PlaceQuery = {
 };
 
 export async function fetchPlaces(supabase: SupabaseClient, opts: PlaceQuery): Promise<any[]> {
-  // Resolve a category filter to a set of venue ids via the venue_genres join.
-  let venueIdFilter: string[] | null = null;
-  if (opts.catSlugs && opts.catSlugs.length > 0) {
+  // Resolve the category filter to a venue-id allow/deny list via venue_genres.
+  let venueIdInclude: string[] | null = null; // null = no filter
+  let venueIdExclude: string[] = [];
+
+  if (opts.uncategorised) {
+    // "Other" — venues with NO genre assigned. Find every venue that HAS a
+    // genre so we can exclude them.
+    const { data: vg } = await supabase.from("venue_genres").select("venue_id");
+    venueIdExclude = Array.from(new Set((vg ?? []).map((r: any) => r.venue_id as string)));
+  } else if (opts.catSlugs && opts.catSlugs.length > 0) {
     const { data: gids } = await supabase.from("genres").select("id").in("slug", opts.catSlugs);
     const ids = (gids ?? []).map((g: any) => g.id);
     if (ids.length === 0) {
-      venueIdFilter = [];
+      venueIdInclude = [];
     } else {
       const { data: vg } = await supabase.from("venue_genres").select("venue_id").in("genre_id", ids);
-      venueIdFilter = Array.from(new Set((vg ?? []).map((r: any) => r.venue_id)));
+      venueIdInclude = Array.from(new Set((vg ?? []).map((r: any) => r.venue_id as string)));
     }
   }
 
@@ -41,7 +49,13 @@ export async function fetchPlaces(supabase: SupabaseClient, opts: PlaceQuery): P
 
   if (opts.cityId) q = q.eq("city_id", opts.cityId);
   if (opts.cityIds) q = q.in("city_id", opts.cityIds.length ? opts.cityIds : [NO_MATCH]);
-  if (venueIdFilter !== null) q = q.in("id", venueIdFilter.length ? venueIdFilter : [NO_MATCH]);
+
+  if (venueIdInclude !== null) {
+    q = q.in("id", venueIdInclude.length ? venueIdInclude : [NO_MATCH]);
+  } else if (venueIdExclude.length > 0) {
+    q = q.not("id", "in", `(${venueIdExclude.join(",")})`);
+  }
+
   if (opts.toddler) q = q.lte("age_min", 3); // suitable from toddler age (0–3)
   if (opts.indoorOnly) q = q.in("setting", ["indoor", "both"]); // stays dry if it rains
   if (opts.outdoorOnly) q = q.in("setting", ["outdoor", "both"]);

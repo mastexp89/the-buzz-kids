@@ -43,6 +43,7 @@ export default function PlaceFilters({
   const rain = params.get("rain") === "1";
   const outdoor = params.get("outdoor") === "1";
   const free = params.get("free") === "1";
+  const other = params.get("other") === "1";
   const loc = params.get("loc") || "";
 
   function update(next: Record<string, string | null>) {
@@ -56,8 +57,8 @@ export default function PlaceFilters({
   const toggleIn = (list: string[], v: string) =>
     list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
 
-  const hasFilters = cats.length > 0 || access.length > 0 || toddler || rain || outdoor || free || loc;
-  const clearAll = () => update({ cat: null, access: null, toddler: null, rain: null, outdoor: null, free: null, loc: null });
+  const hasFilters = cats.length > 0 || access.length > 0 || toddler || rain || outdoor || free || other || loc;
+  const clearAll = () => update({ cat: null, access: null, toddler: null, rain: null, outdoor: null, free: null, other: null, loc: null });
 
   // Filter out excluded categories, keeping any that are currently active so
   // a URL-shared filter still shows the active pill even if it's "hidden".
@@ -104,7 +105,10 @@ export default function PlaceFilters({
       <div>
         <div className="label mb-2">Activity</div>
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => update({ cat: null })} className={`filter-pill ${cats.length === 0 ? "filter-pill-active" : ""}`}>
+          <button
+            onClick={() => update({ cat: null, other: null })}
+            className={`filter-pill ${cats.length === 0 && !other ? "filter-pill-active" : ""}`}
+          >
             Anything
           </button>
           {shownGenres.map((g, i) => {
@@ -113,7 +117,7 @@ export default function PlaceFilters({
             return (
               <button
                 key={g.id}
-                onClick={() => update({ cat: toggleIn(cats, g.slug).join(",") || null })}
+                onClick={() => update({ cat: toggleIn(cats, g.slug).join(",") || null, other: null })}
                 className="filter-pill"
                 style={active
                   ? { backgroundColor: c.solid, color: c.on, borderColor: c.solid }
@@ -139,6 +143,12 @@ export default function PlaceFilters({
               Show less
             </button>
           )}
+          <button
+            onClick={() => update({ other: other ? null : "1", cat: null })}
+            className={`filter-pill ${other ? "filter-pill-active" : "text-buzz-mute"}`}
+          >
+            Other
+          </button>
         </div>
       </div>
 
