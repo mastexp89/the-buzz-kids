@@ -45,51 +45,50 @@ export default function MobileMenu({
       </button>
 
       {/* Drawer */}
-      <div
-        className={`sm:hidden fixed inset-0 top-16 z-40 transition-opacity ${
-          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+      {/* Backdrop */}
+      {open && (
+        <div
+          className="sm:hidden fixed inset-0 top-16 z-40 bg-black/40"
+          onClick={() => setOpen(false)}
+        />
+      )}
+
+      {/* Drawer */}
+      <nav
+        className={`sm:hidden fixed top-16 right-0 bottom-0 z-50 w-72 bg-buzz-bg border-l border-buzz-border flex flex-col p-6 gap-1 text-lg transition-transform ${
+          open ? "translate-x-0" : "translate-x-full"
         }`}
-        style={{ backgroundColor: "rgba(0,0,0,0.97)" }}
-        onClick={() => setOpen(false)}
+        onClick={(e) => e.stopPropagation()}
       >
-        <nav
-          className="flex flex-col p-6 gap-1 text-lg bg-black h-full"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {items.map((it) => {
-            const isCurrent = pathname === it.href;
-            return (
-              <Link
-                key={it.href}
-                href={it.href}
-                onClick={(e) => {
-                  // If user taps the page they're already on, close the menu
-                  // and force a refresh so something visible happens.
-                  if (isCurrent) {
-                    e.preventDefault();
-                    setOpen(false);
-                    router.refresh();
-                  }
-                  // Otherwise let next/link handle the navigation; the
-                  // pathname-change effect will close the menu.
-                }}
-                className={`px-3 py-4 rounded-lg hover:bg-buzz-card transition border-b border-buzz-border/50 ${
-                  it.accent ? "text-buzz-accent font-semibold" : ""
-                }`}
-              >
-                {it.label}
-              </Link>
-            );
-          })}
-          {signedIn && (
-            <form action="/auth/signout" method="post" className="mt-3">
-              <button className="px-3 py-3 rounded-lg hover:bg-buzz-card transition w-full text-left text-buzz-mute">
-                Sign out
-              </button>
-            </form>
-          )}
-        </nav>
-      </div>
+        {items.map((it) => {
+          const isCurrent = pathname === it.href;
+          return (
+            <Link
+              key={it.href}
+              href={it.href}
+              onClick={(e) => {
+                if (isCurrent) {
+                  e.preventDefault();
+                  setOpen(false);
+                  router.refresh();
+                }
+              }}
+              className={`px-3 py-4 rounded-lg hover:bg-buzz-card transition border-b border-buzz-border/50 text-buzz-text ${
+                it.accent ? "text-buzz-accent font-semibold" : ""
+              }`}
+            >
+              {it.label}
+            </Link>
+          );
+        })}
+        {signedIn && (
+          <form action="/auth/signout" method="post" className="mt-3">
+            <button className="px-3 py-3 rounded-lg hover:bg-buzz-card transition w-full text-left text-buzz-mute">
+              Sign out
+            </button>
+          </form>
+        )}
+      </nav>
     </>
   );
 }

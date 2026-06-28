@@ -48,34 +48,28 @@ export default async function Footer() {
 
       <div className="container-page py-10 flex flex-col sm:flex-row items-center sm:items-start sm:justify-between gap-6">
         <div className="flex flex-col items-center sm:items-start gap-2">
-          <div className="flex items-center gap-2">
-            <span className="font-script text-xl text-buzz-accent leading-none">The Buzz Kids</span>
-          </div>
+          <span className="font-display text-2xl tracking-tight leading-none">
+            <span className="text-buzz-text">The Buzz </span>
+            <span style={{ color: "#EC1E8C" }}>K</span>
+            <span style={{ color: "#1FA9E0" }}>i</span>
+            <span style={{ color: "#6FA713" }}>d</span>
+            <span style={{ color: "#F9A11B" }}>s</span>
+          </span>
           <div className="text-xs text-buzz-mute">© {new Date().getFullYear()} The Buzz Kids. Things to do with the kids.</div>
-          <div className="text-xs text-buzz-mute">
+          <div className="text-xs text-buzz-mute text-center sm:text-left">
             A sister site to{" "}
-            <a
-              href="https://www.thebuzzguide.co.uk"
-              target="_blank"
-              rel="noopener"
-              className="hover:text-buzz-accent transition underline-offset-2 hover:underline"
-            >
+            <a href="https://www.thebuzzguide.co.uk" target="_blank" rel="noopener" className="text-buzz-accent hover:underline underline-offset-2 transition">
               The Buzz Guide
             </a>
-            . Designed by{" "}
-            <a
-              href="https://www.forthhost.com"
-              target="_blank"
-              rel="noopener"
-              className="hover:text-buzz-accent transition underline-offset-2 hover:underline"
-            >
+            .<br />
+            Designed by{" "}
+            <a href="https://www.forthhost.com" target="_blank" rel="noopener" className="text-buzz-accent hover:underline underline-offset-2 transition">
               Forth Host &amp; Web Design
             </a>
           </div>
         </div>
         <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-buzz-mute">
           <Link href="/about" className="hover:text-buzz-accent transition">About</Link>
-          <Link href={browseHref} className="hover:text-buzz-accent transition">{browseLabel}</Link>
           <Link href="/accessibility" className="hover:text-buzz-accent transition">Accessibility</Link>
           <Link href="/privacy" className="hover:text-buzz-accent transition">Privacy</Link>
           {user ? (
@@ -85,12 +79,7 @@ export default async function Footer() {
                 <Link href="/admin" className="hover:text-buzz-accent transition">Admin</Link>
               )}
             </>
-          ) : (
-            <>
-              <Link href="/signup" className="hover:text-buzz-accent transition">List an activity</Link>
-              <Link href="/login" className="hover:text-buzz-accent transition">Sign in</Link>
-            </>
-          )}
+          ) : null}
         </nav>
       </div>
     </footer>

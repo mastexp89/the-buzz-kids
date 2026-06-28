@@ -38,7 +38,7 @@ export default async function Navbar() {
     <header className="border-b border-buzz-border bg-buzz-bg sticky top-0 z-30">
       <div className="container-page h-16 flex items-center justify-between gap-2">
         <Link href="/" className="group leading-none shrink-0" aria-label="The Buzz Kids — home">
-          <span className="font-display text-2xl sm:text-3xl tracking-tight whitespace-nowrap">
+          <span className="font-display text-3xl sm:text-3xl tracking-tight whitespace-nowrap">
             <span className="text-buzz-text">The Buzz </span>
             <span style={{ color: "#EC1E8C" }}>K</span>
             <span style={{ color: "#1FA9E0" }}>i</span>
