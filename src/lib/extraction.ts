@@ -5,7 +5,7 @@
 // Used by the manual upload route and (later) the FB / website scrapers.
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
-const MODEL = process.env.ANTHROPIC_EXTRACTION_MODEL ?? "claude-sonnet-4-5-20250929";
+const MODEL = process.env.ANTHROPIC_EXTRACTION_MODEL ?? "claude-sonnet-4-6";
 
 // Single retry-with-backoff helper shared by every Anthropic call in
 // this file. Anthropic rate-limits free / low-tier orgs at 30k input
@@ -53,7 +53,7 @@ export type ExtractionInput = {
   postedAt: string; // ISO datetime — anchors "tonight", "Sunday" etc.
   textContent?: string | null;
   imageUrls?: string[];
-  availableGenres?: { slug: string; name: string }[];
+  availableCategories?: { slug: string; name: string }[];
   // Optional geographic restriction. When set, the AI is told to skip any
   // event whose venue is not in `city` or one of `nearbyAreas`. Used by the
   // multi-venue site importer where the source page may list events across
@@ -65,30 +65,51 @@ export type ExtractionInput = {
   };
 };
 
+// Controlled vocab for accessibility / sensory facets — mirrors the
+// events.accessibility text[] in migration 066. The model is told to use
+// ONLY these, and normalizeExtractedEvent drops anything off-list.
+export const ACCESSIBILITY_FACETS = [
+  "autism-friendly", "sensory-session", "quiet-space", "ear-defenders",
+  "changing-places", "carer-free", "wheelchair-accessible", "buggy-friendly",
+  "bsl", "makaton",
+] as const;
+export type AccessibilityFacet = (typeof ACCESSIBILITY_FACETS)[number];
+
+// One extracted kids'/family event. Field names mirror the events table
+// (migration 066) so persistence is a near 1:1 map:
+//   recurring  -> recurrence_pattern / recurrence_until
+//   categories -> event_genres join (the genres table reused as categories)
 export type ExtractedEvent = {
   title: string;
-  starts_at: string;       // ISO Europe/London
-  ends_at: string | null;
+  starts_at: string;       // ISO Europe/London — first session's start
+  ends_at: string | null;  // first session's end
+  // Last day of a multi-day RUN (a Mon–Fri holiday camp). null = single day.
+  end_date: string | null; // YYYY-MM-DD
+  // A repeating series (a weekly club). null = one-off / camp (use end_date).
   recurring: { pattern: string; until: string | null } | null;
-  type: "live_music" | "sports_screening" | "karaoke" | "quiz" | "dj_set" | "other";
-  genres: string[];        // slugs from availableGenres
-  artists: string[];       // band / DJ / act names mentioned for this event
+  categories: string[];    // slugs from availableCategories
   description: string;
+  // Age suitability in WHOLE YEARS. 0 = from birth. null = unspecified / all ages.
+  age_min: number | null;
+  age_max: number | null;
+  // Price as written ("£4", "Free", "£8 / £6 conc"). null if not stated.
+  cover_charge: string | null;
+  is_free: boolean;        // clearly free to attend
+  price_from: number | null; // lowest numeric £ a child needs; 0 if free; null if unknown
+  booking_required: boolean;
+  // Direct booking / ticket URL if visible. null otherwise.
+  ticket_url: string | null;
+  // Indoor / outdoor — the rain-backup filter.
+  setting: "indoor" | "outdoor" | "both" | null;
+  // Accessibility / sensory facets explicitly stated (from ACCESSIBILITY_FACETS).
+  accessibility: AccessibilityFacet[];
   confidence: number;
   evidence: string;
-  // 0-based index into the input images that is the gig POSTER / FLYER for
-  // this specific event. null if the post had no clear poster (e.g. plain
-  // text caption, or just a generic venue photo). Used to persist the
-  // correct image to our storage bucket per event.
+  // 0-based index into the input images that is the FLYER / POSTER for this
+  // event. null for a plain caption or a generic venue photo.
   poster_image_index: number | null;
-  // Venue name detected on the poster, if any. Used by the admin Quick
-  // Import flow when no specific venue is pre-selected. null if the
-  // venue isn't visible on the poster.
+  // Venue / organiser name detected on the poster, if any. null if absent.
   venue_hint: string | null;
-  // Price / cover charge as written on the poster ("£10", "Free", "£8 / £6 conc"). null if not stated.
-  cover_charge: string | null;
-  // Direct ticket / booking URL if visible on the poster or the page text. null if absent.
-  ticket_url: string | null;
 };
 
 export type ExtractionResult = {
@@ -99,7 +120,7 @@ export type ExtractionResult = {
 function buildSystemPrompt(
   venueName: string,
   postedIso: string,
-  availableGenres: { slug: string; name: string }[],
+  availableCategories: { slug: string; name: string }[],
   locationFilter?: ExtractionInput["locationFilter"],
 ): string {
   const postedHuman = new Date(postedIso).toLocaleString("en-GB", {
@@ -109,138 +130,132 @@ function buildSystemPrompt(
     year: "numeric",
     timeZone: "Europe/London",
   });
-  const genreLine =
-    availableGenres.length > 0
-      ? availableGenres.map((g) => `${g.slug} (${g.name})`).join(", ")
-      : "(none configured — leave genres as [])";
-  return `You extract events from a Dundee pub/venue's social-media post or website for The Buzz Guide, a live-music & events directory.
+  const categoryLine =
+    availableCategories.length > 0
+      ? availableCategories.map((c) => `${c.slug} (${c.name})`).join(", ")
+      : "(none configured — leave categories as [])";
+  return `You extract kids' & family events from a Scottish venue/organiser's social-media post or website for The Buzz Kids, a family activities & events directory (soft play, holiday clubs, library crafts, farm days, kids' theatre, sports camps, classes, days out).
 
-VENUE: ${venueName}
+VENUE / ORGANISER: ${venueName}
 POSTED: ${postedHuman} (${postedIso}, Europe/London)
 
-AVAILABLE GENRES (use these slugs ONLY): ${genreLine}
+AVAILABLE CATEGORIES (use these slugs ONLY): ${categoryLine}
 
 Return ONLY a JSON object of this shape:
 {
   "events": [
     {
       "title": "string — short, plain, no emojis or marketing fluff",
-      "starts_at": "ISO 8601 datetime in Europe/London (e.g. 2026-05-05T20:00:00+01:00)",
+      "starts_at": "ISO 8601 datetime in Europe/London (e.g. 2026-07-14T10:00:00+01:00)",
       "ends_at": "ISO 8601 datetime or null",
-      "recurring": null OR { "pattern": "weekly|daily|every_sunday|...", "until": "YYYY-MM-DD or null" },
-      "type": "live_music | sports_screening | karaoke | quiz | dj_set | other",
-      "genres": ["slug1", "slug2"],
-      "artists": ["Band Name", "DJ Name"],
+      "end_date": "YYYY-MM-DD (last day of a multi-day run) or null",
+      "recurring": null OR { "pattern": "weekly|weekdays|daily|every_saturday|...", "until": "YYYY-MM-DD or null" },
+      "categories": ["slug1", "slug2"],
+      "age_min": whole years or null,
+      "age_max": whole years or null,
+      "cover_charge": "price as written or null",
+      "is_free": true or false,
+      "price_from": lowest numeric £ or null,
+      "booking_required": true or false,
+      "ticket_url": "booking URL or null",
+      "setting": "indoor | outdoor | both | null",
+      "accessibility": ["autism-friendly", "..."],
       "description": "one neutral sentence",
       "confidence": 0.0-1.0,
-      "evidence": "brief quote of where you got the date/time from (poster text, caption, or page text)",
+      "evidence": "brief quote of where you got the date/time from",
       "poster_image_index": 0,
-      "venue_hint": "string or null",
-      "cover_charge": "string or null",
-      "ticket_url": "string or null"
+      "venue_hint": "string or null"
     }
   ]
 }
 
-RESOLUTION RULES
-- Resolve relative dates ("tonight", "this Sunday", "Sunday 10th May") using POSTED above.
-- A "this week" recurring post with no specific times → ONE event with recurring set, until null.
+DATES & TIMES
+- Resolve relative dates ("today", "this Saturday", "Sat 14th", "the summer holidays") using POSTED above.
 - If a date has no year, assume the next occurrence from POSTED.
+- Single times: "10am" / "from 10:30am" / "doors 9:45, starts 10am" → starts_at set (the start, not doors), ends_at null.
+- TIME RANGES MUST populate BOTH starts_at and ends_at — don't drop the end side:
+  * "10am - 11:30am"   → starts_at 10:00, ends_at 11:30
+  * "1pm – 2pm"        → starts_at 13:00, ends_at 14:00 (en-dash, em-dash, hyphen, "to" or "until" all count)
+  * "10:30am to 12"    → starts_at 10:30, ends_at 12:00
+- Multi-slot on the same poster (e.g. a morning AND an afternoon session): each slot gets its own event row.
 
-TIMES (very important — extract end_time whenever the poster gives one)
-- Single times: "Kick-off 8pm" / "From 8pm" / "Doors 7:30pm" → starts_at = 20:00 (or 19:30) and ends_at = null.
-- TIME RANGES on the poster MUST populate BOTH starts_at and ends_at — don't drop the end side:
-  * "3pm - 4pm"             → starts_at 15:00, ends_at 16:00
-  * "3pm – 4pm"             → starts_at 15:00, ends_at 16:00 (en-dash, em-dash, hyphen, "to" or "until" all count as range markers)
-  * "12 noon - 1:50pm"      → starts_at 12:00, ends_at 13:50
-  * "10:30am – 11:30am"     → starts_at 10:30, ends_at 11:30
-  * "8pm till late"         → starts_at 20:00, ends_at null (no concrete end)
-  * "8pm-1am" (crosses midnight) → starts_at 20:00, ends_at = next day at 01:00
-- Multi-slot events on the same poster: each slot gets its own event row with its own starts_at + ends_at.
-- "Doors 7pm, show 8pm" → starts_at 20:00 (show time), ends_at null. Doors-only times aren't the event start.
+MULTI-DAY & RECURRING (important — kids' events are usually NOT single one-offs)
+- HOLIDAY CAMP over consecutive days (e.g. "Football camp Mon–Fri 14–18 July, 10am–3pm daily"):
+  return ONE event. starts_at = first day's start (14 Jul 10:00), ends_at = first day's end (14 Jul 15:00),
+  end_date = last day (2026-07-18), recurring = null. (end_date captures the run.)
+- WEEKLY / ONGOING CLUB (e.g. "Toddler dance every Saturday 9:30am, term-time"):
+  return ONE event. starts_at = the NEXT occurrence after POSTED, recurring = { pattern: "every_saturday",
+  until: <YYYY-MM-DD if an end date is stated, else null> }, end_date = null.
+- Daily over a single holiday week at the same time → treat like a camp (use end_date), unless it's clearly a
+  permanently-open attraction rather than a dated activity.
+- A genuine one-off session → end_date null, recurring null.
+- NEVER emit one row per occurrence of a recurring/multi-day thing — always collapse to ONE row.
 
-SPORTS SCREENING AGGREGATION (very important)
-- A sports bar fixtures list often shows many matches across multiple days
-  (e.g. "Monday 11th: Match A 18:00, Match B 19:45 — Tuesday 12th: Match C 14:00, Match D 19:45").
-- Return ONE event per day per venue when the post lists 2+ sports screenings
-  on the same day — NOT one event per match. The visitor sees a single card
-  on the city page instead of 8 redundant rows.
-- For these aggregated days:
-  * title: "Live sports — N matches" (use the actual count) — e.g. "Live sports — 5 matches"
-  * starts_at: the earliest kick-off that day
-  * ends_at: the latest match's expected end (add ~2 hours to its kick-off if not stated)
-  * type: "sports_screening"
-  * description: chronological list, one match per line, format "HH:MM — Event Name"
-    (e.g. "18:00 — Internazionali BNL d'Italia\\n19:45 — Napoli v Bologna\\n20:00 — Millwall v Hull City")
-  * Keep any emoji prefixes from the source (⚽️, 🎾, ⛳️, 🏉, 🏏) — they help fans scan the list.
-- If there's only ONE sports screening on a given day, return it as a normal
-  single-match event with its own title (e.g. "Manchester City v Crystal Palace").
-- Mixed days: one aggregated event per multi-match day, plus single events for single-match days.
-- This rule ONLY applies to type="sports_screening". Live music / quiz / karaoke
-  / DJ events always remain as one row each.
+CATEGORIES
+- Pick 1–3 matching slugs from AVAILABLE CATEGORIES. Do NOT invent slugs not in that list.
+- Match the activity: soft-play session → soft-play; farm/animal visit → farm-animals; library craft → library + arts-crafts;
+  football camp → sports-camp + football; panto/kids show → theatre; messy/sensory play → sensory; forest school → forest-nature;
+  coding/Lego robotics → stem-coding; toddler group → toddler-group; swimming lessons → swimming.
+- If nothing fits, use ["free-play"] only as a last resort. Never leave categories empty; never invent a slug.
 
-GENRE RULES
-- Pick 1–3 matching slugs from AVAILABLE GENRES for each event. Do NOT invent slugs that aren't in that list.
-- For live music / DJ events: pick the music genre(s). Cover band → match the songs they cover. Tribute act → the original artist's genre. Ceilidh → folk / traditional.
-- For sports screenings: pick "sports" if that slug exists.
-- For karaoke: pick "karaoke" if that slug exists.
-- For pub quizzes: pick "quiz" if that slug exists.
-- For DJ nights with unspecified genre: pick "electronic" if it fits.
-- If you genuinely can't categorise the event with any of the available slugs, fall back to ["other"] (only if "other" exists in AVAILABLE GENRES). Never invent a new slug, never leave the array empty unless "other" isn't in the list either.
+AGE SUITABILITY (the #1 parent filter — extract whenever stated or clearly implied)
+- age_min / age_max are WHOLE YEARS. age_min 0 = suitable from birth (babies).
+- "Ages 4–8" → 4, 8.  "Suitable 5+" → 5, null.  "Under 5s" → 0, 4.  "Up to 12" → null, 12.
+- "Toddlers" → 1, 3.  "Babies" / "0–18 months" → 0, 1.  "Pre-school" → 2, 4.  "Primary age" → 5, 11.  "Teens" → 12, 17.
+- "All ages" / "family" / "all the family" → null, null (no restriction).
+- If no age is stated or implied, use null for both — don't invent a range.
 
-ARTIST RULES
-- For live music / DJ events: pull every band, DJ, performer, or act named on the poster / in the caption into "artists".
-- Include support acts and "+ guests" as separate entries when named. If the poster says "headliner: BAND, support: SUPPORT", return ["BAND", "SUPPORT"].
-- Tribute acts: keep the tribute name as-is ("ABBA Mania", "Oasish") — do NOT replace with the original artist.
-- Cover bands: use their actual band name, not the song titles they cover.
-- DJ events: include all DJ names listed.
-- Karaoke: if a karaoke host / MC / KJ is named (e.g. "Karaoke with DJ Buzzkill", "Hosted by Big Mic Mike"), include their name. If it's just "karaoke night" with no host named, leave [].
-- Quiz / sports screenings: leave artists as [].
-- If you genuinely can't tell, leave [] rather than guessing. Don't invent names.
+PRICE
+- cover_charge: the price exactly as written ("£4", "£5 per child", "£8 / £6 conc", "Free entry", "Donations welcome"). null if not stated. Don't normalise the wording.
+- is_free: true ONLY when clearly free to attend (free entry / no charge). Otherwise false. Unknown price → false.
+- price_from: the LOWEST numeric £ amount a child needs (prefer the child ticket). "£5 per child, adults free" → 5. "£8 / £6 conc" → 6. "Free" → 0. Unknown → null.
+
+BOOKING
+- booking_required: true if it says you must book / pre-book / booking essential / limited spaces book ahead / ticketed in advance. false for clear drop-ins ("just turn up", "no need to book"). If unstated, false.
+- ticket_url: a direct booking/ticket link if visible (the venue's own /book page, eventbrite, bookwhen, ticketsource, class4kids, skiddle, etc.). Bare homepages / the page being scraped do NOT count → null.
+
+INDOOR / OUTDOOR
+- setting: "indoor" (soft play, library, cinema, indoor class), "outdoor" (park, farm trail, forest, sports pitch), "both" (venue/event explicitly using indoor + outdoor), or null if genuinely unclear.
+
+ACCESSIBILITY / SENSORY (only when explicitly mentioned — never assume)
+- Add any the post states, from this list ONLY: "autism-friendly" (autism/ASN-friendly or relaxed session),
+  "sensory-session" (sensory-specific session), "quiet-space" (quiet/calm room), "ear-defenders" (provided),
+  "changing-places" (Changing Places toilet), "carer-free" (free carer/companion entry),
+  "wheelchair-accessible", "buggy-friendly" (buggy access/parking), "bsl" (BSL interpreted), "makaton".
+- [] if none are mentioned.
 
 DEDUPLICATION (very important)
-- If the SAME event appears multiple times in the input (e.g. "Karaoke nightly" mentioned on the homepage AND the /events page AND the menu), return it ONCE only. Treat the input as a single source of truth even when text and images repeat.
-- A recurring weekly/nightly event = ONE event row with recurring set, NOT one row per occurrence.
-- Same event title + same date/time = same event. Don't return both.
+- The SAME event mentioned in the caption AND on a poster AND on another page = ONE event. Input is a single source of truth even when text/images repeat.
+- A recurring weekly/daily session, or a multi-day camp, = ONE row with recurring/end_date set, NOT one per occurrence.
+- Same title + same date/time = same event. Don't return both.
 
 DO NOT EXTRACT
-- Thank-you posts, recap of past events, generic "we're open" posts.
-- Food/drink specials with no time-bound performance or screening.
-- General venue vibe / staff news / photos of past nights.
+- Generic "we're open" / opening-hours-only posts (unless it's a specific dated holiday session), past-event recaps, thank-yous.
+- Private birthday-party hire with no public session anyone can attend.
+- Staff news, job ads, merch/raffle posts, fundraising appeals with no activity for kids to attend.
 
 CONFIDENCE GUIDE
-- 0.9+ : explicit date AND time AND clear event title
+- 0.9+ : explicit date AND time AND clear title
 - 0.7–0.9 : two of the three explicit, one inferred
 - 0.5–0.7 : significant inference required
 - < 0.5 : do not return — leave it out
 
 VENUE HINT
-- Set "venue_hint" to the venue name printed on the poster, if any (e.g. "The Anchor Bar", "Rewind", "Beat Generator"). null if the poster doesn't show a venue.
-- Even though VENUE is given above as context, an admin may pass that in as a placeholder. Read the poster independently and report what name (if any) you actually see.
+- Set "venue_hint" to the venue / organiser name printed on the poster, if any. null if not shown.
+- VENUE above may be a placeholder — read the poster independently and report the name you actually see.
 
 ${locationFilter ? `LOCATION FILTER (HARD RULE — skip non-matching events entirely)
-- ONLY return events at venues in ${locationFilter.city}${(locationFilter.nearbyAreas && locationFilter.nearbyAreas.length > 0) ? ` or ${locationFilter.nearbyAreas.join(", ")}` : ""}.
-- If the poster / page text mentions any other UK city (e.g. Glasgow, Edinburgh, Aberdeen, Stirling, Perth, Inverness, London, Manchester, Liverpool, Birmingham, Leeds, Newcastle, Belfast, Cardiff, Bristol, Falkirk, St Andrews, Forfar, Arbroath, Kirriemuir, Carnoustie, Monifieth) — and that city ISN'T in the allowed list above — DO NOT return that event. Drop it silently.
-- Touring posters: a comedy / band tour might list multiple cities. Only return the ${locationFilter.city} date(s); skip every other city.
-- If you genuinely can't tell which city an event is in, DO return it (better to surface for human review than silently drop). The admin can always reject it after.
-- This filter applies BEFORE all other rules. An event that's perfect in every other way still gets dropped if it's outside the allowed cities.` : ""}
-
-PRICE / COVER CHARGE
-- Set "cover_charge" to the ticket price exactly as written ("£10", "£8 / £6 conc", "£12 adv / £15 door", "Free entry"). null if the poster / page doesn't state a price.
-- Don't normalise — keep the exact wording.
-- "Donations welcome" / "Pay what you want" → use that phrase.
-
-TICKET URL
-- Set "ticket_url" to a direct link to buy / book tickets, ONLY if a clear booking URL is visible in the page text or on the poster (eventbrite, skiddle, ticketweb, link.dice.fm, the venue's own /tickets page, etc.).
-- Bare event-detail URLs (the page being scraped, generic homepages) do NOT count. null in that case.
+- ONLY return events in ${locationFilter.city}${(locationFilter.nearbyAreas && locationFilter.nearbyAreas.length > 0) ? ` or ${locationFilter.nearbyAreas.join(", ")}` : ""}.
+- If the poster / page text mentions any other UK town/city (e.g. Glasgow, Edinburgh, Aberdeen, Stirling, Perth, Inverness, London, Manchester, Liverpool, Birmingham, Leeds, Newcastle, Belfast, Cardiff, Bristol, Falkirk, St Andrews, Forfar, Arbroath, Kirriemuir, Carnoustie, Monifieth) — and that place ISN'T in the allowed list above — DO NOT return that event. Drop it silently.
+- Touring shows: a kids' theatre tour might list multiple towns. Only return the ${locationFilter.city} date(s); skip every other town.
+- If you genuinely can't tell which town an event is in, DO return it (better to surface for human review than silently drop). The admin can reject it after.
+- This filter applies BEFORE all other rules.` : ""}
 
 POSTER IMAGE
-- Set "poster_image_index" to the 0-based index of which input image is the gig POSTER / FLYER for this specific event.
-- A poster is the artwork that visually advertises this event — usually shows the gig title, date/time, performer name, sometimes a photo of the act.
-- A generic venue photo, food shot, staff selfie, or repeated venue logo is NOT a poster — return null in that case.
-- If multiple events share the same poster (e.g. a "what's on this week" graphic), use the same index for each event.
-- If no images were provided, or none of them is clearly a poster, set poster_image_index to null.
-- The index refers to the order images appear in the input (first image = 0, second = 1, etc.).
+- Set "poster_image_index" to the 0-based index of which input image is the FLYER / POSTER for this specific event (the artwork advertising it — usually shows the title, date/time, age, sometimes a price).
+- A generic venue photo, soft-play interior shot, staff selfie, or repeated logo is NOT a poster — return null.
+- If several events share one "what's on this week" graphic, use the same index for each.
+- If no images were provided, or none is clearly a poster, set poster_image_index to null.
 
 If nothing event-like, return { "events": [] }.`;
 }
@@ -487,6 +502,64 @@ RULES
   }
 }
 
+const ACCESSIBILITY_SET: Set<string> = new Set(ACCESSIBILITY_FACETS);
+const SETTING_SET = new Set(["indoor", "outdoor", "both"]);
+
+// Coerce a raw model object into a safe ExtractedEvent. Anything the model
+// gets wrong — a string where we want a number, a setting/accessibility value
+// that isn't in our vocab, an out-of-range age — falls back to a null/default
+// here rather than propagating junk into the DB on persist.
+function normalizeExtractedEvent(raw: any): ExtractedEvent {
+  const str = (v: any): string | null =>
+    typeof v === "string" && v.trim().length > 0 ? v.trim() : null;
+  const num = (v: any): number | null => {
+    const n = typeof v === "string" ? Number(v.replace(/[£,\s]/g, "")) : v;
+    return typeof n === "number" && Number.isFinite(n) ? n : null;
+  };
+  const yrs = (v: any): number | null => {
+    const n = num(v);
+    return n === null ? null : Math.max(0, Math.min(18, Math.round(n)));
+  };
+  const isoDate = (v: any): string | null =>
+    typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
+
+  const isFree = raw?.is_free === true;
+  let priceFrom = num(raw?.price_from);
+  if (priceFrom !== null) priceFrom = Math.max(0, priceFrom);
+  if (isFree && priceFrom === null) priceFrom = 0; // free ⇒ floor is £0
+
+  const settingRaw = (str(raw?.setting) ?? "").toLowerCase();
+  const conf = num(raw?.confidence);
+  const pattern = raw?.recurring && typeof raw.recurring === "object" ? str(raw.recurring.pattern) : null;
+
+  return {
+    title: str(raw?.title) ?? "",
+    starts_at: str(raw?.starts_at) ?? "",
+    ends_at: str(raw?.ends_at),
+    end_date: isoDate(raw?.end_date),
+    recurring: pattern ? { pattern, until: isoDate(raw?.recurring?.until) } : null,
+    categories: Array.isArray(raw?.categories)
+      ? raw.categories.filter((s: any) => typeof s === "string" && s.trim()).map((s: string) => s.trim())
+      : [],
+    description: str(raw?.description) ?? "",
+    age_min: yrs(raw?.age_min),
+    age_max: yrs(raw?.age_max),
+    cover_charge: str(raw?.cover_charge),
+    is_free: isFree,
+    price_from: priceFrom,
+    booking_required: raw?.booking_required === true,
+    ticket_url: str(raw?.ticket_url),
+    setting: SETTING_SET.has(settingRaw) ? (settingRaw as ExtractedEvent["setting"]) : null,
+    accessibility: Array.isArray(raw?.accessibility)
+      ? (Array.from(new Set(raw.accessibility.filter((s: any) => ACCESSIBILITY_SET.has(s)))) as AccessibilityFacet[])
+      : [],
+    confidence: conf === null ? 0 : Math.max(0, Math.min(1, conf)),
+    evidence: str(raw?.evidence) ?? "",
+    poster_image_index: Number.isInteger(raw?.poster_image_index) ? raw.poster_image_index : null,
+    venue_hint: str(raw?.venue_hint),
+  };
+}
+
 export async function extractEvents(input: ExtractionInput): Promise<ExtractionResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY env var missing.");
@@ -522,7 +595,7 @@ export async function extractEvents(input: ExtractionInput): Promise<ExtractionR
   const body = {
     model: MODEL,
     max_tokens: 4096,
-    system: buildSystemPrompt(input.venueName, input.postedAt, input.availableGenres ?? [], input.locationFilter),
+    system: buildSystemPrompt(input.venueName, input.postedAt, input.availableCategories ?? [], input.locationFilter),
     messages: [{ role: "user", content }],
   };
 
@@ -535,11 +608,12 @@ export async function extractEvents(input: ExtractionInput): Promise<ExtractionR
   const textBlock = (json.content ?? []).find((b: any) => b.type === "text");
   const responseText: string = textBlock?.text ?? "";
   const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-  let parsed: { events: ExtractedEvent[] } = { events: [] };
+  const parsed: { events: ExtractedEvent[] } = { events: [] };
   if (jsonMatch) {
     try {
-      parsed = JSON.parse(jsonMatch[0]);
-      if (!Array.isArray(parsed.events)) parsed.events = [];
+      const rawParsed = JSON.parse(jsonMatch[0]);
+      const rawEvents = Array.isArray(rawParsed?.events) ? rawParsed.events : [];
+      parsed.events = rawEvents.map(normalizeExtractedEvent);
     } catch {
       // fall through with empty events
     }
