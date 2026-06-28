@@ -55,8 +55,11 @@ export default async function AdminReviewsPage() {
   );
 
   return (
-    <div className="flex flex-col gap-8 max-w-3xl">
-      <div>
+    <div className="container-page py-10 max-w-3xl">
+      <Link href="/admin" className="text-sm text-buzz-mute hover:text-buzz-accent transition">
+        ← Back to admin
+      </Link>
+      <div className="mt-4">
         <p className="eyebrow mb-1">Admin</p>
         <h1 className="h-display text-4xl">Reviews</h1>
         <p className="text-buzz-mute text-sm mt-1">Approve reviews to publish them, or hide anything that shouldn't be here.</p>
