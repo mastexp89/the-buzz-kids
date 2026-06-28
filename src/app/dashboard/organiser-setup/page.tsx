@@ -29,7 +29,7 @@ export default async function OrganiserSetupPage() {
           or create a new account picking <strong>Event organiser</strong> at signup.
         </p>
         <Link href="/dashboard/favourites" className="btn-primary">
-          Back to my favourites
+          Back to my bucket list
         </Link>
       </div>
     );

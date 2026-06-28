@@ -75,7 +75,7 @@ export default async function DashboardHome() {
                 🔍 Browse what's on
               </Link>
               <Link href="/dashboard/favourites" className="btn-secondary btn-lg">
-                ♡ My favourites
+                ♡ My bucket list
               </Link>
               <Link href="/dashboard/today" className="btn-secondary btn-lg">
                 📍 Day planner

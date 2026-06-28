@@ -189,7 +189,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 same way fans do. The underlying favourites table is keyed by
                 user_id, not role, so nothing else needs to change. */}
             <Link href="/dashboard/favourites" className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-buzz-surface transition text-sm">
-              ♡ <span>Favourites</span>
+              ♡ <span>Bucket list</span>
             </Link>
             <Link href="/dashboard/today" className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-buzz-surface transition text-sm">
               📍 <span>Day planner</span>
