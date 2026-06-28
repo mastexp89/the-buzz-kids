@@ -32,7 +32,8 @@ export default async function Footer() {
       <div className="border-b border-buzz-border bg-buzz-card">
         <div className="container-page py-4 flex flex-col sm:flex-row items-center justify-center gap-3 text-center text-sm">
           <span className="text-buzz-mute">
-            A night out without the kids? <strong className="text-buzz-text">The Buzz Guide</strong> is our grown-ups' sister site — gigs, DJs, comedy &amp; events across Scotland.
+            A night out without the kids? <strong className="text-buzz-text">The Buzz Guide</strong>{" "}
+            is our grown-ups' sister site — gigs, DJs, comedy &amp; events across Scotland.
           </span>
           <a
             href="https://www.thebuzzguide.co.uk"
