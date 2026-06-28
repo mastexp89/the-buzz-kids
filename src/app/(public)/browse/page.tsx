@@ -14,7 +14,7 @@ export const metadata = {
 };
 
 type Props = {
-  searchParams: Promise<{ cat?: string; access?: string; toddler?: string; loc?: string }>;
+  searchParams: Promise<{ cat?: string; access?: string; toddler?: string; rain?: string; loc?: string }>;
 };
 
 export default async function BrowsePage({ searchParams }: Props) {
@@ -31,6 +31,7 @@ export default async function BrowsePage({ searchParams }: Props) {
   const cats = (sp.cat || "").split(",").map((s) => s.trim()).filter(Boolean);
   const access = (sp.access || "").split(",").map((s) => s.trim()).filter(Boolean);
   const toddler = sp.toddler === "1";
+  const rain = sp.rain === "1";
   const loc = sp.loc || "";
 
   // Location filter: a single chosen town, or all active towns.
@@ -49,6 +50,7 @@ export default async function BrowsePage({ searchParams }: Props) {
     cityIds,
     catSlugs: cats,
     toddler,
+    indoorOnly: rain,
     accessKeys: access,
   });
 

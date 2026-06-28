@@ -32,6 +32,7 @@ export default function PlaceFilters({
   const cats = (params.get("cat") || "").split(",").map((s) => s.trim()).filter(Boolean);
   const access = (params.get("access") || "").split(",").map((s) => s.trim()).filter(Boolean);
   const toddler = params.get("toddler") === "1";
+  const rain = params.get("rain") === "1";
   const loc = params.get("loc") || "";
 
   function update(next: Record<string, string | null>) {
@@ -90,13 +91,21 @@ export default function PlaceFilters({
       </div>
 
       <div>
-        <div className="label">Just for wee ones</div>
-        <button
-          onClick={() => update({ toddler: toddler ? null : "1" })}
-          className={toddler ? "chip-accent" : "chip"}
-        >
-          🧸 Toddler-friendly only (ages 1–3)
-        </button>
+        <div className="label">Handy filters</div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => update({ toddler: toddler ? null : "1" })}
+            className={toddler ? "chip-accent" : "chip"}
+          >
+            🧸 Toddler-friendly only (ages 1–3)
+          </button>
+          <button
+            onClick={() => update({ rain: rain ? null : "1" })}
+            className={rain ? "chip-accent" : "chip"}
+          >
+            🌧️ Good for a rainy day
+          </button>
+        </div>
       </div>
 
       <div>
@@ -118,10 +127,10 @@ export default function PlaceFilters({
         </div>
       </div>
 
-      {(cats.length > 0 || access.length > 0 || toddler || loc) && (
+      {(cats.length > 0 || access.length > 0 || toddler || rain || loc) && (
         <div>
           <button
-            onClick={() => update({ cat: null, access: null, toddler: null, loc: null })}
+            onClick={() => update({ cat: null, access: null, toddler: null, rain: null, loc: null })}
             className="chip text-buzz-mute"
           >
             Clear filters

@@ -10,6 +10,7 @@ export type PlaceQuery = {
   cityIds?: string[] | null;     // restrict to a set of towns (browse = active towns)
   catSlugs?: string[];           // category filter (venue_genres)
   toddler?: boolean;             // only places suitable from toddler age
+  indoorOnly?: boolean;          // rainy-day: indoor or indoor+outdoor places
   accessKeys?: string[];         // must have ALL these accessibility facets
 };
 
@@ -38,6 +39,7 @@ export async function fetchPlaces(supabase: SupabaseClient, opts: PlaceQuery): P
   if (opts.cityIds) q = q.in("city_id", opts.cityIds.length ? opts.cityIds : [NO_MATCH]);
   if (venueIdFilter !== null) q = q.in("id", venueIdFilter.length ? venueIdFilter : [NO_MATCH]);
   if (opts.toddler) q = q.lte("age_min", 3); // suitable from toddler age (0–3)
+  if (opts.indoorOnly) q = q.in("setting", ["indoor", "both"]); // stays dry if it rains
   if (opts.accessKeys && opts.accessKeys.length > 0) q = q.contains("accessibility", opts.accessKeys);
 
   const { data } = await q;

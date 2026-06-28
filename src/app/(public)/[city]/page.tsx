@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ city: string }>;
-  searchParams: Promise<{ when?: string; genre?: string; view?: string; cat?: string; access?: string; toddler?: string }>;
+  searchParams: Promise<{ when?: string; genre?: string; view?: string; cat?: string; access?: string; toddler?: string; rain?: string }>;
 };
 
 export async function generateMetadata({ params }: Props) {
@@ -165,6 +165,7 @@ export default async function CityPage({ params, searchParams }: Props) {
     cityId: city.id,
     catSlugs: placeCats,
     toddler: placeToddler,
+    indoorOnly: sp.rain === "1",
     accessKeys: placeAccess,
   });
 

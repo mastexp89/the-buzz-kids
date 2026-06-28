@@ -100,7 +100,11 @@ export default async function Home() {
             <p className="eyebrow mb-3">Things to do · Places to go · Memories to make</p>
             <h1 className="h-display text-6xl sm:text-7xl md:text-8xl">
               Find their<br />
-              <span className="text-buzz-accent">buzz.</span>
+              <span style={{ color: "#EC1E8C" }}>b</span>
+              <span style={{ color: "#1FA9E0" }}>u</span>
+              <span style={{ color: "#6FA713" }}>z</span>
+              <span style={{ color: "#F9A11B" }}>z</span>
+              <span style={{ color: "#EC1E8C" }}>.</span>
             </h1>
             <p className="mt-6 text-buzz-mute max-w-xl text-lg">
               Kid-friendly things to do near you — soft play, holiday clubs, farm days,
