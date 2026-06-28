@@ -1,8 +1,9 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Privacy Policy — The Buzz Guide",
-  description: "How The Buzz Guide collects, uses and protects your data.",
+  title: "Privacy Policy & Disclaimer — The Buzz Kids",
+  description:
+    "How The Buzz Kids collects, uses and protects your data — and important information about the activities and venues we list.",
 };
 
 export default function PrivacyPage() {
@@ -13,22 +14,65 @@ export default function PrivacyPage() {
       </Link>
 
       <p className="eyebrow mt-3 mb-1">Legal</p>
-      <h1 className="h-display text-4xl sm:text-5xl mb-2">Privacy Policy</h1>
-      <p className="text-buzz-mute mb-10">Last updated: 4 May 2026</p>
+      <h1 className="h-display text-4xl sm:text-5xl mb-2">Privacy Policy &amp; Disclaimer</h1>
+      <p className="text-buzz-mute mb-10">Last updated: 28 June 2026</p>
 
       <div className="prose-buzz space-y-6 text-buzz-text/90 leading-relaxed">
         <p>
-          The Buzz Guide ("we", "us") operates the website <strong>thebuzzguide.co.uk</strong> and the
-          accompanying mobile apps. This privacy policy explains what personal information we
-          collect, how we use it, and the choices you have.
+          The Buzz Kids ("we", "us") operates the website <strong>thebuzzkids.co.uk</strong>, a
+          directory of kid-friendly things to do — soft play, holiday clubs, farms, kids' theatre,
+          classes, camps and family days out. This policy explains what personal information we
+          collect and how we use it, and sets out important information about the listings on the site.
         </p>
 
-        <section>
-          <h2 className="font-display text-2xl uppercase mb-2 mt-6">Who runs The Buzz Guide</h2>
+        {/* Disclaimer first — the most important thing for a third-party listings site. */}
+        <section className="rounded-2xl border border-buzz-accent/40 bg-buzz-card p-6">
+          <h2 className="font-display text-2xl uppercase mb-2">About the activities and venues we list</h2>
           <p>
-            The Buzz Guide is operated from Dundee, Scotland. For privacy questions, email{" "}
-            <a className="text-buzz-accent hover:text-buzz-accent2" href="mailto:admin@thebuzzguide.co.uk">
-              admin@thebuzzguide.co.uk
+            The Buzz Kids is a <strong>listings and directory service</strong>. We do{" "}
+            <strong>not</strong> own, run, organise, staff or operate any of the activities, events,
+            classes, camps, venues or attractions listed on the site.
+          </p>
+          <ul className="list-disc pl-6 space-y-2 mt-3">
+            <li>
+              Listings are submitted by the organisers themselves, or gathered from publicly
+              available sources such as Facebook pages and websites. They may be incomplete, out of
+              date, or inaccurate.
+            </li>
+            <li>
+              Prices, times, dates, age suitability, accessibility details and availability can
+              change at any time. <strong>Always check directly with the organiser or venue before
+              you travel, book or pay.</strong>
+            </li>
+            <li>
+              We are not responsible for the quality, safety, accuracy, conduct, cancellation or
+              your experience of any activity or venue listed, and accept no liability for any loss,
+              cost, disappointment or harm arising from your use of, or reliance on, a listing.
+            </li>
+            <li>
+              Any booking, payment or agreement is strictly between you and the organiser or venue.
+            </li>
+            <li>
+              Reviews are the personal opinions of the parents and carers who wrote them — not ours.
+              We moderate reviews but do not verify the claims in them.
+            </li>
+          </ul>
+          <p className="mt-3 text-sm text-buzz-mute">
+            If a listing is wrong, out of date, or shouldn't be here, please let us know at{" "}
+            <a className="text-buzz-accent hover:text-buzz-accent2" href="mailto:hello@thebuzzkids.co.uk">
+              hello@thebuzzkids.co.uk
+            </a>{" "}
+            and we'll review it.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="font-display text-2xl uppercase mb-2 mt-6">Who runs The Buzz Kids</h2>
+          <p>
+            The Buzz Kids is operated from Scotland and is a sister site to The Buzz Guide. For
+            privacy questions, email{" "}
+            <a className="text-buzz-accent hover:text-buzz-accent2" href="mailto:hello@thebuzzkids.co.uk">
+              hello@thebuzzkids.co.uk
             </a>.
           </p>
         </section>
@@ -39,33 +83,32 @@ export default function PrivacyPage() {
           <ul className="list-disc pl-6 space-y-2 mt-2">
             <li>
               <strong>Account info</strong> — email address, display name, and password (passwords
-              are stored encrypted by our auth provider, Supabase). For venue accounts, we also
-              store the venue name, address, postcode, phone number, opening hours and social links
-              you choose to provide.
+              are stored encrypted by our auth provider, Supabase). For organiser accounts, we also
+              store the details you choose to provide about your activity or venue (name, address,
+              postcode, phone, opening hours, prices and links).
             </li>
             <li>
-              <strong>Content you upload</strong> — gig listings, venue photos, gig posters,
-              artist tags. These are public on the website by design.
+              <strong>Content you upload</strong> — activity and venue listings, photos, posters,
+              your profile photo, and reviews (including any review photos). This content is public
+              on the website by design.
             </li>
             <li>
-              <strong>Payment info</strong> — for venue subscriptions and promotions, payments
-              are processed by Stripe. We do not see or store your card details — only Stripe's
-              transaction reference, the amount and the subscription status.
+              <strong>Reviews</strong> — the star rating, text and photos you submit. Your display
+              name and profile photo are shown alongside approved reviews.
             </li>
             <li>
-              <strong>Approximate location</strong> — only if you tap "Near me" or pick "Sort by
-              distance". We use this to calculate the distance between you and venues. Your
-              location is never stored on our servers — it stays in your browser session and
-              is cleared when you close the tab.
+              <strong>Approximate location</strong> — only if you tap "Near me" or sort by distance.
+              We use it to calculate distance to venues. It stays in your browser and is never stored
+              on our servers.
             </li>
             <li>
-              <strong>Camera and photo library access</strong> — only when you choose to upload
-              a logo, cover photo or gallery image. Photos you select are uploaded to our storage.
-              We never read your camera or photo library without an explicit action from you.
+              <strong>Camera and photo access</strong> — only when you choose to upload a profile
+              photo, listing image or review photo. We never access your camera or photo library
+              without an explicit action from you.
             </li>
             <li>
-              <strong>Basic usage logs</strong> — your IP address, browser, and pages visited,
-              kept by our hosting provider Vercel for security and abuse prevention.
+              <strong>Basic usage logs</strong> — IP address, browser and pages visited, kept by our
+              hosting provider Vercel for security and abuse prevention.
             </li>
           </ul>
         </section>
@@ -74,48 +117,55 @@ export default function PrivacyPage() {
           <h2 className="font-display text-2xl uppercase mb-2 mt-6">How we use it</h2>
           <ul className="list-disc pl-6 space-y-2 mt-2">
             <li>To run your account and let you sign in.</li>
-            <li>To show your gigs, venue and artist pages publicly on The Buzz Guide.</li>
-            <li>To send transactional emails — gig approval requests, password resets, signup confirmations, billing receipts.</li>
-            <li>To process subscription and promotion payments via Stripe.</li>
+            <li>To show organiser listings, and approved reviews, publicly on the site.</li>
+            <li>To let you save places to your wishlist and plan days out.</li>
+            <li>To send transactional emails — listing approvals, password resets, signup confirmations.</li>
             <li>To calculate distance to venues if you opt into "Near me".</li>
-            <li>To investigate abuse, spam or technical issues.</li>
+            <li>To moderate reviews and investigate abuse, spam or technical issues.</li>
           </ul>
           <p className="mt-3">
             We <strong>do not</strong> sell your data, share it with advertisers, or use it for
-            advertising. We <strong>do not</strong> show ads on the site.
+            advertising profiling.
           </p>
         </section>
 
         <section>
           <h2 className="font-display text-2xl uppercase mb-2 mt-6">Who we share data with</h2>
           <p>
-            We use a small number of third-party services to operate The Buzz Guide. Each only sees the
+            We use a small number of third-party services to operate the site. Each only sees the
             minimum data needed for their part of the system:
           </p>
           <ul className="list-disc pl-6 space-y-2 mt-2">
             <li><strong>Supabase</strong> — database, authentication and file storage.</li>
-            <li><strong>Vercel</strong> — website and app hosting.</li>
-            <li><strong>Stripe</strong> — venue subscription and promotion payments.</li>
+            <li><strong>Vercel</strong> — website hosting.</li>
             <li><strong>Resend</strong> — transactional email delivery.</li>
             <li><strong>postcodes.io</strong> — UK postcode → coordinates lookup for venue locations (no personal data sent).</li>
-            <li><strong>OpenStreetMap</strong> — venue map tiles. Standard map tile requests include your IP, the same as any web mapping service.</li>
+            <li><strong>OpenStreetMap</strong> — venue map tiles. Tile requests include your IP, the same as any web map.</li>
           </ul>
         </section>
 
         <section>
-          <h2 className="font-display text-2xl uppercase mb-2 mt-6">Cookies and similar tech</h2>
+          <h2 className="font-display text-2xl uppercase mb-2 mt-6">Reviews</h2>
+          <p>
+            Parents and carers can leave reviews of places they've visited. Reviews are checked by us
+            before they appear, and we may decline or remove any review — for example if it's abusive,
+            off-topic, fake, or identifies a child. A review is one person's opinion and does not
+            reflect the views of The Buzz Kids. If you're an organiser and believe a review is unfair
+            or untrue, contact us and we'll look into it.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="font-display text-2xl uppercase mb-2 mt-6">Cookies</h2>
           <p>
             We use a single first-party authentication cookie to keep you signed in. We don't use
-            third-party tracking cookies or analytics that profile you. Stripe sets its own cookies
-            during checkout for fraud prevention.
+            third-party tracking cookies that profile you.
           </p>
         </section>
 
         <section>
           <h2 className="font-display text-2xl uppercase mb-2 mt-6">Your rights</h2>
-          <p>
-            Under UK GDPR you can ask us to:
-          </p>
+          <p>Under UK GDPR you can ask us to:</p>
           <ul className="list-disc pl-6 space-y-2 mt-2">
             <li>Show you what personal data we hold about you.</li>
             <li>Correct anything that's wrong.</li>
@@ -125,61 +175,38 @@ export default function PrivacyPage() {
           </ul>
           <p className="mt-3">
             Email{" "}
-            <a className="text-buzz-accent hover:text-buzz-accent2" href="mailto:admin@thebuzzguide.co.uk">
-              admin@thebuzzguide.co.uk
+            <a className="text-buzz-accent hover:text-buzz-accent2" href="mailto:hello@thebuzzkids.co.uk">
+              hello@thebuzzkids.co.uk
             </a>{" "}
-            and we'll handle it within 30 days. You can also delete your account directly from
-            your account settings on the website.
+            and we'll handle it within 30 days. You can also delete your account directly from your
+            account settings.
           </p>
         </section>
 
         <section>
           <h2 className="font-display text-2xl uppercase mb-2 mt-6">Data retention</h2>
           <p>
-            We keep your account data for as long as your account is active. When you delete your
-            account, we delete your profile, venues, gigs and uploads from our database within
-            30 days. Stripe retains transaction records as required by financial regulations.
+            We keep your account data while your account is active. When you delete your account, we
+            delete your profile, listings, reviews and uploads within 30 days.
           </p>
         </section>
 
         <section>
           <h2 className="font-display text-2xl uppercase mb-2 mt-6">Children</h2>
           <p>
-            The Buzz Guide is not aimed at children under 13. We don't knowingly collect data from
-            anyone under 13. If you believe we have, contact us and we'll delete it.
-          </p>
-        </section>
-
-        <section>
-          <h2 className="font-display text-2xl uppercase mb-2 mt-6">Mobile app permissions</h2>
-          <p>
-            The Buzz Guide mobile apps may request:
-          </p>
-          <ul className="list-disc pl-6 space-y-2 mt-2">
-            <li>
-              <strong>Photo library</strong> — to upload venue logos, cover photos and gallery
-              images you choose.
-            </li>
-            <li>
-              <strong>Camera</strong> — only if you choose to take a new photo for upload rather
-              than selecting an existing one.
-            </li>
-            <li>
-              <strong>Location</strong> — only when you tap "Near me" to see distance to venues.
-              Location is not stored.
-            </li>
-          </ul>
-          <p className="mt-3">
-            All permissions are opt-in and only requested at the moment you use a feature that
-            needs them.
+            The Buzz Kids is a service for <strong>parents and carers</strong> (adults) to find
+            things to do with children. Accounts are for adults only — it is not aimed at, and should
+            not be used by, children under 16. We don't knowingly collect personal data from
+            children. Please don't include identifying information about a child in reviews or photos.
+            If you believe we hold a child's data, contact us and we'll delete it.
           </p>
         </section>
 
         <section>
           <h2 className="font-display text-2xl uppercase mb-2 mt-6">Changes to this policy</h2>
           <p>
-            If we make material changes we'll update the "Last updated" date and email account
-            holders if the change affects them.
+            If we make material changes we'll update the "Last updated" date and email account holders
+            if the change affects them.
           </p>
         </section>
 
@@ -187,8 +214,8 @@ export default function PrivacyPage() {
           <h2 className="font-display text-2xl uppercase mb-2 mt-6">Contact</h2>
           <p>
             Questions, complaints, or to exercise any of your rights:{" "}
-            <a className="text-buzz-accent hover:text-buzz-accent2" href="mailto:admin@thebuzzguide.co.uk">
-              admin@thebuzzguide.co.uk
+            <a className="text-buzz-accent hover:text-buzz-accent2" href="mailto:hello@thebuzzkids.co.uk">
+              hello@thebuzzkids.co.uk
             </a>.
           </p>
         </section>
