@@ -11,7 +11,11 @@ export type PlaceQuery = {
   catSlugs?: string[];           // category filter (venue_genres)
   toddler?: boolean;             // only places suitable from toddler age
   indoorOnly?: boolean;          // rainy-day: indoor or indoor+outdoor places
+  outdoorOnly?: boolean;         // planner: outdoor or indoor+outdoor places
   accessKeys?: string[];         // must have ALL these accessibility facets
+  freeOnly?: boolean;            // planner: free places only
+  maxPrice?: number;             // planner: free, unknown, or price_from <= maxPrice
+  suitableForAge?: number;       // planner: place admits a child of this age
 };
 
 export async function fetchPlaces(supabase: SupabaseClient, opts: PlaceQuery): Promise<any[]> {
@@ -40,7 +44,11 @@ export async function fetchPlaces(supabase: SupabaseClient, opts: PlaceQuery): P
   if (venueIdFilter !== null) q = q.in("id", venueIdFilter.length ? venueIdFilter : [NO_MATCH]);
   if (opts.toddler) q = q.lte("age_min", 3); // suitable from toddler age (0–3)
   if (opts.indoorOnly) q = q.in("setting", ["indoor", "both"]); // stays dry if it rains
+  if (opts.outdoorOnly) q = q.in("setting", ["outdoor", "both"]);
   if (opts.accessKeys && opts.accessKeys.length > 0) q = q.contains("accessibility", opts.accessKeys);
+  if (opts.freeOnly) q = q.eq("is_free", true);
+  else if (opts.maxPrice != null) q = q.or(`is_free.eq.true,price_from.lte.${opts.maxPrice},price_from.is.null`);
+  if (opts.suitableForAge != null) q = q.or(`age_min.is.null,age_min.lte.${opts.suitableForAge}`);
 
   const { data } = await q;
   return (data ?? []).map((p: any) => ({
