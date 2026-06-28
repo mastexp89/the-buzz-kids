@@ -47,19 +47,19 @@ export default function PlaceFilters({
     list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
 
   return (
-    <div className="card p-4 flex flex-col gap-4">
+    <div className="card p-4 flex flex-col gap-5">
       {cities && cities.length > 0 && (
         <div>
-          <div className="label">Area</div>
-          <div className="flex flex-wrap gap-2">
-            <button onClick={() => update({ loc: null })} className={loc === "" ? "chip-accent" : "chip"}>
+          <div className="label mb-2">Area</div>
+          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: "none" }}>
+            <button onClick={() => update({ loc: null })} className={`filter-pill shrink-0 ${loc === "" ? "filter-pill-active" : ""}`}>
               Everywhere
             </button>
             {cities.map((c) => (
               <button
                 key={c.slug}
                 onClick={() => update({ loc: loc === c.slug ? null : c.slug })}
-                className={loc === c.slug ? "chip-accent" : "chip"}
+                className={`filter-pill shrink-0 ${loc === c.slug ? "filter-pill-active" : ""}`}
               >
                 {c.name}
               </button>
@@ -69,19 +69,22 @@ export default function PlaceFilters({
       )}
 
       <div>
-        <div className="label">Activity</div>
-        <div className="flex flex-wrap gap-2">
-          <button onClick={() => update({ cat: null })} className={cats.length === 0 ? "chip-accent" : "chip"}>
+        <div className="label mb-2">Activity</div>
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: "none" }}>
+          <button onClick={() => update({ cat: null })} className={`filter-pill shrink-0 ${cats.length === 0 ? "filter-pill-active" : ""}`}>
             Anything
           </button>
           {genres.map((g, i) => {
             const active = cats.includes(g.slug);
+            const c = CHIP_COLOURS[i % CHIP_COLOURS.length];
             return (
               <button
                 key={g.id}
                 onClick={() => update({ cat: toggleIn(cats, g.slug).join(",") || null })}
-                style={chipStyle(i, active)}
-                className="chip"
+                className="filter-pill shrink-0"
+                style={active
+                  ? { backgroundColor: c.solid, color: c.on, borderColor: c.solid }
+                  : { backgroundColor: c.tintBg, color: c.tintText, borderColor: "transparent" }}
               >
                 {g.name}
               </button>
@@ -91,33 +94,33 @@ export default function PlaceFilters({
       </div>
 
       <div>
-        <div className="label">Handy filters</div>
-        <div className="flex flex-wrap gap-2">
+        <div className="label mb-2">Handy filters</div>
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: "none" }}>
           <button
             onClick={() => update({ toddler: toddler ? null : "1" })}
-            className={toddler ? "chip-accent" : "chip"}
+            className={`filter-pill shrink-0 ${toddler ? "filter-pill-active" : ""}`}
           >
-            🧸 Toddler-friendly only (ages 1–3)
+            🧸 Toddler-friendly
           </button>
           <button
             onClick={() => update({ rain: rain ? null : "1" })}
-            className={rain ? "chip-accent" : "chip"}
+            className={`filter-pill shrink-0 ${rain ? "filter-pill-active" : ""}`}
           >
-            🌧️ Good for a rainy day
+            🌧️ Rainy day
           </button>
         </div>
       </div>
 
       <div>
-        <div className="label">Access &amp; sensory needs</div>
-        <div className="flex flex-wrap gap-2">
+        <div className="label mb-2">Access &amp; sensory needs</div>
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: "none" }}>
           {ACCESS_FACETS.map((f) => {
             const active = access.includes(f.key);
             return (
               <button
                 key={f.key}
                 onClick={() => update({ access: toggleIn(access, f.key).join(",") || null })}
-                className={active ? "chip-accent" : "chip"}
+                className={`filter-pill shrink-0 ${active ? "filter-pill-active" : ""}`}
               >
                 <span aria-hidden className="mr-1">{f.icon}</span>
                 {f.label}
@@ -128,14 +131,12 @@ export default function PlaceFilters({
       </div>
 
       {(cats.length > 0 || access.length > 0 || toddler || rain || loc) && (
-        <div>
-          <button
-            onClick={() => update({ cat: null, access: null, toddler: null, rain: null, loc: null })}
-            className="chip text-buzz-mute"
-          >
-            Clear filters
-          </button>
-        </div>
+        <button
+          onClick={() => update({ cat: null, access: null, toddler: null, rain: null, loc: null })}
+          className="filter-pill self-start text-buzz-mute"
+        >
+          ✕ Clear all filters
+        </button>
       )}
     </div>
   );

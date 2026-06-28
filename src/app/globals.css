@@ -83,6 +83,18 @@ button.chip:hover { @apply border-buzz-accent/60; }
 }
 button.chip-accent:hover { background-color: #1689BC; border-color: #1689BC; }
 
+/* Filter pills — larger touch targets for the browse/city filter bars.
+   Min-height 44px matches Apple/Google's recommended tap target size. */
+.filter-pill {
+  @apply inline-flex items-center rounded-full bg-buzz-surface border border-buzz-border px-4 py-2.5 text-sm font-medium text-buzz-text cursor-pointer transition whitespace-nowrap;
+  min-height: 44px;
+}
+button.filter-pill:hover { @apply border-buzz-accent/60; }
+.filter-pill-active {
+  @apply bg-buzz-accent text-white border-buzz-accent;
+}
+button.filter-pill-active:hover { @apply opacity-90; }
+
 /* Section heading helper */
 .eyebrow {
   @apply text-xs uppercase tracking-[0.2em] text-buzz-accent font-semibold;
