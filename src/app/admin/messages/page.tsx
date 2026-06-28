@@ -5,18 +5,18 @@ import { listConversations } from "@/lib/messages-actions";
 import ComposeBox from "./ComposeBox";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Messages — The Buzz Guide admin" };
+export const metadata = { title: "Messages — The Buzz Kids admin" };
 
 export default async function AdminMessagesPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
-  const { data: me } = await supabase.from("profiles").select("role, email").eq("id", user.id).maybeSingle();
-  if (me?.role !== "admin" || me?.email?.toLowerCase() !== "dylanwilliamson@gmail.com") {
+  const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+  if (me?.role !== "admin") {
     return (
       <div className="container-page py-16 text-center">
-        <h1 className="h-display text-3xl mb-2">Messaging is private</h1>
-        <p className="text-buzz-mute mb-6">This admin tool is restricted to one account.</p>
+        <h1 className="h-display text-3xl mb-2">Admins only</h1>
+        <p className="text-buzz-mute mb-6">Your account isn't an admin.</p>
         <Link href="/admin" className="btn-secondary">Back to admin</Link>
       </div>
     );

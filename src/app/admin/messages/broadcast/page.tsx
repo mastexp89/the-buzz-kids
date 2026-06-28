@@ -4,14 +4,14 @@ import { createClient } from "@/lib/supabase/server";
 import BroadcastForm from "./BroadcastForm";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Broadcast — The Buzz Guide admin" };
+export const metadata = { title: "Broadcast — The Buzz Kids admin" };
 
 export default async function BroadcastPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
-  const { data: me } = await supabase.from("profiles").select("role, email").eq("id", user.id).maybeSingle();
-  if (me?.role !== "admin" || me?.email?.toLowerCase() !== "dylanwilliamson@gmail.com") {
+  const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+  if (me?.role !== "admin") {
     return (
       <div className="container-page py-16 text-center">
         <h1 className="h-display text-3xl mb-2">Not authorised</h1>
