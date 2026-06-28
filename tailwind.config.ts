@@ -6,15 +6,22 @@ const config: Config = {
     extend: {
       colors: {
         buzz: {
-          bg: "#000000",          // pure black — matches logo
-          surface: "#0e0e10",     // very dark for cards behind cards
-          card: "#161618",        // card surfaces
-          border: "#26262a",      // subtle dividers
-          text: "#f5f5f0",        // warm off-white
-          mute: "#8a8a92",
-          accent: "#fdb913",      // honey gold — exact from logo
-          accent2: "#ff9c00",     // deeper orange for hovers/highlights
-          good: "#06d6a0",
+          // --- Light & bright base (from The Buzz Kids logo) ---
+          bg: "#FFFDF7",          // warm cream page background
+          surface: "#FFF6E6",     // soft warm tint for secondary panels / inputs
+          card: "#FFFFFF",        // white cards pop on the cream page
+          border: "#EFE4CC",      // warm hairline divider
+          text: "#1F1B16",        // warm near-black ink
+          mute: "#7A736A",        // muted warm grey
+
+          // --- Brand accents (exact from logo) ---
+          accent: "#F9A11B",      // honey gold — primary CTA / badge
+          accent2: "#F2820D",     // deeper orange for hovers
+          pink: "#EC1E8C",        // magenta — category accents, hearts
+          cyan: "#1FA9E0",        // sky cyan — dates, links, the star
+          lime: "#8CC63F",        // lime green
+          yellow: "#FFD23F",      // sunny yellow — highlights
+          good: "#5BA012",        // green for "free" / success states
         },
       },
       fontFamily: {

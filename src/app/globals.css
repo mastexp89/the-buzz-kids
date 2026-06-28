@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 html, body {
@@ -16,18 +16,17 @@ a { color: inherit; }
 
 /* Subtle scrollbar */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb { background: #26262a; border-radius: 8px; }
+::-webkit-scrollbar-thumb { background: #e0d5be; border-radius: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 
 /* Form sensible defaults */
 input, select, textarea, button { font: inherit; color: inherit; }
 
-/* Native date / time inputs need explicit dark color-scheme so iOS Safari
-   doesn't render the placeholder text invisible on our dark background. */
+/* Native date / time inputs — light scheme to match the bright theme. */
 input[type="date"],
 input[type="time"],
 input[type="datetime-local"] {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 /* Subtle film-grain texture overlay — only on the main bg, very faint */
@@ -76,13 +75,13 @@ button.chip:hover { @apply border-buzz-accent/60; }
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1;
-  background-color: #fdb913;
-  color: #000;
-  border: 1px solid #fdb913;
+  background-color: #F9A11B;
+  color: #1F1B16;
+  border: 1px solid #F9A11B;
   cursor: pointer;
   transition: all 150ms;
 }
-button.chip-accent:hover { background-color: #ff9c00; border-color: #ff9c00; }
+button.chip-accent:hover { background-color: #F2820D; border-color: #F2820D; }
 
 /* Section heading helper */
 .eyebrow {
