@@ -36,15 +36,15 @@ export default async function Navbar() {
 
   return (
     <header className="border-b border-buzz-border bg-buzz-bg sticky top-0 z-30">
-      <div className="container-page h-16 flex items-center justify-between gap-2">
+      <div className="container-page h-20 flex items-center justify-between gap-2">
         <Link href="/" className="group leading-none shrink-0" aria-label="The Buzz Kids — home">
           <Image
             src="/logo.png"
             alt="The Buzz Kids"
-            width={156}
-            height={120}
+            width={862}
+            height={700}
             priority
-            className="h-11 w-auto sm:h-12"
+            className="h-14 w-auto sm:h-16"
           />
         </Link>
 
