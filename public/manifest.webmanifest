@@ -1,13 +1,13 @@
 {
-  "name": "The Buzz Guide — Live music in Dundee",
-  "short_name": "The Buzz Guide",
-  "description": "Find live music tonight in Dundee. Filter by genre, date, and venue.",
+  "name": "The Buzz Kids — Things to do with the kids",
+  "short_name": "The Buzz Kids",
+  "description": "Find kid-friendly things to do near you — soft play, holiday clubs, farm days, kids' theatre and more.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#000000",
-  "theme_color": "#000000",
-  "categories": ["music", "entertainment", "lifestyle"],
+  "background_color": "#f0f7ff",
+  "theme_color": "#1FA9E0",
+  "categories": ["kids", "family", "entertainment", "lifestyle"],
   "icons": [
     {
       "src": "/logo.png",

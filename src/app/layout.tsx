@@ -19,7 +19,10 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
   manifest: "/manifest.webmanifest",
   icons: {
-    icon: "/logo.png",
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/logo.png", sizes: "192x192", type: "image/png" },
+    ],
     apple: "/logo.png",
   },
   appleWebApp: {
