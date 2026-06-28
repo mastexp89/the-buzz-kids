@@ -1,22 +1,27 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import type { Genre } from "@/lib/types";
 import { ACCESS_FACETS } from "@/lib/accessibility";
 
-// Colourful category pills (logo palette), matching the What's-on filters.
+// Categories removed from the activity filter (not useful for this directory).
+const EXCLUDED_NAMES = new Set([
+  "story time from library",
+  "music and singing",
+  "seasonal and festive",
+  "stem and coding",
+  "drama and performance",
+]);
+
 const CHIP_COLOURS = [
   { solid: "#EC1E8C", on: "#fff", tintBg: "#FBE0EC", tintText: "#A3174F" },
   { solid: "#1FA9E0", on: "#fff", tintBg: "#DCF1FA", tintText: "#0C6087" },
   { solid: "#6FA713", on: "#fff", tintBg: "#E6F6E0", tintText: "#3B6D11" },
   { solid: "#F9A11B", on: "#1F1B16", tintBg: "#FFEDC2", tintText: "#854F0B" },
 ];
-function chipStyle(i: number, active: boolean): React.CSSProperties {
-  const c = CHIP_COLOURS[i % CHIP_COLOURS.length];
-  return active
-    ? { backgroundColor: c.solid, color: c.on, borderColor: c.solid }
-    : { backgroundColor: c.tintBg, color: c.tintText, borderColor: "transparent" };
-}
+
+const INITIAL_VISIBLE = 4;
 
 export default function PlaceFilters({
   genres,
@@ -28,6 +33,9 @@ export default function PlaceFilters({
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
+
+  const [showAllCats, setShowAllCats] = useState(false);
+  const [showAllAccess, setShowAllAccess] = useState(false);
 
   const cats = (params.get("cat") || "").split(",").map((s) => s.trim()).filter(Boolean);
   const access = (params.get("access") || "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -48,6 +56,17 @@ export default function PlaceFilters({
 
   const hasFilters = cats.length > 0 || access.length > 0 || toddler || rain || loc;
   const clearAll = () => update({ cat: null, access: null, toddler: null, rain: null, loc: null });
+
+  // Filter out excluded categories, keeping any that are currently active so
+  // a URL-shared filter still shows the active pill even if it's "hidden".
+  const visibleGenres = genres.filter(
+    (g) => !EXCLUDED_NAMES.has(g.name.toLowerCase()) || cats.includes(g.slug),
+  );
+  const shownGenres = showAllCats ? visibleGenres : visibleGenres.slice(0, INITIAL_VISIBLE);
+  const hiddenCatCount = visibleGenres.length - INITIAL_VISIBLE;
+
+  const shownAccess = showAllAccess ? ACCESS_FACETS : ACCESS_FACETS.slice(0, INITIAL_VISIBLE);
+  const hiddenAccessCount = ACCESS_FACETS.length - INITIAL_VISIBLE;
 
   return (
     <div className="card p-4 flex flex-col gap-5">
@@ -86,7 +105,7 @@ export default function PlaceFilters({
           <button onClick={() => update({ cat: null })} className={`filter-pill ${cats.length === 0 ? "filter-pill-active" : ""}`}>
             Anything
           </button>
-          {genres.map((g, i) => {
+          {shownGenres.map((g, i) => {
             const active = cats.includes(g.slug);
             const c = CHIP_COLOURS[i % CHIP_COLOURS.length];
             return (
@@ -102,6 +121,22 @@ export default function PlaceFilters({
               </button>
             );
           })}
+          {!showAllCats && hiddenCatCount > 0 && (
+            <button
+              onClick={() => setShowAllCats(true)}
+              className="filter-pill text-buzz-mute"
+            >
+              +{hiddenCatCount} more
+            </button>
+          )}
+          {showAllCats && visibleGenres.length > INITIAL_VISIBLE && (
+            <button
+              onClick={() => setShowAllCats(false)}
+              className="filter-pill text-buzz-mute"
+            >
+              Show less
+            </button>
+          )}
         </div>
       </div>
 
@@ -126,7 +161,7 @@ export default function PlaceFilters({
       <div>
         <div className="label mb-2">Access &amp; sensory needs</div>
         <div className="flex flex-wrap gap-2">
-          {ACCESS_FACETS.map((f) => {
+          {shownAccess.map((f) => {
             const active = access.includes(f.key);
             return (
               <button
@@ -139,6 +174,22 @@ export default function PlaceFilters({
               </button>
             );
           })}
+          {!showAllAccess && hiddenAccessCount > 0 && (
+            <button
+              onClick={() => setShowAllAccess(true)}
+              className="filter-pill text-buzz-mute"
+            >
+              +{hiddenAccessCount} more
+            </button>
+          )}
+          {showAllAccess && ACCESS_FACETS.length > INITIAL_VISIBLE && (
+            <button
+              onClick={() => setShowAllAccess(false)}
+              className="filter-pill text-buzz-mute"
+            >
+              Show less
+            </button>
+          )}
         </div>
       </div>
 
