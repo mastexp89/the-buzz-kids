@@ -63,31 +63,28 @@ export default async function DashboardHome() {
       return (
         <div className="flex flex-col gap-6 max-w-2xl">
           <div className="card p-8 sm:p-10">
-            <p className="eyebrow mb-3">Welcome to The Buzz Guide</p>
+            <p className="eyebrow mb-3">Welcome to The Buzz Kids</p>
             <h1 className="h-display text-4xl mb-3">You're all set.</h1>
             <p className="text-buzz-mute mb-6">
-              Heart venues, bands and gigs you like — we'll email you when
-              they post something new and remind you on the day. Here's where
-              to go:
+              Heart places and activities you love — we'll keep them saved so
+              you can find them again easily. Here's where to start:
             </p>
             <div className="flex flex-wrap gap-2">
               <Link href="/" className="btn-primary btn-lg">
-                🔍 Browse what's on
+                🔍 Browse activities
               </Link>
               <Link href="/dashboard/favourites" className="btn-secondary btn-lg">
                 ♡ My bucket list
               </Link>
-              <Link href="/dashboard/today" className="btn-secondary btn-lg">
-                📍 Day planner
+              <Link href="/surprise" className="btn-secondary btn-lg">
+                🎲 Surprise me
               </Link>
             </div>
           </div>
           <div className="card p-5">
             <p className="eyebrow mb-2">💡 Quick tip</p>
             <p className="text-sm text-buzz-mute">
-              Tap the heart on any venue, artist or gig to save it. The day
-              planner builds a map of everywhere you're heading on a given
-              day — handy for festivals or busy weekends.
+              Tap the heart on any place or activity to save it to your bucket list — great for building a wishlist of days out to try with the kids.
             </p>
           </div>
         </div>
@@ -104,33 +101,19 @@ export default async function DashboardHome() {
         <p className="eyebrow mb-3">Welcome aboard</p>
         <h1 className="h-display text-4xl mb-3">Get listed in 2 minutes.</h1>
         <p className="text-buzz-mute mb-6">
-          Pick what you&apos;re here for and we&apos;ll get your page live.
+          Pick what you&apos;re here for and we&apos;ll get your listing live.
         </p>
         <div className="flex flex-col gap-3">
           <Link
             href="/dashboard/venue-setup"
             className="card p-4 hover:border-buzz-accent transition flex items-start gap-4"
           >
-            <span className="text-2xl">🏛️</span>
+            <span className="text-2xl">🏡</span>
             <div className="flex-1 min-w-0">
-              <div className="font-semibold text-base">I run a venue</div>
+              <div className="font-semibold text-base">I run a place or activity</div>
               <p className="text-xs text-buzz-mute mt-0.5">
-                A pub, bar, club or arts space hosting live music. Lists your
-                place + lets you publish your own gigs.
-              </p>
-            </div>
-            <span className="text-buzz-mute text-xl shrink-0">→</span>
-          </Link>
-          <Link
-            href="/dashboard/setup"
-            className="card p-4 hover:border-buzz-accent transition flex items-start gap-4"
-          >
-            <span className="text-2xl">🎤</span>
-            <div className="flex-1 min-w-0">
-              <div className="font-semibold text-base">I&apos;m an artist / band / DJ</div>
-              <p className="text-xs text-buzz-mute mt-0.5">
-                Get an artist page that ranks in Google + submit your own gigs
-                at any venue on Buzz.
+                Soft play, farm, museum, leisure centre, climbing wall — list your
+                place and manage your sessions, prices and photos.
               </p>
             </div>
             <span className="text-buzz-mute text-xl shrink-0">→</span>
@@ -142,13 +125,12 @@ export default async function DashboardHome() {
             <span className="text-2xl">📣</span>
             <div className="flex-1 min-w-0">
               <div className="font-semibold text-base">
-                I&apos;m a promoter / organiser
-                <span className="text-buzz-accent text-[10px] ml-2 uppercase tracking-wider">no venue needed</span>
+                I run events or classes
+                <span className="text-buzz-accent text-[10px] ml-2 uppercase tracking-wider">no fixed venue</span>
               </div>
               <p className="text-xs text-buzz-mute mt-0.5">
-                You book gigs at different venues — pop-ups, festivals,
-                touring nights. Publish events under your promoter name; if
-                the venue isn&apos;t on Buzz yet, you can add it as you go.
+                Holiday clubs, touring workshops, pop-up events. Publish activities
+                under your organiser name across different venues.
               </p>
             </div>
             <span className="text-buzz-mute text-xl shrink-0">→</span>
@@ -158,54 +140,43 @@ export default async function DashboardHome() {
     );
   }
 
-  // Artist-only view: their artist card(s) and a CTA to submit gigs
-  if (list.length === 0 && artistList.length > 0) {
+  // Organiser-only view (no claimed places yet)
+  if (list.length === 0 && organiserList.length > 0) {
     return (
       <div className="flex flex-col gap-8">
         <div className="flex items-end justify-between gap-4">
           <div>
             <p className="eyebrow mb-1">Your dashboard</p>
-            <h1 className="h-display text-4xl sm:text-5xl">Your artist {artistList.length === 1 ? "page" : "pages"}</h1>
+            <h1 className="h-display text-4xl sm:text-5xl">Your organiser {organiserList.length === 1 ? "page" : "pages"}</h1>
           </div>
-          <Link href="/submit-gig" className="btn-primary">+ Submit a gig</Link>
         </div>
         <div className="grid sm:grid-cols-2 gap-4">
-          {artistList.map((a: any) => (
+          {organiserList.map((o: any) => (
             <Link
-              key={a.id}
-              href={`/dashboard/artist/${a.id}/edit`}
+              key={o.id}
+              href={`/dashboard/organiser/${o.id}/edit`}
               className="card-hover p-5 flex gap-4 items-start lift"
             >
-              {a.image_url ? (
+              {o.image_url ? (
                 <div
                   className="w-16 h-16 rounded-full bg-buzz-surface shrink-0"
-                  style={{ backgroundImage: `url(${a.image_url})`, backgroundSize: "cover", backgroundPosition: "center" }}
+                  style={{ backgroundImage: `url(${o.image_url})`, backgroundSize: "cover", backgroundPosition: "center" }}
                 />
               ) : (
-                <div className="w-16 h-16 rounded-full bg-buzz-surface border border-buzz-border grid place-items-center text-buzz-accent text-2xl shrink-0">🎤</div>
+                <div className="w-16 h-16 rounded-full bg-buzz-surface border border-buzz-border grid place-items-center text-buzz-accent text-2xl shrink-0">📣</div>
               )}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  {a.approved ? (
+                  {o.approved ? (
                     <span className="text-[10px] uppercase tracking-wider font-bold text-emerald-400">● Live</span>
                   ) : (
                     <span className="text-[10px] uppercase tracking-wider font-bold text-buzz-accent">● Pending</span>
                   )}
                 </div>
-                <h2 className="font-display text-2xl uppercase truncate leading-tight">{a.name}</h2>
-                <p className="text-xs text-buzz-mute mt-2">
-                  {a.bio ? a.bio.slice(0, 100) + (a.bio.length > 100 ? "…" : "") : "Add a bio, photo and your socials →"}
-                </p>
+                <h2 className="font-display text-2xl uppercase truncate leading-tight">{o.name}</h2>
               </div>
             </Link>
           ))}
-        </div>
-        <div className="card p-5">
-          <p className="eyebrow mb-2">📣 Spread the word</p>
-          <p className="text-buzz-mute text-sm mb-3">
-            Anywhere you're playing? Submit it and your gig will show up on both the venue page and your artist page automatically.
-          </p>
-          <Link href="/submit-gig" className="btn-primary">Submit a gig</Link>
         </div>
       </div>
     );
@@ -216,9 +187,9 @@ export default async function DashboardHome() {
       <div className="flex items-end justify-between gap-4">
         <div>
           <p className="eyebrow mb-1">Your dashboard</p>
-          <h1 className="h-display text-4xl sm:text-5xl">Your venues</h1>
+          <h1 className="h-display text-4xl sm:text-5xl">Your places</h1>
         </div>
-        <Link href="/dashboard/venue-setup" className="btn-primary">+ Add venue</Link>
+        <Link href="/dashboard/venue-setup" className="btn-primary">+ Add place</Link>
       </div>
 
       <div className="grid sm:grid-cols-2 gap-4">
@@ -250,7 +221,7 @@ export default async function DashboardHome() {
                 <h2 className="font-display text-2xl uppercase truncate leading-tight">{v.name}</h2>
                 <div className="mt-2 flex items-baseline gap-2">
                   <span className="font-display text-2xl text-buzz-accent leading-none">{upcoming}</span>
-                  <span className="text-xs text-buzz-mute">upcoming {upcoming === 1 ? "gig" : "gigs"}</span>
+                  <span className="text-xs text-buzz-mute">upcoming {upcoming === 1 ? "session" : "sessions"}</span>
                 </div>
               </div>
             </Link>

@@ -61,7 +61,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           {artistList.length > 0 && (
             <div className="card p-4">
               <div className="eyebrow text-[10px] mb-3">
-                Your band{artistList.length === 1 ? "" : "s"} ({artistList.length})
+                Your organiser page{artistList.length === 1 ? "" : "s"} ({artistList.length})
               </div>
               <ul className="flex flex-col gap-1 text-sm">
                 {artistList.map((a) => (
@@ -145,7 +145,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
           {!isFan && (venueList.length > 0 || artistList.length === 0) && (
           <div className="card p-4">
-            <div className="eyebrow text-[10px] mb-3">Your venues</div>
+            <div className="eyebrow text-[10px] mb-3">Your places</div>
             <ul className="flex flex-col gap-1 text-sm">
               {venueList.map((v) => (
                 <li key={v.id}>
@@ -172,7 +172,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                   className="flex items-center gap-2 px-2 py-2 rounded-lg text-buzz-accent hover:bg-buzz-surface transition"
                 >
                   <span className="w-7 h-7 rounded-md shrink-0 grid place-items-center text-lg leading-none">+</span>
-                  {venueList.length > 0 ? "Add another venue" : "Add a venue"}
+                  {venueList.length > 0 ? "Add another place" : "Add a place"}
                 </Link>
               </li>
             </ul>
@@ -190,12 +190,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 user_id, not role, so nothing else needs to change. */}
             <Link href="/dashboard/favourites" className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-buzz-surface transition text-sm">
               ♡ <span>Bucket list</span>
-            </Link>
-            <Link href="/dashboard/today" className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-buzz-surface transition text-sm">
-              📍 <span>Day planner</span>
-            </Link>
-            <Link href="/dashboard/festivals" className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-buzz-surface transition text-sm">
-              🎪 <span>Festivals</span>
             </Link>
             <Link href="/dashboard/notifications" className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-buzz-surface transition text-sm">
               🔔 <span>Notifications</span>
