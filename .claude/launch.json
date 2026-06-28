@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "driveforce",
+      "runtimeExecutable": "php",
+      "runtimeArgs": ["-S", "localhost:8099", "-t", "C:/Users/dylan/Desktop/Web Design/Drive Force/site"],
+      "port": 8099
+    },
+    {
+      "name": "control-room",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:/Users/dylan/Desktop/Web Design/control-room/server.js"],
+      "port": 4321
+    },
+    {
+      "name": "myhub",
+      "runtimeExecutable": "php",
+      "runtimeArgs": ["-S", "localhost:8090", "-t", "C:/Users/dylan/Desktop/Web Design/forth-host-hub"],
+      "port": 8090
+    }
+  ]
+}

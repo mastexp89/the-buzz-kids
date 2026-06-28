@@ -1,0 +1,28 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/scrape-facebook",
+      "schedule": "*/5 21-23 * * 1,4"
+    },
+    {
+      "path": "/api/cron/dedupe-events",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/notify-followed-gigs",
+      "schedule": "0 8-20 * * *"
+    },
+    {
+      "path": "/api/cron/notify-morning-of",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/notify-fifteen-minute",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/welcome-emails",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}

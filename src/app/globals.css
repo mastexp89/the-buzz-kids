@@ -1,0 +1,107 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html, body {
+  background: theme("colors.buzz.bg");
+  color: theme("colors.buzz.text");
+}
+
+
+a { color: inherit; }
+
+/* Subtle scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: #26262a; border-radius: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* Form sensible defaults */
+input, select, textarea, button { font: inherit; color: inherit; }
+
+/* Native date / time inputs need explicit dark color-scheme so iOS Safari
+   doesn't render the placeholder text invisible on our dark background. */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"] {
+  color-scheme: dark;
+}
+
+/* Subtle film-grain texture overlay — only on the main bg, very faint */
+.bg-grain {
+  background-image:
+    radial-gradient(circle at 25% 25%, rgba(253,185,19,0.03), transparent 40%),
+    radial-gradient(circle at 75% 75%, rgba(255,156,0,0.03), transparent 40%),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.04 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Display headings — Bebas Neue style: condensed, all-caps feel */
+.font-display { letter-spacing: 0.01em; }
+
+/* Buttons */
+.btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold tracking-wide transition focus:outline-none focus:ring-2 focus:ring-buzz-accent focus:ring-offset-2 focus:ring-offset-buzz-bg disabled:opacity-50 disabled:cursor-not-allowed;
+}
+.btn-primary { @apply btn bg-buzz-accent text-black hover:bg-buzz-accent2 hover:text-black; }
+.btn-secondary { @apply btn bg-buzz-card text-buzz-text border border-buzz-border hover:bg-buzz-surface hover:border-buzz-accent/40; }
+.btn-ghost { @apply btn text-buzz-text hover:bg-buzz-card; }
+.btn-danger { @apply btn bg-rose-600 text-white hover:bg-rose-700; }
+.btn-lg { @apply px-6 py-3 text-base; }
+
+.input {
+  @apply w-full rounded-lg bg-buzz-surface border border-buzz-border px-3.5 py-2.5 text-buzz-text placeholder-buzz-mute focus:outline-none focus:ring-2 focus:ring-buzz-accent focus:border-buzz-accent transition;
+}
+.label { @apply block text-sm font-semibold text-buzz-text mb-1.5; }
+.help { @apply text-xs text-buzz-mute mt-1; }
+
+.card {
+  @apply rounded-2xl bg-buzz-card border border-buzz-border;
+}
+.card-hover { @apply card hover:border-buzz-accent/50 transition; }
+
+/* Chip / pill — leading-none kills the inherited line-height padding so
+   the pills sit tight around the text instead of looking chunky. */
+.chip {
+  @apply inline-flex items-center rounded-full bg-buzz-surface border border-buzz-border px-3 py-1 text-xs font-medium text-buzz-text cursor-pointer transition leading-none;
+}
+button.chip:hover { @apply border-buzz-accent/60; }
+.chip-accent {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  background-color: #fdb913;
+  color: #000;
+  border: 1px solid #fdb913;
+  cursor: pointer;
+  transition: all 150ms;
+}
+button.chip-accent:hover { background-color: #ff9c00; border-color: #ff9c00; }
+
+/* Section heading helper */
+.eyebrow {
+  @apply text-xs uppercase tracking-[0.2em] text-buzz-accent font-semibold;
+}
+
+/* Big display headline (gig-poster feel) */
+.h-display {
+  @apply font-display uppercase leading-[0.9] tracking-tight;
+}
+
+/* Hover lift for clickable cards */
+.lift {
+  @apply transition-transform duration-200;
+}
+.lift:hover { transform: translateY(-2px); }
+
+/* Section dividers */
+.divider-thin { @apply border-t border-buzz-border/60; }
+
+/* Reusable container width */
+.container-page { @apply max-w-6xl mx-auto px-4 sm:px-6; }

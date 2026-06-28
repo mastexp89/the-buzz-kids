@@ -1,0 +1,22 @@
+node_modules
+.next
+out
+.env
+.env.local
+.env*.local
+.DS_Store
+*.tsbuildinfo
+next-env.d.ts
+.vercel
+
+# Local notes & scratch files
+db.txt
+notes.txt
+scratch/
+
+# Stray images dropped at project root during development
+# (real images go in /public — those are tracked normally)
+/*.png
+/*.jpg
+/*.jpeg
+/*.gif
