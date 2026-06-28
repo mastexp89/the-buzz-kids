@@ -131,7 +131,7 @@ export default async function VenuePage({ params }: Props) {
   const sameAs = [venue.website, venue.instagram, venue.facebook, venue.twitter, venue.tiktok, venue.spotify, venue.youtube].filter(Boolean);
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "MusicVenue",
+    "@type": "LocalBusiness",
     name: venue.name,
     description: venue.description ?? `Pub and venue in ${cityName}`,
     url: `${siteUrl}/${citySlug}/venues/${venue.slug}`,
@@ -260,6 +260,12 @@ export default async function VenuePage({ params }: Props) {
                 <VenueEventsList events={events} citySlug={citySlug} />
               </section>
             )}
+
+            {/* Accuracy disclaimer — we don't run these places. */}
+            <p className="text-xs text-buzz-mute mt-6 leading-relaxed">
+              ℹ️ We gather this info from organisers and public sources, so prices, times and details
+              can change. Please double-check {venue.website ? "the venue's own website" : "with the venue"} before you set off.
+            </p>
           </div>
           <aside className="card p-5 flex flex-col gap-3">
             <div className="flex items-center justify-between">

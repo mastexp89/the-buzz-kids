@@ -103,7 +103,7 @@ export default async function EventPage({ params }: Props) {
       : [{ "@type": "PerformingGroup", name: venue.name }];
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "MusicEvent",
+    "@type": "ChildrensEvent",
     name: event.title,
     description: event.description ?? `${event.title} at ${venue.name}`,
     startDate: event.start_time,
