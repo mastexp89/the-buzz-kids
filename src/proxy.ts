@@ -72,39 +72,62 @@ const HOLDING_HTML = `<!doctype html>
       line-height: 1.6;
       margin-bottom: 2rem;
     }
-    .areas {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 0.5rem;
-      margin-bottom: 0.75rem;
-    }
-    .pill {
-      background: #fff;
-      border: 1.5px solid #DCEAF3;
-      border-radius: 9999px;
-      padding: 0.4rem 1rem;
-      font-size: 0.85rem;
-      font-weight: 500;
-      color: #16202A;
-    }
-    p.soon {
-      font-size: 0.8rem;
-      color: #647682;
+    .notify {
+      width: 100%;
+      max-width: 28rem;
       margin-bottom: 2.5rem;
     }
-    a.cta {
-      display: inline-block;
+    .notify h2 {
+      font-family: "Bebas Neue", Impact, "Helvetica Neue", sans-serif;
+      font-size: 1.6rem;
+      letter-spacing: 0.03em;
+      margin-bottom: 0.4rem;
+    }
+    .notify p {
+      font-size: 0.85rem;
+      color: #647682;
+      margin-bottom: 1rem;
+      line-height: 1.5;
+    }
+    .notify form {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .notify input[type="email"] {
+      flex: 1 1 200px;
+      padding: 0.65rem 1rem;
+      border-radius: 0.5rem;
+      border: 1.5px solid #DCEAF3;
+      font-size: 0.9rem;
+      font-family: inherit;
+      background: #fff;
+      color: #16202A;
+      outline: none;
+    }
+    .notify input[type="email"]:focus { border-color: #1FA9E0; }
+    .notify button {
       background: #1FA9E0;
       color: #fff;
       font-weight: 600;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
+      border: none;
       border-radius: 0.5rem;
-      padding: 0.75rem 1.75rem;
-      text-decoration: none;
+      padding: 0.65rem 1.25rem;
+      cursor: pointer;
+      font-family: inherit;
       transition: opacity 0.15s;
+      white-space: nowrap;
     }
-    a.cta:hover { opacity: 0.88; }
+    .notify button:hover { opacity: 0.88; }
+    .notify button:disabled { opacity: 0.6; cursor: default; }
+    .notify-msg {
+      margin-top: 0.6rem;
+      font-size: 0.8rem;
+      min-height: 1.2em;
+    }
+    .notify-msg.ok  { color: #6FA713; }
+    .notify-msg.err { color: #e53e3e; }
     footer {
       margin-top: 3.5rem;
       font-size: 0.72rem;
@@ -124,20 +147,53 @@ const HOLDING_HTML = `<!doctype html>
   <p class="tag">
     Scotland's new guide to family days out — soft play, farms, museums, holiday clubs and more.
   </p>
-  <div class="areas">
-    <span class="pill">📍 Dundee</span>
-    <span class="pill">📍 Angus</span>
-    <span class="pill">📍 Fife</span>
-    <span class="pill">📍 Perth &amp; Perthshire</span>
+  <div class="notify">
+    <h2>Be the first to know.</h2>
+    <p>Sign up for early access, exclusive discounts off local activities, and special offers from places near you — before we launch.</p>
+    <form id="notify-form">
+      <input type="email" name="email" placeholder="your@email.com" required autocomplete="email" />
+      <button type="submit" id="notify-btn">Notify me →</button>
+    </form>
+    <p class="notify-msg" id="notify-msg"></p>
   </div>
-  <p class="soon">More areas to follow — Aberdeen, Edinburgh, Glasgow, Stirling and beyond.</p>
-  <a class="cta" href="/signup?as=venue">
-    List your place free — be first in the directory →
-  </a>
   <footer>
     <div>A sister site to <a href="https://www.thebuzzguide.co.uk" style="color:#1FA9E0">The Buzz Guide</a>.</div>
     <div>Designed by <a href="https://www.forthhost.com" style="color:#EC1E8C">Forth Host &amp; Web Design</a>.</div>
   </footer>
+  <script>
+    document.getElementById('notify-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var btn = document.getElementById('notify-btn');
+      var msg = document.getElementById('notify-msg');
+      var email = this.email.value.trim();
+      btn.disabled = true;
+      btn.textContent = 'Sending…';
+      msg.textContent = '';
+      msg.className = 'notify-msg';
+      try {
+        var res = await fetch('/api/notify-signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email })
+        });
+        var json = await res.json();
+        if (res.ok) {
+          msg.textContent = "You're on the list! We'll be in touch before we launch.";
+          msg.className = 'notify-msg ok';
+          this.reset();
+        } else {
+          msg.textContent = json.error || 'Something went wrong — please try again.';
+          msg.className = 'notify-msg err';
+        }
+      } catch {
+        msg.textContent = 'Something went wrong — please try again.';
+        msg.className = 'notify-msg err';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Notify me →';
+      }
+    });
+  </script>
 </body>
 </html>`;
 
