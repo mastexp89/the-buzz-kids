@@ -13,6 +13,7 @@ import { isFavourited } from "@/lib/favourites";
 import TrackedLink from "@/components/TrackedLink";
 import AdminEditBar from "@/components/AdminEditBar";
 import VenueGallery from "@/components/VenueGallery";
+import ReviewsSection from "@/components/ReviewsSection";
 
 export const dynamic = "force-dynamic";
 
@@ -368,6 +369,7 @@ export default async function VenuePage({ params }: Props) {
           </section>
         )}
 
+        <ReviewsSection venueId={venue.id} venueName={venue.name} />
       </div>
     </div>
   );
