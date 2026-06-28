@@ -36,7 +36,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#FFFDF7",
+  themeColor: "#F2F9FE",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover", // Required for iOS notch / safe-area-inset

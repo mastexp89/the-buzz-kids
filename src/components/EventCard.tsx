@@ -43,7 +43,7 @@ export default function EventCard({ event, citySlug }: { event: EventWithVenue; 
       <div className="flex items-start gap-3">
         <div className="flex-1 min-w-0 flex flex-col gap-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="inline-flex items-center rounded-full bg-buzz-accent text-black text-[11px] font-bold uppercase tracking-wider px-2.5 py-1">
+            <span className="inline-flex items-center rounded-full bg-buzz-accent text-white text-[11px] font-bold uppercase tracking-wider px-2.5 py-1">
               {formatEventTime(event.start_time, event.end_time)}
             </span>
             {weekendBoost && (

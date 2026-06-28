@@ -295,7 +295,7 @@ export default async function Home() {
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Link
               href="/signup?as=fan"
-              className="inline-flex items-center gap-2 rounded-lg bg-buzz-accent text-black font-bold px-6 py-3 hover:opacity-90 transition"
+              className="inline-flex items-center gap-2 rounded-lg bg-buzz-accent text-white font-bold px-6 py-3 hover:opacity-90 transition"
             >
               ♡ Sign up free →
             </Link>
@@ -310,17 +310,17 @@ export default async function Home() {
       </section>
 
       <section className="container-page pb-20 pt-6">
-        <div className="relative overflow-hidden rounded-3xl bg-buzz-accent text-black p-10 sm:p-14 text-center">
+        <div className="relative overflow-hidden rounded-3xl bg-buzz-accent text-white p-10 sm:p-14 text-center">
           <div className="absolute -top-8 -right-8 w-48 h-48 opacity-10">
             <Image src="/logo.png" alt="" fill className="object-contain" />
           </div>
           <p className="text-xs uppercase tracking-[0.2em] font-bold mb-2">For clubs, venues &amp; activity providers</p>
           <h2 className="h-display text-4xl sm:text-5xl mb-3">List your activities.<br />Free, forever.</h2>
-          <p className="max-w-lg mx-auto text-black/80 mb-6">
+          <p className="max-w-lg mx-auto text-white/85 mb-6">
             Free for soft plays, farms, libraries, leisure trusts, theatres and holiday-club providers. Reach local families looking for things to do — this weekend, this holiday, and beyond.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
-            <Link href="/signup?as=venue" className="inline-flex items-center gap-2 rounded-lg bg-black text-buzz-accent font-bold px-6 py-3 hover:bg-buzz-bg transition">
+            <Link href="/signup?as=venue" className="inline-flex items-center gap-2 rounded-lg bg-white text-buzz-accent font-bold px-6 py-3 hover:bg-white/90 transition">
               List an activity free →
             </Link>
           </div>

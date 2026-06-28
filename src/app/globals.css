@@ -16,7 +16,7 @@ a { color: inherit; }
 
 /* Subtle scrollbar */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb { background: #e0d5be; border-radius: 8px; }
+::-webkit-scrollbar-thumb { background: #cfe0ec; border-radius: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 
 /* Form sensible defaults */
@@ -44,7 +44,7 @@ input[type="datetime-local"] {
 .btn {
   @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold tracking-wide transition focus:outline-none focus:ring-2 focus:ring-buzz-accent focus:ring-offset-2 focus:ring-offset-buzz-bg disabled:opacity-50 disabled:cursor-not-allowed;
 }
-.btn-primary { @apply btn bg-buzz-accent text-black hover:bg-buzz-accent2 hover:text-black; }
+.btn-primary { @apply btn bg-buzz-accent text-white hover:bg-buzz-accent2 hover:text-white; }
 .btn-secondary { @apply btn bg-buzz-card text-buzz-text border border-buzz-border hover:bg-buzz-surface hover:border-buzz-accent/40; }
 .btn-ghost { @apply btn text-buzz-text hover:bg-buzz-card; }
 .btn-danger { @apply btn bg-rose-600 text-white hover:bg-rose-700; }
@@ -75,13 +75,13 @@ button.chip:hover { @apply border-buzz-accent/60; }
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1;
-  background-color: #F9A11B;
-  color: #1F1B16;
-  border: 1px solid #F9A11B;
+  background-color: #1FA9E0;
+  color: #ffffff;
+  border: 1px solid #1FA9E0;
   cursor: pointer;
   transition: all 150ms;
 }
-button.chip-accent:hover { background-color: #F2820D; border-color: #F2820D; }
+button.chip-accent:hover { background-color: #1689BC; border-color: #1689BC; }
 
 /* Section heading helper */
 .eyebrow {

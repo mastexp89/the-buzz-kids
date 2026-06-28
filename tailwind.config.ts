@@ -6,22 +6,23 @@ const config: Config = {
     extend: {
       colors: {
         buzz: {
-          // --- Light & bright base (from The Buzz Kids logo) ---
-          bg: "#FFFDF7",          // warm cream page background
-          surface: "#FFF6E6",     // soft warm tint for secondary panels / inputs
-          card: "#FFFFFF",        // white cards pop on the cream page
-          border: "#EFE4CC",      // warm hairline divider
-          text: "#1F1B16",        // warm near-black ink
-          mute: "#7A736A",        // muted warm grey
+          // --- Light & bright base (cool white, from the logo's sky/star blue) ---
+          bg: "#F2F9FE",          // soft cool-white page background
+          surface: "#E8F2FA",     // cool tint for secondary panels / inputs / chips
+          card: "#FFFFFF",        // white cards pop on the cool page
+          border: "#DCEAF3",      // cool hairline divider
+          text: "#16202A",        // cool near-black ink
+          mute: "#647682",        // muted cool grey
 
-          // --- Brand accents (exact from logo) ---
-          accent: "#F9A11B",      // honey gold — primary CTA / badge
-          accent2: "#F2820D",     // deeper orange for hovers
+          // --- Brand accents (from logo) ---
+          accent: "#1FA9E0",      // sky blue — primary CTA / active
+          accent2: "#1689BC",     // deeper blue for hovers
           pink: "#EC1E8C",        // magenta — category accents, hearts
-          cyan: "#1FA9E0",        // sky cyan — dates, links, the star
+          cyan: "#1FA9E0",        // sky cyan (same as accent)
           lime: "#8CC63F",        // lime green
           yellow: "#FFD23F",      // sunny yellow — highlights
-          good: "#5BA012",        // green for "free" / success states
+          gold: "#F9A11B",        // honey gold — now just one of the accents
+          good: "#2E9E33",        // green for "free" / success states
         },
       },
       fontFamily: {
