@@ -24,12 +24,17 @@ const SETTING_LABEL: Record<string, string> = {
 };
 
 export default function PlaceCard({ place, citySlug }: { place: any; citySlug: string }) {
-  const photo =
+  // Prefer an organiser-supplied photo; fall back to the one we pulled from
+  // Google Places. Google requires showing the author attribution when its
+  // photo is used.
+  const ownPhoto =
     place.cover_photo_url ||
     place.image_url ||
     (Array.isArray(place.gallery_image_urls) ? place.gallery_image_urls[0] : null) ||
     place.logo_url ||
     null;
+  const photo = ownPhoto || place.google_photo_url || null;
+  const showGoogleAttribution = !ownPhoto && place.google_photo_url && place.google_photo_attribution;
 
   const categories: { name: string; slug: string }[] = place.categories ?? [];
   const badges = deriveSummary(place.accessibility, place.age_min);
@@ -53,6 +58,11 @@ export default function PlaceCard({ place, citySlug }: { place: any; citySlug: s
       >
         {!photo && (
           <div className="absolute inset-0 grid place-items-center text-5xl opacity-60" aria-hidden>🐝</div>
+        )}
+        {showGoogleAttribution && (
+          <span className="absolute bottom-1 right-2 text-[10px] text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+            {place.google_photo_attribution} · Google
+          </span>
         )}
         {badges.length > 0 && (
           <div className="absolute top-2 right-2 flex flex-col items-end gap-1.5">

@@ -19,8 +19,9 @@ export default function AccessibilityGuidePage() {
           Comfy days out
         </h1>
         <p className="text-buzz-mute max-w-xl mx-auto">
-          A plain-English guide to our sensory and access icons — plus a few things worth checking
-          before you set off.
+          Every child takes a day out in their own way. Here's what our sensory and access icons
+          mean — and a few gentle things worth checking with a venue first, so you can choose what
+          feels right for your family.
         </p>
       </div>
 
