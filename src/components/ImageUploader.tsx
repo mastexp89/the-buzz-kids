@@ -11,7 +11,7 @@ export default function ImageUploader({
   onChange,
   maxDimension = 1600,
 }: {
-  folder: "venues" | "events" | "artists" | "festivals" | "sponsors";
+  folder: "venues" | "events" | "artists" | "festivals" | "sponsors" | "avatars" | "reviews";
   value: string;
   onChange: (url: string) => void;
   maxDimension?: number;

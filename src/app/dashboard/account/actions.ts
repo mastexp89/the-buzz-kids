@@ -12,10 +12,11 @@ export async function updateProfile(formData: FormData) {
   if (!user) return { error: "Not signed in." };
 
   const display_name = String(formData.get("display_name") ?? "").trim() || null;
+  const avatar_url = String(formData.get("avatar_url") ?? "").trim() || null;
 
   const { error } = await supabase
     .from("profiles")
-    .update({ display_name })
+    .update({ display_name, avatar_url })
     .eq("id", user.id);
 
   if (error) return { error: error.message };

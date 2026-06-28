@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import ImageUploader from "@/components/ImageUploader";
 import { updateProfile, updateEmail, updatePassword, deleteMyAccount } from "./actions";
 
 type Result = { error?: string; ok?: boolean; info?: string };
@@ -17,13 +18,16 @@ function Status({ res }: { res: Result | null }) {
 export default function AccountForms({
   currentEmail,
   displayName,
+  avatarUrl,
   role,
 }: {
   currentEmail: string;
   displayName: string;
+  avatarUrl: string;
   role: string;
 }) {
   const router = useRouter();
+  const [avatar, setAvatar] = useState(avatarUrl);
   const [pendProfile, startProfile] = useTransition();
   const [pendEmail, startEmail] = useTransition();
   const [pendPwd, startPwd] = useTransition();
@@ -51,6 +55,22 @@ export default function AccountForms({
         <div>
           <p className="eyebrow text-[10px] mb-1">Profile</p>
           <h2 className="font-display text-xl uppercase">Your details</h2>
+        </div>
+        <div>
+          <label className="label">Profile photo</label>
+          <div className="flex items-start gap-3">
+            <div
+              className="w-16 h-16 rounded-full bg-buzz-surface border border-buzz-border bg-cover bg-center shrink-0 grid place-items-center text-2xl"
+              style={avatar ? { backgroundImage: `url(${avatar})` } : undefined}
+            >
+              {!avatar && <span aria-hidden>🙂</span>}
+            </div>
+            <div className="flex-1 min-w-0">
+              <ImageUploader folder="avatars" value={avatar} onChange={setAvatar} maxDimension={400} />
+            </div>
+          </div>
+          <input type="hidden" name="avatar_url" value={avatar} />
+          <p className="help">Shown next to your reviews.</p>
         </div>
         <div>
           <label className="label">Display name</label>

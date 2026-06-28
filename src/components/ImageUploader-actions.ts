@@ -16,7 +16,7 @@ export type UploadFromUrlResult =
   | { error: string };
 
 export async function uploadImageFromUrl(opts: {
-  folder: "venues" | "events" | "artists" | "festivals" | "sponsors";
+  folder: "venues" | "events" | "artists" | "festivals" | "sponsors" | "avatars" | "reviews";
   url: string;
 }): Promise<UploadFromUrlResult> {
   const supabase = await createClient();

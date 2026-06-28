@@ -24,6 +24,7 @@ export default async function AccountPage() {
       <AccountForms
         currentEmail={user.email ?? ""}
         displayName={profile?.display_name ?? ""}
+        avatarUrl={profile?.avatar_url ?? ""}
         role={profile?.role ?? "venue_owner"}
       />
     </div>
