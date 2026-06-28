@@ -13,13 +13,14 @@ export default function AccessibilityGuidePage() {
     <div className="container-page py-12 max-w-4xl">
       <div className="text-center mb-10">
         <span className="inline-block text-xs font-semibold rounded-full bg-buzz-surface border border-buzz-border px-3 py-1 mb-3">
-          ✿ For every family
+          ✿ Days out for every kind of kid
         </span>
         <h1 className="h-display text-4xl sm:text-5xl mb-2" style={{ color: "#3B6D11" }}>
-          Sensory &amp; Accessibility Guide
+          Comfy days out
         </h1>
         <p className="text-buzz-mute max-w-xl mx-auto">
-          What our badges mean, and what to ask before you visit.
+          A plain-English guide to our sensory and access icons — plus a few things worth checking
+          before you set off.
         </p>
       </div>
 
@@ -48,11 +49,11 @@ export default function AccessibilityGuidePage() {
       {/* Questions to ask */}
       <section className="mb-12">
         <h2 className="font-display text-2xl uppercase mb-2 flex items-center gap-2">
-          <span aria-hidden>☎️</span> Questions to ask before you visit
+          <span aria-hidden>☎️</span> Worth a quick ask
         </h2>
         <p className="text-sm text-buzz-mute mb-4">
-          A quick five-minute phone call (or email) can save a tough day. These are the questions
-          we'd ask:
+          Every venue's different, and a two-minute message ahead of time can make the whole day
+          easier. Here's what we'd check:
         </p>
         <ol className="flex flex-col gap-2">
           {ACCESS_QUESTIONS.map((q, i) => (
@@ -75,10 +76,10 @@ export default function AccessibilityGuidePage() {
         className="rounded-3xl p-8 text-center text-white"
         style={{ background: "linear-gradient(135deg, #6FA713, #3B6D11)" }}
       >
-        <h2 className="font-display text-2xl uppercase mb-2">Spotted something we should add?</h2>
+        <h2 className="font-display text-2xl uppercase mb-2">Know a place we've got wrong?</h2>
         <p className="text-white/90 max-w-lg mx-auto mb-4">
-          We rely on real parents to keep this info accurate. If a venue's details have changed,
-          let us know and we'll update it.
+          This info only stays useful because parents like you flag changes. If a venue's details
+          have moved on, give us a shout and we'll sort it.
         </p>
         <a
           href="mailto:hello@thebuzzkids.co.uk?subject=Accessibility%20update"

@@ -24,8 +24,8 @@ type Props = {
 export async function generateMetadata({ params }: Props) {
   const { city } = await params;
   return {
-    title: `What's on in ${cap(city)} — The Buzz Guide`,
-    description: `Pubs, gigs and nights out in ${cap(city)}. Find what's on tonight, this weekend and beyond — filter by genre, date or venue.`,
+    title: `Things to do with kids in ${cap(city)} — The Buzz Kids`,
+    description: `Family days out and kids' activities in ${cap(city)} — soft play, holiday clubs, farms, theatre and more. Filter by age, price, indoor or outdoor.`,
     alternates: { canonical: `/${city}` },
   };
 }
@@ -178,7 +178,7 @@ export default async function CityPage({ params, searchParams }: Props) {
               <p className="text-buzz-mute">
                 {events.length === 0
                   ? "Nothing matches that filter yet."
-                  : `${events.length} ${events.length === 1 ? "gig" : "gigs"} found.`}
+                  : `${events.length} ${events.length === 1 ? "activity" : "activities"} found.`}
               </p>
               <Link href={`/${city.slug}/map`} className="text-sm text-buzz-accent hover:text-buzz-accent2">
                 🗺️ Map view →
@@ -220,8 +220,8 @@ export default async function CityPage({ params, searchParams }: Props) {
             <div className="text-5xl mb-3">🐝</div>
             <h2 className="h-display text-3xl mb-2">No buzz here yet</h2>
             <p className="text-buzz-mute max-w-md mx-auto">
-              Try widening the date range or another genre. Or run a venue?{" "}
-              <Link href="/signup" className="text-buzz-accent hover:text-buzz-accent2">List your gigs free</Link>.
+              Try a wider date range or a different activity. Run a club or venue?{" "}
+              <Link href="/signup?as=venue" className="text-buzz-accent hover:text-buzz-accent2">List your activity free</Link>.
             </p>
           </div>
         ) : (
@@ -239,8 +239,8 @@ export default async function CityPage({ params, searchParams }: Props) {
 
         {venues && venues.length > 0 && (
           <section className="mt-20 pt-10 border-t border-buzz-border">
-            <p className="eyebrow mb-2">The venues</p>
-            <h2 className="h-display text-3xl sm:text-4xl mb-6">Where the music happens</h2>
+            <p className="eyebrow mb-2">The places</p>
+            <h2 className="h-display text-3xl sm:text-4xl mb-6">Places to go</h2>
             <CollapsibleVenueGrid venues={venues} citySlug={city.slug} />
           </section>
         )}

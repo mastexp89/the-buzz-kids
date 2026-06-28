@@ -49,17 +49,17 @@ export function facetsFor(values: string[] | null | undefined): AccessFacet[] {
   return ACCESS_FACETS.filter((f) => set.has(f.key));
 }
 
-// The questions a parent of a child with additional needs might ring ahead
-// with — shown on the /accessibility guide.
+// Questions worth a quick call before visiting with a child who has
+// additional needs — our own wording, shown on the /accessibility guide.
 export const ACCESS_QUESTIONS: string[] = [
-  "Do you run relaxed or ASN sessions? When are they next on?",
-  "Is there a Changing Places toilet on site?",
-  "Is the venue fully wheelchair and buggy accessible — including all the play areas?",
-  "Do you have ear defenders or sensory packs available to borrow?",
-  "Is there a quiet room or calm space we can use if my child gets overwhelmed?",
-  "Do you offer free entry for carers or a companion ticket?",
-  "What are your busiest times — and when is it quietest?",
-  "Are there any loud or unexpected sounds (alarms, shows, hand dryers)?",
-  "Can we bring our own food for dietary needs?",
-  "Is there step-free access from the car park / bus stop to the entrance?",
+  "Do you put on any quieter or relaxed sessions for kids who find busy places tricky — and when are they?",
+  "When's your calmest hour? We'd rather come along when it's a bit quieter.",
+  "Can a pram or wheelchair get around everywhere, including the play areas and any upstairs bits?",
+  "What are the toilets like — is there a Changing Places, or an accessible one with a bench?",
+  "Could we borrow ear defenders, or do you keep a sensory pack handy on the day?",
+  "If my little one needs a breather, is there a calm corner or quiet room we can slip away to?",
+  "Does a carer or helper get in free — and how does that work when we arrive?",
+  "Anything loud or sudden we should prep them for? Hand dryers, tannoys, a show, that sort of thing.",
+  "We've got some dietary needs — are we OK to bring our own snacks or lunch?",
+  "From the car park or bus stop to the front door — is the whole route step-free and pram-friendly?",
 ];
