@@ -19,6 +19,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { revalidatePath } from "next/cache";
+import { findPlaceDetails } from "@/lib/google-places";
 
 // Three independent Overpass mirrors tried in order — overpass-api.de
 // is the primary but times out under load; the others are usually available.
@@ -294,13 +295,48 @@ out center tags;
     });
   }
 
+  // For OSM candidates missing address data, try Google Places API to fill
+  // in address, postcode, phone and website. OSM coordinates are usually
+  // reliable so we only fall back on those if OSM had neither lat nor lon.
+  // Cap at 15 parallel lookups — each takes ~0.5-1s and they run in parallel
+  // so the total wall-clock hit is small even with the full cap.
+  if (process.env.GOOGLE_PLACES_KEY) {
+    const needsLookup = candidates.filter((c) => !c.address).slice(0, 15);
+    if (needsLookup.length > 0) {
+      const details = await Promise.all(
+        needsLookup.map((c) => {
+          const townHint = c.town && c.town !== "—" ? c.town : city.name;
+          return findPlaceDetails(`${c.name}, ${townHint}, Scotland, UK`);
+        }),
+      );
+      for (let i = 0; i < needsLookup.length; i++) {
+        const d = details[i];
+        if (!d) continue;
+        const idx = candidates.findIndex((c) => c.name === needsLookup[i].name);
+        if (idx === -1) continue;
+        const c = candidates[idx];
+        candidates[idx] = {
+          ...c,
+          address:    c.address    ?? d.address,
+          postcode:   c.postcode   ?? d.postcode,
+          phone:      c.phone      ?? d.phone,
+          website:    c.website    ?? d.website,
+          latitude:   c.latitude   ?? d.latitude,
+          longitude:  c.longitude  ?? d.longitude,
+          rating:     c.rating     ?? d.rating,
+          reviewCount: c.reviewCount ?? d.reviewCount,
+        };
+      }
+    }
+  }
+
   return {
     ok: true,
     cityName: city.name,
     citySlug: city.slug,
     towns,
     candidates,
-    apifyCost: 0,           // OSM is free
+    apifyCost: 0,           // OSM is free; Google Places lookup above is ~$0.032/call but capped at 15
     filteredOutOfScope: 0,  // Overpass strictly bounds by area, no bleed-over
   };
 }

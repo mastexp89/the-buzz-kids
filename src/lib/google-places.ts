@@ -66,3 +66,76 @@ export function venueSearchQuery(v: {
   const tail = v.address || v.postcode || v.cityName || "Scotland";
   return `${v.name}, ${tail}`;
 }
+
+// ---------- Place details lookup ----------
+// Used by the discover-venues step to fill in address / postcode / phone /
+// website for candidates that OSM returned without addr:* tags. Calls the
+// Text Search (Advanced) endpoint so we get websiteUri + phone — billed at
+// ~$0.032/request but only called when OSM data is missing.
+
+export type GooglePlaceDetails = {
+  placeId: string | null;
+  address: string | null;
+  postcode: string | null;
+  phone: string | null;
+  website: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  rating: number | null;
+  reviewCount: number | null;
+};
+
+export async function findPlaceDetails(
+  query: string,
+): Promise<GooglePlaceDetails | null> {
+  const key = process.env.GOOGLE_PLACES_KEY;
+  if (!key) return null;
+
+  try {
+    const res = await fetch(TEXT_SEARCH_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": key,
+        "X-Goog-FieldMask": [
+          "places.id",
+          "places.formattedAddress",
+          "places.addressComponents",
+          "places.nationalPhoneNumber",
+          "places.websiteUri",
+          "places.location",
+          "places.rating",
+          "places.userRatingCount",
+        ].join(","),
+      },
+      body: JSON.stringify({
+        textQuery: query,
+        maxResultCount: 1,
+        regionCode: "GB",
+      }),
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!res.ok) return null;
+    const json: any = await res.json();
+    const place = json.places?.[0];
+    if (!place) return null;
+
+    const postcodeComp = (place.addressComponents ?? []).find(
+      (c: any) => Array.isArray(c.types) && c.types.includes("postal_code"),
+    );
+
+    return {
+      placeId: place.id ?? null,
+      address: place.formattedAddress ?? null,
+      postcode: postcodeComp?.longText ? String(postcodeComp.longText).toUpperCase() : null,
+      phone: place.nationalPhoneNumber ?? null,
+      website: place.websiteUri ?? null,
+      latitude: typeof place.location?.latitude === "number" ? place.location.latitude : null,
+      longitude: typeof place.location?.longitude === "number" ? place.location.longitude : null,
+      rating: typeof place.rating === "number" ? place.rating : null,
+      reviewCount: typeof place.userRatingCount === "number" ? place.userRatingCount : null,
+    };
+  } catch {
+    return null;
+  }
+}
