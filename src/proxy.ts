@@ -109,9 +109,10 @@ const HOLDING_HTML = `<!doctype html>
       margin-top: 3.5rem;
       font-size: 0.72rem;
       color: #9DB5C4;
+      line-height: 1.8;
     }
-    footer a { color: inherit; text-decoration: none; }
-    footer a:hover { color: #647682; }
+    footer a { text-decoration: none; }
+    footer a:hover { opacity: 0.75; }
   </style>
 </head>
 <body>
@@ -134,8 +135,8 @@ const HOLDING_HTML = `<!doctype html>
     List your place free — be first in the directory →
   </a>
   <footer>
-    A sister site to <a href="https://www.thebuzzguide.co.uk">The Buzz Guide</a>.
-    Designed by <a href="https://www.forthhost.com">Forth Host &amp; Web Design</a>.
+    <div>A sister site to <a href="https://www.thebuzzguide.co.uk" style="color:#1FA9E0">The Buzz Guide</a>.</div>
+    <div>Designed by <a href="https://www.forthhost.com" style="color:#EC1E8C">Forth Host &amp; Web Design</a>.</div>
   </footer>
 </body>
 </html>`;

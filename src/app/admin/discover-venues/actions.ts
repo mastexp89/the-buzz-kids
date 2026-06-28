@@ -20,11 +20,12 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { revalidatePath } from "next/cache";
 
-// Primary + mirror in priority order. Overpass-api.de gives 504 under load;
-// the Kumi mirror is independent and usually available when the main is not.
+// Three independent Overpass mirrors tried in order — overpass-api.de
+// is the primary but times out under load; the others are usually available.
 const OVERPASS_MIRRORS = [
   "https://overpass-api.de/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
+  "https://overpass.openstreetmap.ru/api/interpreter",
 ];
 const APIFY_API = "https://api.apify.com/v2";
 const APIFY_GMAPS_ACTOR = "compass~crawler-google-places";
@@ -175,8 +176,11 @@ export async function discoverVenuesForCity(
   const leisureF = `["leisure"~"^(playground|sports_centre|swimming_pool|water_park|ice_rink|climbing|miniature_golf|fitness_centre|trampoline_park)$"]`;
   const tourismF = `["tourism"~"^(zoo|museum|theme_park|attraction|aquarium|gallery)$"]`;
 
+  // Use `nwr` (node+way+relation) to halve the number of query statements
+  // vs separate node/way lines — keeps the query small enough that Overpass
+  // handles it well within the timeout.
   const overpassQuery = `
-[out:json][timeout:30];
+[out:json][timeout:45];
 (
   ${areaClauses}
 )->.areas;
@@ -184,18 +188,12 @@ export async function discoverVenuesForCity(
   ${placeClauses}
 )->.centers;
 (
-  node(area.areas)${amenityF};
-  way(area.areas)${amenityF};
-  node(area.areas)${leisureF};
-  way(area.areas)${leisureF};
-  node(area.areas)${tourismF};
-  way(area.areas)${tourismF};
-  node(around.centers:3000)${amenityF};
-  way(around.centers:3000)${amenityF};
-  node(around.centers:3000)${leisureF};
-  way(around.centers:3000)${leisureF};
-  node(around.centers:3000)${tourismF};
-  way(around.centers:3000)${tourismF};
+  nwr(area.areas)${amenityF};
+  nwr(area.areas)${leisureF};
+  nwr(area.areas)${tourismF};
+  nwr(around.centers:3000)${amenityF};
+  nwr(around.centers:3000)${leisureF};
+  nwr(around.centers:3000)${tourismF};
 );
 out center tags;
 `.trim();

@@ -29,10 +29,14 @@ function LoginForm() {
       setError(error.message);
       return;
     }
-    // Force a full page navigation so the server picks up the new auth cookie.
-    // router.replace() does a client-side soft nav that often beats the cookie
-    // and shows the user as logged out until they manually refresh.
-    window.location.assign(next);
+    // Admins go straight to /admin; everyone else goes to `next`.
+    const { data: { user } } = await supabase.auth.getUser();
+    let dest = next;
+    if (user) {
+      const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+      if (profile?.role === "admin") dest = "/admin";
+    }
+    window.location.assign(dest);
   }
 
   return (

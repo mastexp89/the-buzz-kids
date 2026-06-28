@@ -65,21 +65,21 @@ function Inner() {
     // Calling getSession() triggers the SDK's URL detection, which
     // pulls access_token/refresh_token from the fragment, sets the
     // session, and cleans the URL.
-    supabase.auth.getSession().then(({ data, error }) => {
+    supabase.auth.getSession().then(async ({ data, error }) => {
       if (error) {
         setStatus("error");
         setErrorMsg(error.message);
         return;
       }
       if (!data.session) {
-        // Fragment didn't contain valid tokens — fall through to login
-        // with a useful message rather than silently dropping them on
-        // a logged-out homepage.
         router.replace(`/login?error=${encodeURIComponent("Couldn't verify your sign-in link — try requesting a new one.")}`);
         return;
       }
-      // Force a full reload so server components pick up the new auth cookie.
-      window.location.assign(next);
+      // Admins go straight to /admin regardless of the ?next param.
+      let dest = next;
+      const { data: profile } = await supabase.from("profiles").select("role").eq("id", data.session.user.id).maybeSingle();
+      if (profile?.role === "admin") dest = "/admin";
+      window.location.assign(dest);
     });
   }, [router, params]);
 
