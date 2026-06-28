@@ -2,9 +2,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import EventCard from "@/components/EventCard";
-import SponsoredFestivalBanner from "@/components/SponsoredFestivalBanner";
-import SponsorBanner from "@/components/SponsorBanner";
-import AppBadges from "@/components/AppBadges";
 import { dateRangeFor } from "@/lib/dateRange";
 import { effectiveEndTime } from "@/lib/utils";
 import { trackPageView } from "@/lib/track";
@@ -100,14 +97,15 @@ export default async function Home() {
         <div className="absolute inset-0 -z-10 bg-gradient-to-b from-buzz-accent/10 via-transparent to-transparent" />
         <div className="container-page py-16 sm:py-24 grid md:grid-cols-[1fr_auto] gap-10 items-center">
           <div>
-            <p className="eyebrow mb-3">Gigs · DJs · Nights out</p>
+            <p className="eyebrow mb-3">Things to do · Places to go · Memories to make</p>
             <h1 className="h-display text-6xl sm:text-7xl md:text-8xl">
-              Find the buzz<br />
-              <span className="text-buzz-accent">tonight.</span>
+              Find their<br />
+              <span className="text-buzz-accent">buzz.</span>
             </h1>
             <p className="mt-6 text-buzz-mute max-w-xl text-lg">
-              Real schedules from local pubs, clubs and venues. Gigs, DJs, karaoke,
-              quizzes, sports screenings — filter by what you fancy and walk in.
+              Kid-friendly things to do near you — soft play, holiday clubs, farm days,
+              kids' theatre and messy play. Filter by age, price, and whether it's
+              rain or shine.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               {/* One "Browse <City>" button per active city. Dundee surfaces
@@ -128,10 +126,10 @@ export default async function Home() {
                     Browse {c.name} →
                   </Link>
                 ))}
-              <Link href="/signup?as=venue" className="btn-secondary btn-lg">List your venue</Link>
+              <Link href="/signup?as=venue" className="btn-secondary btn-lg">List an activity</Link>
             </div>
             <p className="mt-4 text-sm text-buzz-mute">
-              Want to save your favourites and get notified about new gigs?{" "}
+              Want to save your favourites and hear about new activities each holiday?{" "}
               <Link href="/signup?as=fan" className="text-buzz-accent hover:text-buzz-accent2 font-medium">
                 ♡ Sign up free
               </Link>
@@ -153,37 +151,23 @@ export default async function Home() {
                 )}, with more areas being added all the time.
               </p>
             )}
-
-            {/* App store badges — iOS live, Android in approval */}
-            <div className="mt-6">
-              <p className="text-xs uppercase tracking-wider text-buzz-mute mb-2">
-                Get the app
-              </p>
-              <AppBadges size="hero" />
-            </div>
           </div>
           <div className="hidden md:block relative w-[280px] h-[280px]">
             <Image
               src="/logo.png"
-              alt="The Buzz Guide logo"
+              alt="The Buzz Kids logo"
               fill
               priority
-              className="object-contain drop-shadow-[0_0_60px_rgba(253,185,19,0.35)]"
+              sizes="280px"
+              className="object-contain"
             />
           </div>
         </div>
       </section>
 
-      {/* Festival sponsor banner — only renders when a published festival is upcoming/active */}
-      <SponsoredFestivalBanner />
-
-      {/* Paid sponsor banner — rotates through live Popular + Premium sponsors.
-          Silently disappears when nothing is running. */}
-      <SponsorBanner />
-
-      {/* One "Tonight in <City>" section per active city. Each section
-          renders only when its city has events tonight. If neither city
-          has anything, fall through to a single "Quiet day so far" card. */}
+      {/* One "On today in <City>" section per active city. Each section
+          renders only when its city has events today. If none has anything,
+          fall through to a single "Quiet day so far" card. */}
       {tonightByCity.some((c) => c.events.length > 0) ? (
         tonightByCity
           .filter((c) => c.events.length > 0)
@@ -193,14 +177,14 @@ export default async function Home() {
                 <div>
                   <p className="eyebrow mb-2">What's on today</p>
                   <h2 className="h-display text-4xl sm:text-5xl">
-                    Tonight in {entry.city.name}
+                    On today in {entry.city.name}
                   </h2>
                 </div>
                 <Link
                   href={`/${entry.city.slug}`}
                   className="text-sm text-buzz-accent hover:text-buzz-accent2 hidden sm:inline whitespace-nowrap"
                 >
-                  See all gigs →
+                  See all activities →
                 </Link>
               </div>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -210,7 +194,7 @@ export default async function Home() {
               </div>
               <div className="mt-6 sm:hidden">
                 <Link href={`/${entry.city.slug}`} className="btn-secondary w-full">
-                  See all gigs →
+                  See all activities →
                 </Link>
               </div>
             </section>
@@ -221,7 +205,7 @@ export default async function Home() {
             <p className="eyebrow mb-2">What's on today</p>
             <h2 className="h-display text-3xl sm:text-4xl mb-2">Quiet day so far</h2>
             <p className="text-buzz-mute max-w-md mx-auto">
-              Nothing listed for tonight yet. Check back later, or browse what's coming up this week.
+              Nothing listed for today yet. Check back soon, or browse what's coming up this week — there's loads on in the holidays.
             </p>
             <div className="mt-5 flex flex-wrap justify-center gap-2">
               {activeCitiesForTonight.map((c) => (
@@ -239,7 +223,7 @@ export default async function Home() {
           <div className="flex items-end justify-between mb-6 gap-4">
             <div>
               <p className="eyebrow mb-2">🔦 Spotlight</p>
-              <h2 className="h-display text-4xl sm:text-5xl">Featured venues</h2>
+              <h2 className="h-display text-4xl sm:text-5xl">Featured places</h2>
             </div>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -277,13 +261,13 @@ export default async function Home() {
       <section className="container-page py-12 sm:py-16 border-t border-buzz-border">
         <div className="text-center mb-10">
           <p className="eyebrow mb-2">How it works</p>
-          <h2 className="h-display text-4xl sm:text-5xl">Three steps. Walk in.</h2>
+          <h2 className="h-display text-4xl sm:text-5xl">Three steps. Day sorted.</h2>
         </div>
         <div className="grid sm:grid-cols-3 gap-4">
           {[
-            { n: "01", t: "Pick your city", d: "Pick your local — we cover Scottish cities and we're rolling out fast." },
-            { n: "02", t: "Filter your night", d: "Genre, date, venue. We'll show you what's on." },
-            { n: "03", t: "Walk in", d: "Cover, set times, address. No middlemen, no booking fees." },
+            { n: "01", t: "Pick your area", d: "Choose your local area — we cover Scottish towns and we're rolling out fast." },
+            { n: "02", t: "Filter for your kids", d: "Age, price, indoor or outdoor, and what they're into. We'll show you what fits." },
+            { n: "03", t: "Go have fun", d: "Times, prices, booking links and accessibility info — all in one place." },
           ].map((s) => (
             <div key={s.n} className="card p-6 lift">
               <div className="font-display text-5xl text-buzz-accent leading-none mb-3">{s.n}</div>
@@ -294,19 +278,19 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Fan signup CTA — softer, more colourful card. Positioned before the
-          venue/artist CTA so fans reading top-down see "this is for me"
-          before "list your business". Most homepage visitors are fans. */}
+      {/* Parent signup CTA — softer, more colourful card. Positioned before
+          the provider CTA so parents reading top-down see "this is for me"
+          first. Most homepage visitors are parents/carers. */}
       <section className="container-page pt-6">
         <div className="relative overflow-hidden rounded-3xl border border-buzz-accent/30 bg-buzz-card p-10 sm:p-14 text-center">
-          <p className="text-xs uppercase tracking-[0.2em] font-bold mb-2 text-buzz-accent">For music fans</p>
+          <p className="text-xs uppercase tracking-[0.2em] font-bold mb-2 text-buzz-accent">For parents &amp; carers</p>
           <h2 className="h-display text-4xl sm:text-5xl mb-3">
-            Never miss a gig you'd love.
+            Never miss a great day out.
           </h2>
           <p className="max-w-xl mx-auto text-buzz-mute mb-6">
-            Heart your favourite venues, bands and gigs. We'll email you when they
-            announce something new, send a morning digest of what you've saved for the
-            day, and ping you 15 minutes before each gig kicks off. Free, no spam.
+            Heart your favourite places and activities. We'll let you know when new
+            sessions are added for the school holidays, and send a handy reminder
+            before the ones you've saved. Free, no spam.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Link
@@ -330,17 +314,14 @@ export default async function Home() {
           <div className="absolute -top-8 -right-8 w-48 h-48 opacity-10">
             <Image src="/logo.png" alt="" fill className="object-contain" />
           </div>
-          <p className="text-xs uppercase tracking-[0.2em] font-bold mb-2">For venues, artists, DJs, organisers</p>
-          <h2 className="h-display text-4xl sm:text-5xl mb-3">List your gigs.<br />Free, forever.</h2>
+          <p className="text-xs uppercase tracking-[0.2em] font-bold mb-2">For clubs, venues &amp; activity providers</p>
+          <h2 className="h-display text-4xl sm:text-5xl mb-3">List your activities.<br />Free, forever.</h2>
           <p className="max-w-lg mx-auto text-black/80 mb-6">
-            Free for venues, artists, bands, DJs and event organisers. Reach locals looking for a night out tonight, this weekend, and beyond. Optional paid promotions if you want a gig pinned or featured.
+            Free for soft plays, farms, libraries, leisure trusts, theatres and holiday-club providers. Reach local families looking for things to do — this weekend, this holiday, and beyond.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Link href="/signup?as=venue" className="inline-flex items-center gap-2 rounded-lg bg-black text-buzz-accent font-bold px-6 py-3 hover:bg-buzz-bg transition">
-              List your venue free →
-            </Link>
-            <Link href="/signup?as=artist" className="inline-flex items-center gap-2 rounded-lg bg-transparent text-black font-semibold px-6 py-3 hover:bg-black/10 transition border-2 border-black/30">
-              I'm an artist / DJ
+              List an activity free →
             </Link>
           </div>
         </div>

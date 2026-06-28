@@ -13,9 +13,9 @@ const bebas = Bebas_Neue({ subsets: ["latin"], weight: "400", variable: "--font-
 const pacifico = Pacifico({ subsets: ["latin"], weight: "400", variable: "--font-pacifico", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "The Buzz Guide — Gigs, DJs & nights out",
+  title: "The Buzz Kids — Things to do with the kids in Scotland",
   description:
-    "Find what's on tonight at your local pubs and venues. Gigs, DJs, karaoke, quizzes — filter by genre, date or venue.",
+    "Find kid-friendly things to do near you — soft play, holiday clubs, farm days, kids' theatre and more. Filter by age, price, indoor or outdoor.",
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
   manifest: "/manifest.webmanifest",
   icons: {
@@ -24,19 +24,19 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: "The Buzz Guide",
-    statusBarStyle: "black-translucent",
+    title: "The Buzz Kids",
+    statusBarStyle: "default",
   },
   openGraph: {
-    title: "The Buzz Guide — Gigs, DJs & nights out",
-    description: "Find what's on tonight at your local pubs and venues.",
+    title: "The Buzz Kids — Things to do with the kids in Scotland",
+    description: "Kid-friendly things to do near you — filter by age, price and what they're into.",
     type: "website",
     images: ["/logo.png"],
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#000000",
+  themeColor: "#FFFDF7",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover", // Required for iOS notch / safe-area-inset

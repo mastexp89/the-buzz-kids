@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import MobileMenu from "./MobileMenu";
 import SearchBox from "./SearchBox";
@@ -20,10 +21,7 @@ export default async function Navbar() {
   const mobileItems: { href: string; label: string; accent?: boolean }[] = [
     { href: "/", label: "Home" },
     { href: "/about", label: "About" },
-    { href: "/artists", label: "Artists" },
-    { href: "/sponsors", label: "Sponsors" },
-    { href: "/advertise", label: "Advertise" },
-    { href: "/pricing", label: "Pricing" },
+    { href: "/signup?as=venue", label: "List an activity" },
   ];
   if (user) {
     mobileItems.push({ href: "/dashboard", label: "Dashboard" });
@@ -37,18 +35,21 @@ export default async function Navbar() {
   return (
     <header className="border-b border-buzz-border bg-buzz-bg sticky top-0 z-30">
       <div className="container-page h-16 flex items-center justify-between gap-2">
-        <Link href="/" className="group leading-none shrink-0">
-          <span className="font-script text-2xl sm:text-4xl text-buzz-accent group-hover:text-buzz-accent2 transition whitespace-nowrap">
-            The Buzz Guide
-          </span>
+        <Link href="/" className="group leading-none shrink-0" aria-label="The Buzz Kids — home">
+          <Image
+            src="/logo.png"
+            alt="The Buzz Kids"
+            width={156}
+            height={120}
+            priority
+            className="h-11 w-auto sm:h-12"
+          />
         </Link>
 
         <nav className="hidden sm:flex items-center gap-2 text-sm font-medium">
           <Link href="/" className="px-3 py-2 rounded-lg hover:bg-buzz-card transition">Home</Link>
           <Link href="/about" className="px-3 py-2 rounded-lg hover:bg-buzz-card transition">About</Link>
-          <Link href="/artists" className="px-3 py-2 rounded-lg hover:bg-buzz-card transition">Artists</Link>
-          <Link href="/sponsors" className="px-3 py-2 rounded-lg hover:bg-buzz-card transition">Sponsors</Link>
-          <Link href="/advertise" className="px-3 py-2 rounded-lg hover:bg-buzz-card transition">Advertise</Link>
+          <Link href="/signup?as=venue" className="px-3 py-2 rounded-lg hover:bg-buzz-card transition">List an activity</Link>
           {user ? (
             <>
               <Link href="/dashboard" className="px-3 py-2 rounded-lg hover:bg-buzz-card transition">Dashboard</Link>
