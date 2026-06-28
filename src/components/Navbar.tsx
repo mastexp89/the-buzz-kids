@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import MobileMenu from "./MobileMenu";
 import SearchBox from "./SearchBox";
@@ -38,16 +37,15 @@ export default async function Navbar() {
 
   return (
     <header className="border-b border-buzz-border bg-buzz-bg sticky top-0 z-30">
-      <div className="container-page h-20 flex items-center justify-between gap-2">
+      <div className="container-page h-16 flex items-center justify-between gap-2">
         <Link href="/" className="group leading-none shrink-0" aria-label="The Buzz Kids — home">
-          <Image
-            src="/logo.png"
-            alt="The Buzz Kids"
-            width={862}
-            height={700}
-            priority
-            className="h-14 w-auto sm:h-16"
-          />
+          <span className="font-display text-2xl sm:text-3xl tracking-tight whitespace-nowrap">
+            <span className="text-buzz-text">The Buzz </span>
+            <span style={{ color: "#EC1E8C" }}>K</span>
+            <span style={{ color: "#1FA9E0" }}>i</span>
+            <span style={{ color: "#6FA713" }}>d</span>
+            <span style={{ color: "#F9A11B" }}>s</span>
+          </span>
         </Link>
 
         <nav className="hidden sm:flex items-center gap-2 text-sm font-medium">

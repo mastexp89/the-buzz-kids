@@ -8,7 +8,6 @@ import EventFilters from "@/components/EventFilters";
 import { AccessibilityLegend } from "@/components/AccessibilityBadges";
 import PlaceCard from "@/components/PlaceCard";
 import PlaceFilters from "@/components/PlaceFilters";
-import CityViewToggle from "@/components/CityViewToggle";
 import CitySwitcher from "@/components/CitySwitcher";
 import { fetchPlaces } from "@/lib/places";
 import { dateRangeFor, type DateFilter } from "@/lib/dateRange";
@@ -51,10 +50,6 @@ export default async function CityPage({ params, searchParams }: Props) {
   // ("What's on in Dundee tonight?") before drilling into a venue or
   // event. Source field lets analytics distinguish from detail views.
   trackPageView({ source: `city_${city.slug}` });
-
-  // Place-primary model: a town leads with its always-on Places directory,
-  // with the dated What's-on events feed one toggle away.
-  const view: "places" | "whatson" = sp.view === "whatson" ? "whatson" : "places";
 
   const when = (sp.when as DateFilter) || "today";
   const genreParam = sp.genre || "";
@@ -177,7 +172,7 @@ export default async function CityPage({ params, searchParams }: Props) {
         <div className="container-page py-10 sm:py-14">
           <CitySwitcher cities={cities ?? []} current={city.slug} />
           <div className="mt-4 flex flex-col gap-2">
-            <p className="eyebrow">{view === "places" ? "Things to do in" : `${dateLabel} in`}</p>
+            <p className="eyebrow">Things to do in</p>
             <h1 className="h-display text-5xl sm:text-7xl">
               {city.name}<span className="text-buzz-accent">.</span>
             </h1>
@@ -188,13 +183,9 @@ export default async function CityPage({ params, searchParams }: Props) {
             )}
             <div className="flex flex-wrap items-center gap-3 mt-1">
               <p className="text-buzz-mute">
-                {view === "places"
-                  ? (places.length === 0
-                      ? "No places listed here yet."
-                      : `${places.length} ${places.length === 1 ? "place" : "places"} to explore.`)
-                  : (events.length === 0
-                      ? "Nothing matches that filter yet."
-                      : `${events.length} ${events.length === 1 ? "activity" : "activities"} found.`)}
+                {places.length === 0
+                  ? "Nothing listed here yet."
+                  : `${places.length} ${places.length === 1 ? "place" : "places"} to explore.`}
               </p>
               <Link href={`/${city.slug}/map`} className="text-sm text-buzz-accent hover:text-buzz-accent2">
                 🗺️ Map view →
@@ -204,77 +195,27 @@ export default async function CityPage({ params, searchParams }: Props) {
         </div>
       </section>
 
-      {/* Places to go (always-on) | What's on (dated events) */}
-      <div className="container-page pt-6">
-        <CityViewToggle view={view} />
-      </div>
-
+      {/* One combined directory — places + activities, narrow with the filters. */}
       <div className="container-page py-8">
-        {view === "places" ? (
-          /* ---------- PLACES TO GO — the always-on directory ---------- */
-          <>
-            <div className="mb-8">
-              <PlaceFilters genres={genres ?? []} />
-            </div>
-            <div className="mb-8">
-              <AccessibilityLegend />
-            </div>
-            {places.length === 0 ? (
-              <div className="card p-12 text-center">
-                <div className="text-5xl mb-3">🐝</div>
-                <h2 className="h-display text-3xl mb-2">No places here yet</h2>
-                <p className="text-buzz-mute max-w-md mx-auto">
-                  We're still adding {city.name} spots. Run a soft play, farm, club or attraction?{" "}
-                  <Link href="/signup?as=venue" className="text-buzz-accent hover:text-buzz-accent2">List your place free</Link>.
-                </p>
-              </div>
-            ) : (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {places.map((p: any) => <PlaceCard key={p.id} place={p} citySlug={city.slug} />)}
-              </div>
-            )}
-          </>
+        <div className="mb-8">
+          <PlaceFilters genres={genres ?? []} />
+        </div>
+        <div className="mb-8">
+          <AccessibilityLegend />
+        </div>
+        {places.length === 0 ? (
+          <div className="card p-12 text-center">
+            <div className="text-5xl mb-3">🐝</div>
+            <h2 className="h-display text-3xl mb-2">Nothing here yet</h2>
+            <p className="text-buzz-mute max-w-md mx-auto">
+              We're still adding {city.name} spots. Run a soft play, farm, club or activity?{" "}
+              <Link href="/signup?as=venue" className="text-buzz-accent hover:text-buzz-accent2">List your place free</Link>.
+            </p>
+          </div>
         ) : (
-          /* ---------- WHAT'S ON — the dated events feed ---------- */
-          <>
-            <div className="mb-8">
-              <Suspense fallback={<div className="card p-4 text-buzz-mute">Loading filters…</div>}>
-                <EventFilters genres={genres ?? []} />
-              </Suspense>
-            </div>
-            <div className="mb-8">
-              <AccessibilityLegend />
-            </div>
-            {featured.length > 0 && (
-              <section className="mb-10">
-                <p className="eyebrow mb-3">📌 Featured</p>
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {featured.map((e) => <EventCard key={e.id} event={e} citySlug={city.slug} />)}
-                </div>
-              </section>
-            )}
-            {events.length === 0 ? (
-              <div className="card p-12 text-center">
-                <div className="text-5xl mb-3">🐝</div>
-                <h2 className="h-display text-3xl mb-2">No buzz here yet</h2>
-                <p className="text-buzz-mute max-w-md mx-auto">
-                  Try a wider date range or a different activity. Run a club or venue?{" "}
-                  <Link href="/signup?as=venue" className="text-buzz-accent hover:text-buzz-accent2">List your activity free</Link>.
-                </p>
-              </div>
-            ) : (
-              <EventsList
-                events={events.filter((e) => !featuredIds.has(e.id))}
-                citySlug={city.slug}
-                groupByDay={groupByDay}
-                groups={groupByDay ? Object.entries(groups).map(([dayKey, dayEvents]) => ({
-                  day: dayKey,
-                  date: new Date(dayKey),
-                  items: dayEvents,
-                })) : undefined}
-              />
-            )}
-          </>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {places.map((p: any) => <PlaceCard key={p.id} place={p} citySlug={city.slug} />)}
+          </div>
         )}
       </div>
     </div>

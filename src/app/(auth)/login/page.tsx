@@ -60,7 +60,7 @@ export default function LoginPage() {
   return (
     <div className="max-w-md mx-auto px-4 py-12">
       <h1 className="font-display text-3xl font-bold mb-2">Sign in</h1>
-      <p className="text-buzz-mute mb-6">For venues, artists, DJs and event organisers. Just browsing? Visit a city page.</p>
+      <p className="text-buzz-mute mb-6">Sign in to save places to your bucket list, leave reviews, or manage an activity you've listed. Just browsing? You don't need an account.</p>
       <Suspense fallback={<div className="card p-6 text-buzz-mute">Loading…</div>}>
         <LoginForm />
       </Suspense>
