@@ -96,7 +96,7 @@ function SignupForm() {
     return (
       <div className="max-w-lg mx-auto px-4 py-12">
         <p className="eyebrow mb-2">Create an account</p>
-        <h1 className="h-display text-4xl mb-3">Welcome to The Buzz Guide</h1>
+        <h1 className="h-display text-4xl mb-3">Welcome to The Buzz Kids</h1>
         <p className="text-buzz-mute mb-8">
           What are you signing up as? Pick one to continue.
         </p>
@@ -104,27 +104,15 @@ function SignupForm() {
         <div className="flex flex-col gap-3">
           <TypeCard
             emoji="♡"
-            title="Just a fan"
-            tagline="Save your favourite venues, artists and gigs — we'll email you about new gigs and remind you on the day."
+            title="Parent / carer"
+            tagline="Plan days out, save places to your wishlist, and review the ones you've been to. We'll let you know about new activities each holiday."
             onClick={() => setAccountType("fan")}
           />
           <TypeCard
             emoji="🐝"
-            title="Venue"
-            tagline="Claim or list your venue. Add events, manage your page, get followed by fans."
+            title="Activity organiser"
+            tagline="Run a soft play, farm, club, class or holiday camp? List your place, add sessions, manage your page, and reach local families."
             onClick={() => setAccountType("venue")}
-          />
-          <TypeCard
-            emoji="🎤"
-            title="Artist / Band / DJ"
-            tagline="Add gigs at any venue, link your socials, get discovered by local fans."
-            onClick={() => setAccountType("artist")}
-          />
-          <TypeCard
-            emoji="📋"
-            title="Event organiser"
-            tagline="Promote events across multiple venues. Festivals, club nights, comedy promoters."
-            onClick={() => setAccountType("organiser")}
           />
         </div>
 
@@ -143,25 +131,17 @@ function SignupForm() {
   const isFan = accountType === "fan";
 
   const headline = isFan
-    ? "Save the gigs you love."
+    ? "Plan your days out."
     : isVenue
-    ? "List your venue, free."
-    : "Get your gigs heard.";
+    ? "List your activity, free."
+    : "List your activity, free.";
 
   const subline = isFan
-    ? "Free account. Heart your favourite venues, artists and gigs — we'll email you when they post something new and remind you on the day."
-    : isVenue
-    ? "Free to list, free to manage gigs. Optional paid promotions if you want a boost."
-    : "Free for artists, DJs and event organisers. Submit gigs at any venue on The Buzz Guide.";
+    ? "Free account. Save places to your wishlist, review the ones you've been to, and hear about new activities each school holiday."
+    : "Free to list and manage. Add your sessions, opening times, prices and accessibility info — and reach local families looking for things to do.";
 
   const typeLabel =
-    accountType === "fan"
-      ? "♡ Just a fan"
-      : accountType === "venue"
-      ? "🐝 Venue"
-      : accountType === "artist"
-      ? "🎤 Artist / Band / DJ"
-      : "📋 Event organiser";
+    accountType === "fan" ? "♡ Parent / carer" : "🐝 Activity organiser";
 
   return (
     <div className="max-w-md mx-auto px-4 py-12">
@@ -194,20 +174,12 @@ function SignupForm() {
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder={
-              isFan
-                ? "Your first name"
-                : isVenue
-                ? "Alex Smith"
-                : "Your stage / promoter name"
-            }
+            placeholder={isFan ? "Your first name" : "Alex Smith"}
           />
           <p className="help">
             {isFan
-              ? "What should we call you? Just for emails — never shown publicly."
-              : isVenue
-              ? "Just your name — you'll set up the venue page on the next step."
-              : "Your stage or promoter name."}
+              ? "What should we call you? Used on your reviews and emails."
+              : "Just your name — you'll set up your activity page on the next step."}
           </p>
         </div>
         <div>
