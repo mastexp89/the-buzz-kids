@@ -14,6 +14,7 @@ import TrackedLink from "@/components/TrackedLink";
 import AdminEditBar from "@/components/AdminEditBar";
 import VenueGallery from "@/components/VenueGallery";
 import ReviewsSection from "@/components/ReviewsSection";
+import { AccessibilityBadges } from "@/components/AccessibilityBadges";
 
 export const dynamic = "force-dynamic";
 
@@ -195,7 +196,7 @@ export default async function VenuePage({ params }: Props) {
 
         <div className="mt-6 grid md:grid-cols-[2fr_1fr] gap-8 items-start">
           <div className="flex flex-col gap-4">
-            <p className="eyebrow">{cityName} · Venue</p>
+            <p className="eyebrow">{cityName} · Place</p>
             <div className="flex items-start justify-between gap-3 flex-wrap">
               <h1 className="h-display text-5xl sm:text-6xl flex-1 min-w-0">{venue.name}</h1>
               {/* Prominent favourite button — sits next to the title so it's
@@ -213,19 +214,52 @@ export default async function VenuePage({ params }: Props) {
               <p className="whitespace-pre-line text-buzz-text/90 leading-relaxed mt-2">{venue.description}</p>
             )}
 
-            {/* What's on — moved up so it's visible without scrolling. */}
-            <section className="mt-6">
-              <p className="eyebrow mb-2">What's on</p>
-              <h2 className="h-display text-3xl sm:text-4xl mb-5">Coming up</h2>
-              {events.length === 0 ? (
-                <div className="card p-8 text-center">
-                  <div className="text-4xl mb-3">🎤</div>
-                  <p className="text-buzz-mute">No upcoming events listed yet — check back soon.</p>
+            {/* Good to know — the kids details parents scan for. */}
+            {(() => {
+              const v = venue as any;
+              const age = v.age_min == null && v.age_max == null ? null
+                : v.age_min != null && v.age_max != null ? (v.age_min === v.age_max ? `Age ${v.age_min}` : `Ages ${v.age_min}–${v.age_max}`)
+                : v.age_min != null ? `Ages ${v.age_min}+` : `Up to ${v.age_max}s`;
+              const price = v.is_free ? "Free"
+                : v.price_from != null ? `From £${Number(v.price_from) % 1 === 0 ? Number(v.price_from) : Number(v.price_from).toFixed(2)}`
+                : (v.price_note || null);
+              const setting = v.setting === "indoor" ? "Indoor" : v.setting === "outdoor" ? "Outdoor" : v.setting === "both" ? "Indoor & outdoor" : null;
+              const hasAccess = Array.isArray(v.accessibility) && v.accessibility.length > 0;
+              if (!age && !price && !setting && !v.booking_required && !hasAccess) return null;
+              const Pill = ({ children }: { children: any }) => (
+                <span className="inline-flex items-center rounded-full bg-buzz-surface border border-buzz-border px-3 py-1 text-sm font-medium">{children}</span>
+              );
+              return (
+                <div className="card p-5 mt-6">
+                  <p className="eyebrow text-[10px] mb-3">Good to know</p>
+                  <div className="flex flex-wrap gap-2">
+                    {age && <Pill>{age}</Pill>}
+                    {setting && <Pill>{setting}</Pill>}
+                    {price && (
+                      <span className="inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold" style={{ background: v.is_free ? "#E6F6E0" : "#FFEDC2", color: v.is_free ? "#3B6D11" : "#854F0B" }}>{price}</span>
+                    )}
+                    {v.booking_required && <Pill>Booking needed</Pill>}
+                  </div>
+                  {hasAccess && (
+                    <div className="mt-3">
+                      <AccessibilityBadges items={v.accessibility} size="md" />
+                    </div>
+                  )}
+                  {v.booking_url && (
+                    <a href={v.booking_url} target="_blank" rel="noopener" className="btn-primary mt-4 inline-flex self-start">🎟️ Book / buy tickets →</a>
+                  )}
                 </div>
-              ) : (
+              );
+            })()}
+
+            {/* What's on — only when this place actually has dated activities. */}
+            {events.length > 0 && (
+              <section className="mt-6">
+                <p className="eyebrow mb-2">What's on</p>
+                <h2 className="h-display text-3xl sm:text-4xl mb-5">Coming up</h2>
                 <VenueEventsList events={events} citySlug={citySlug} />
-              )}
-            </section>
+              </section>
+            )}
           </div>
           <aside className="card p-5 flex flex-col gap-3">
             <div className="flex items-center justify-between">
@@ -260,6 +294,9 @@ export default async function VenuePage({ params }: Props) {
                 >
                   📍 Open in Maps
                 </TrackedLink>
+              )}
+              {venue.website && (
+                <a href={venue.website} target="_blank" rel="noopener" className="btn-secondary">🌐 Visit website</a>
               )}
             </div>
 
