@@ -82,9 +82,9 @@ function CheckEmailInner() {
         <p className="font-medium text-buzz-fg mb-1">Don't see it after 2 minutes?</p>
         <ol className="list-decimal pl-5 space-y-1">
           <li>
-            Check your <strong className="text-buzz-fg">spam / junk folder</strong>.
-            Look for an email from{" "}
-            <code className="text-buzz-accent">noreply@thebuzzguide.co.uk</code>.
+            Check your <strong className="text-buzz-text">spam / junk folder</strong>.
+            Look for an email from <strong className="text-buzz-text">The Buzz Kids</strong>{" "}
+            (it may arrive from a no-reply address).
           </li>
           <li>
             If it's there, mark it <strong className="text-buzz-fg">"not spam"</strong>{" "}
