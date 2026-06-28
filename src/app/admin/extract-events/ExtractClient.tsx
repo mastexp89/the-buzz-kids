@@ -330,9 +330,9 @@ export default function ExtractClient({ venues }: { venues: Venue[] }) {
                       {e.description && (
                         <p className="text-sm mt-1 text-buzz-text/90">{e.description}</p>
                       )}
-                      {e.genres && e.genres.length > 0 && (
+                      {e.categories && e.categories.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1.5">
-                          {e.genres.map((g) => (
+                          {e.categories.map((g) => (
                             <span
                               key={g}
                               className="text-[10px] uppercase tracking-wide bg-buzz-accent/15 text-buzz-accent border border-buzz-accent/30 rounded px-1.5 py-0.5"
@@ -341,11 +341,6 @@ export default function ExtractClient({ venues }: { venues: Venue[] }) {
                             </span>
                           ))}
                         </div>
-                      )}
-                      {e.evidence && (
-                        <p className="text-[11px] text-buzz-mute italic mt-1">
-                          Evidence: "{e.evidence}"
-                        </p>
                       )}
                     </div>
                   </div>
