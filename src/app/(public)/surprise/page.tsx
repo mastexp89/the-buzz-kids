@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { fetchPlaces } from "@/lib/places";
 import SurpriseMe, { type SurprisePlace } from "@/components/SurpriseMe";
+import PlaceFilters from "@/components/PlaceFilters";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +9,10 @@ export const metadata = {
   title: "Surprise me — The Buzz Kids",
   description: "Can't decide? Give it a spin and we'll pick a kid-friendly day out for you.",
   alternates: { canonical: "/surprise" },
+};
+
+type Props = {
+  searchParams: Promise<{ cat?: string; access?: string; toddler?: string; rain?: string; loc?: string }>;
 };
 
 function ageLabel(min: number | null, max: number | null): string | null {
@@ -22,11 +27,38 @@ function priceLabel(p: any): string | null {
   return null;
 }
 
-export default async function SurprisePage() {
+export default async function SurprisePage({ searchParams }: Props) {
   const supabase = await createClient();
-  const { data: cityRows } = await supabase.from("cities").select("id").eq("active", true);
-  const activeIds = (cityRows ?? []).map((c) => c.id);
-  const raw = await fetchPlaces(supabase, { cityIds: activeIds });
+  const sp = await searchParams;
+
+  const [{ data: cityRows }, { data: genres }] = await Promise.all([
+    supabase.from("cities").select("id, name, slug").eq("active", true).order("name"),
+    supabase.from("genres").select("*").order("name"),
+  ]);
+  const cities = cityRows ?? [];
+
+  const cats = (sp.cat || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const access = (sp.access || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const loc = sp.loc || "";
+
+  let cityId: string | undefined;
+  let cityIds: string[] | undefined;
+  if (loc) {
+    const c = cities.find((x) => x.slug === loc);
+    cityId = c?.id;
+    if (!cityId) cityIds = [];
+  } else {
+    cityIds = cities.map((c) => c.id);
+  }
+
+  const raw = await fetchPlaces(supabase, {
+    cityId,
+    cityIds,
+    catSlugs: cats,
+    accessKeys: access,
+    toddler: sp.toddler === "1",
+    indoorOnly: sp.rain === "1",
+  });
 
   const places: SurprisePlace[] = raw.map((p: any) => ({
     id: p.id,
@@ -46,17 +78,23 @@ export default async function SurprisePage() {
   }));
 
   return (
-    <div className="container-page py-12 max-w-2xl">
+    <div className="container-page py-12 max-w-3xl">
       <div className="text-center mb-8">
         <p className="eyebrow mb-2">Can't decide?</p>
         <h1 className="h-display text-4xl sm:text-5xl">
           Let us pick<span className="text-buzz-accent">.</span>
         </h1>
         <p className="text-buzz-mute mt-2">
-          Give it a spin and we'll land on a random day out — anywhere, or pick your area.
+          Narrow it down if you like, then give it a spin — we'll land on a random day out.
         </p>
       </div>
-      <SurpriseMe places={places} />
+
+      <div className="mb-6">
+        <PlaceFilters genres={genres ?? []} cities={cities} />
+      </div>
+
+      {/* Remount when the filtered pool changes so the reel resets. */}
+      <SurpriseMe key={places.map((p) => p.id).join(",")} places={places} />
     </div>
   );
 }

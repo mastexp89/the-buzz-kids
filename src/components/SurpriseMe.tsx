@@ -15,26 +15,22 @@ export type SurprisePlace = {
   price: string | null;
 };
 
-// Slot-machine picker: whirls through the (optionally area-filtered) places and
-// decelerates to a stop on a random one. Pure client-side over a passed list.
+// Slot-machine picker: whirls through the (filtered) places and decelerates to
+// a stop on a random one. A thumbnail strip of the whole pool makes it obvious
+// there are loads to choose from.
 export default function SurpriseMe({ places }: { places: SurprisePlace[] }) {
-  const cities = Array.from(new Map(places.map((p) => [p.citySlug, p.cityName])).entries());
-
-  const [area, setArea] = useState<string>(""); // "" = anywhere
   const [current, setCurrent] = useState<SurprisePlace | null>(places[0] ?? null);
   const [picked, setPicked] = useState<SurprisePlace | null>(null);
   const [spinning, setSpinning] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const pool = area ? places.filter((p) => p.citySlug === area) : places;
-
   function spin() {
     if (timer.current) clearTimeout(timer.current);
-    if (pool.length === 0) return;
+    if (places.length === 0) return;
     setPicked(null);
-    if (pool.length === 1) {
-      setCurrent(pool[0]);
-      setPicked(pool[0]);
+    if (places.length === 1) {
+      setCurrent(places[0]);
+      setPicked(places[0]);
       return;
     }
     setSpinning(true);
@@ -42,70 +38,59 @@ export default function SurpriseMe({ places }: { places: SurprisePlace[] }) {
     let tick = 0;
     let delay = 55;
     const run = () => {
-      setCurrent(pool[Math.floor(Math.random() * pool.length)]);
+      setCurrent(places[Math.floor(Math.random() * places.length)]);
       tick++;
       if (tick >= totalTicks) {
-        const final = pool[Math.floor(Math.random() * pool.length)];
+        const final = places[Math.floor(Math.random() * places.length)];
         setCurrent(final);
         setPicked(final);
         setSpinning(false);
         return;
       }
-      if (tick > totalTicks * 0.65) delay = Math.min(delay * 1.22, 360); // ease out
+      if (tick > totalTicks * 0.65) delay = Math.min(delay * 1.22, 360);
       timer.current = setTimeout(run, delay);
     };
     run();
   }
 
-  function chooseArea(slug: string) {
-    setArea(slug);
-    setPicked(null);
+  if (places.length === 0) {
+    return <div className="card p-8 text-center text-buzz-mute">No places match those filters — try loosening them.</div>;
   }
 
   return (
     <div className="card p-6 sm:p-8">
-      {/* Area toggle */}
-      <div className="flex flex-wrap justify-center gap-2 mb-5">
-        <button onClick={() => chooseArea("")} className={area === "" ? "chip-accent" : "chip"} disabled={spinning}>
-          Anywhere
-        </button>
-        {cities.map(([slug, name]) => (
-          <button key={slug} onClick={() => chooseArea(slug)} className={area === slug ? "chip-accent" : "chip"} disabled={spinning}>
-            {name}
-          </button>
-        ))}
-      </div>
+      <p className="text-center text-sm text-buzz-mute mb-4">
+        🎰 {places.length} place{places.length === 1 ? "" : "s"} in the mix
+      </p>
 
-      {/* The "reel" window */}
-      <div className="relative h-56 rounded-2xl overflow-hidden border border-buzz-border bg-buzz-surface">
-        {current ? (
+      {/* Big reel window */}
+      <div className="relative rounded-2xl overflow-hidden border border-buzz-border bg-buzz-surface aspect-[16/10]">
+        {current && (
           <div
-            className="absolute inset-0 flex flex-col justify-end p-5 transition-[background-image] duration-75"
+            className="absolute inset-0 flex flex-col justify-end p-5"
             style={
               current.photo
-                ? { backgroundImage: `linear-gradient(to top, rgba(0,0,0,0.7), rgba(0,0,0,0.05)), url(${current.photo})`, backgroundSize: "cover", backgroundPosition: "center" }
+                ? { backgroundImage: `linear-gradient(to top, rgba(0,0,0,0.75), rgba(0,0,0,0.05)), url(${current.photo})`, backgroundSize: "cover", backgroundPosition: "center" }
                 : { background: "linear-gradient(135deg,#1FA9E0,#EC1E8C)" }
             }
           >
             {current.category && (
               <span className="self-start text-[11px] font-bold uppercase tracking-wider text-white/90 mb-1">{current.category}</span>
             )}
-            <div className="font-display text-2xl sm:text-3xl uppercase text-white leading-tight drop-shadow">{current.name}</div>
-            <div className="text-xs text-white/85 mt-1 flex flex-wrap gap-x-3">
+            <div className="font-display text-3xl sm:text-4xl uppercase text-white leading-tight drop-shadow">{current.name}</div>
+            <div className="text-sm text-white/90 mt-1 flex flex-wrap gap-x-3">
               <span>{current.cityName}</span>
               {current.age && <span>{current.age}</span>}
               {current.price && <span>{current.price}</span>}
             </div>
           </div>
-        ) : (
-          <div className="absolute inset-0 grid place-items-center text-buzz-mute">No places to pick from yet.</div>
         )}
-        {spinning && <div className="absolute inset-0 ring-4 ring-inset ring-buzz-accent/40 animate-pulse pointer-events-none" />}
+        {spinning && <div className="absolute inset-0 ring-4 ring-inset ring-buzz-accent/50 animate-pulse pointer-events-none" />}
       </div>
 
       {/* Controls / result */}
       <div className="mt-5 flex flex-col items-center gap-3">
-        <button onClick={spin} disabled={spinning || pool.length === 0} className="btn-primary btn-lg">
+        <button onClick={spin} disabled={spinning} className="btn-primary btn-lg">
           {spinning ? "Finding something fun…" : picked ? "🎲 Spin again" : "🎲 Surprise me!"}
         </button>
         {picked && !spinning && (
@@ -113,6 +98,20 @@ export default function SurpriseMe({ places }: { places: SurprisePlace[] }) {
             Take me to {picked.name} →
           </Link>
         )}
+      </div>
+
+      {/* Pool strip — shows the whole list it's choosing from. */}
+      <div className="mt-6 flex gap-2 overflow-x-auto pb-1">
+        {places.map((p) => (
+          <div
+            key={p.id}
+            title={p.name}
+            className={`shrink-0 w-14 h-14 rounded-lg bg-buzz-surface bg-cover bg-center border grid place-items-center ${current?.id === p.id ? "border-buzz-accent ring-2 ring-buzz-accent/40" : "border-buzz-border"}`}
+            style={p.photo ? { backgroundImage: `url(${p.photo})` } : undefined}
+          >
+            {!p.photo && <span aria-hidden>🐝</span>}
+          </div>
+        ))}
       </div>
     </div>
   );
