@@ -394,12 +394,12 @@ export default async function VenuePage({ params }: Props) {
           <section className="mt-10">
             <div className="card p-6 sm:p-7 border-buzz-accent/40 bg-buzz-accent/5 flex flex-col sm:flex-row sm:items-center gap-4 sm:justify-between">
               <div className="flex-1 min-w-0">
-                <p className="eyebrow mb-1 text-buzz-accent">For the owner</p>
-                <h3 className="h-display text-2xl mb-1">Is this your venue?</h3>
+                <p className="eyebrow mb-1 text-buzz-accent">For the organiser</p>
+                <h3 className="h-display text-2xl mb-1">Is this your place?</h3>
                 <p className="text-sm text-buzz-mute max-w-xl">
-                  This page hasn't been claimed yet. If you own, manage, or book for{" "}
-                  {venue.name}, take ownership to manage gigs, photos and details
-                  directly from your dashboard.
+                  This page hasn't been claimed yet. If you run{" "}
+                  {venue.name}, take ownership to manage your listing, photos, prices
+                  and sessions directly from your dashboard.
                 </p>
               </div>
               <Link

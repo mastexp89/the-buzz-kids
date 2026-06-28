@@ -1,25 +1,18 @@
-import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import EventCard from "@/components/EventCard";
-import EventsList from "@/components/EventsList";
-import EventFilters from "@/components/EventFilters";
 import { AccessibilityLegend } from "@/components/AccessibilityBadges";
 import PlaceCard from "@/components/PlaceCard";
 import PlaceFilters from "@/components/PlaceFilters";
 import CitySwitcher from "@/components/CitySwitcher";
 import { fetchPlaces } from "@/lib/places";
-import { dateRangeFor, type DateFilter } from "@/lib/dateRange";
-import { formatDateRangeLabel, effectiveEndTime } from "@/lib/utils";
 import { trackPageView } from "@/lib/track";
-import type { EventWithVenue } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ city: string }>;
-  searchParams: Promise<{ when?: string; genre?: string; view?: string; cat?: string; access?: string; toddler?: string; rain?: string }>;
+  searchParams: Promise<{ cat?: string; access?: string; toddler?: string; rain?: string }>;
 };
 
 export async function generateMetadata({ params }: Props) {
@@ -51,108 +44,8 @@ export default async function CityPage({ params, searchParams }: Props) {
   // event. Source field lets analytics distinguish from detail views.
   trackPageView({ source: `city_${city.slug}` });
 
-  const when = (sp.when as DateFilter) || "today";
-  const genreParam = sp.genre || "";
-  const genreSlugs = genreParam.split(",").map((s) => s.trim()).filter(Boolean);
-  const { from, to } = dateRangeFor(when);
-  const nowIso = new Date().toISOString();
-
-  const { data: cityVenues } = await supabase
-    .from("venues")
-    .select("id")
-    .eq("city_id", city.id)
-    .eq("approved", true);
-  const venueIds = (cityVenues ?? []).map((v) => v.id);
-
-  let genreEventIds: string[] | null = null;
-  if (genreSlugs.length > 0) {
-    const { data: genreRows } = await supabase
-      .from("genres").select("id, slug").in("slug", genreSlugs);
-    if (genreRows && genreRows.length > 0) {
-      const { data: matchingIds } = await supabase
-        .from("event_genres")
-        .select("event_id")
-        .in("genre_id", genreRows.map((g) => g.id));
-      // Dedupe — an event tagged with two selected genres would otherwise appear twice
-      genreEventIds = Array.from(new Set((matchingIds ?? []).map((r) => r.event_id)));
-    } else {
-      genreEventIds = [];
-    }
-  }
-
-  // 1. Featured/pinned gigs (only those still upcoming + matching the date range)
-  const { data: rawFeatured } = await supabase
-    .from("events")
-    .select(`*, venue:venues ( *, city:cities (*) ), event_genres ( genre:genres ( * ) )`)
-    .in("venue_id", venueIds.length > 0 ? venueIds : ["00000000-0000-0000-0000-000000000000"])
-    .gte("start_time", nowIso)
-    .lte("start_time", to.toISOString())
-    .eq("cancelled", false)
-    .eq("status", "approved")
-    .or(`end_time.is.null,end_time.gte.${nowIso}`)
-    .gt("featured_until", nowIso)
-    .order("start_time", { ascending: true })
-    .limit(6);
-  const featured: EventWithVenue[] = (rawFeatured ?? []).map((e: any) => ({
-    ...e,
-    genres: (e.event_genres ?? []).map((eg: any) => eg.genre).filter(Boolean),
-  }));
-  const featuredIds = new Set(featured.map((f) => f.id));
-
-  // 2. Main listings
-  let query = supabase
-    .from("events")
-    .select(`*, venue:venues ( *, city:cities (*) ), event_genres ( genre:genres ( * ) )`)
-    .in("venue_id", venueIds.length > 0 ? venueIds : ["00000000-0000-0000-0000-000000000000"])
-    .gte("start_time", from.toISOString())
-    .lte("start_time", to.toISOString())
-    .eq("cancelled", false)
-    .eq("status", "approved")
-    .or(`end_time.is.null,end_time.gte.${nowIso}`)
-    .order("start_time", { ascending: true })
-    // Scale the cap with the date range. "Today" rarely needs more than 60,
-    // but "week" / "weekend" / "all upcoming" can run into hundreds once we
-    // have a few months of FB-scraped gigs. 500 keeps things bounded without
-    // hiding real gigs from the listing.
-    .limit(when === "today" || when === "tonight" || when === "tomorrow" ? 100 : 500);
-
-  if (genreEventIds !== null) {
-    query = query.in("id", genreEventIds.length > 0 ? genreEventIds : ["00000000-0000-0000-0000-000000000000"]);
-  }
-
-  const { data: rawEvents } = await query;
-  const nowDate = new Date();
-  let events: EventWithVenue[] = (rawEvents ?? [])
-    // Hide events that are over — uses end_time if set, else venue closing time
-    .filter((e: any) => effectiveEndTime(e, e.venue).getTime() > nowDate.getTime())
-    .map((e: any) => ({
-      ...e,
-      genres: (e.event_genres ?? []).map((eg: any) => eg.genre).filter(Boolean),
-    }));
-
-  // Genre takeover: when genre filter is active, gigs with active takeover come first
-  if (genreSlugs.length > 0) {
-    events = [...events].sort((a, b) => {
-      const aTo = a.genre_takeover_until && new Date(a.genre_takeover_until).getTime() > Date.now();
-      const bTo = b.genre_takeover_until && new Date(b.genre_takeover_until).getTime() > Date.now();
-      if (aTo && !bTo) return -1;
-      if (bTo && !aTo) return 1;
-      return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
-    });
-  }
-
-  const groupByDay = when === "week" || when === "weekend" || when === "all";
-  const groups: Record<string, EventWithVenue[]> = {};
-  if (groupByDay) {
-    for (const e of events) {
-      if (featuredIds.has(e.id)) continue; // don't double-show
-      const dayKey = new Date(e.start_time).toDateString();
-      (groups[dayKey] ||= []).push(e);
-    }
-  }
-
-  // Places directory: always-on attractions + venues open to visit
-  // (venue_type attraction | both), filtered by the place filters.
+  // One combined directory of places (attractions + venues open to visit),
+  // narrowed by the place filters.
   const placeCats = (sp.cat || "").split(",").map((s) => s.trim()).filter(Boolean);
   const placeAccess = (sp.access || "").split(",").map((s) => s.trim()).filter(Boolean);
   const placeToddler = sp.toddler === "1";
@@ -163,8 +56,6 @@ export default async function CityPage({ params, searchParams }: Props) {
     indoorOnly: sp.rain === "1",
     accessKeys: placeAccess,
   });
-
-  const dateLabel = formatDateRangeLabel(when);
 
   return (
     <div>
@@ -223,18 +114,3 @@ export default async function CityPage({ params, searchParams }: Props) {
 }
 
 function cap(s: string) { return s.charAt(0).toUpperCase() + s.slice(1); }
-
-function shortDayLabel(d: Date) {
-  const today = new Date();
-  const isToday = d.toDateString() === today.toDateString();
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
-  const isTomorrow = d.toDateString() === tomorrow.toDateString();
-  if (isToday) return "Today";
-  if (isTomorrow) return "Tomorrow";
-  return d.toLocaleDateString("en-GB", { weekday: "long" });
-}
-
-function longDayLabel(d: Date) {
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "long" });
-}
