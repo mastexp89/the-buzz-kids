@@ -14,10 +14,6 @@ type VenueRow = Stats & {
   id: string;
   venue?: { name: string; slug: string; city?: { slug: string } | null };
 };
-type ArtistRow = Stats & {
-  id: string;
-  artist?: { name: string; slug: string };
-};
 type EventRow = Stats & {
   id: string;
   event?: {
@@ -45,7 +41,6 @@ export default function AnalyticsClient({
   totalClicks,
   daily,
   venueRows,
-  artistRows,
   eventRows,
 }: {
   windowKey: WindowKey;
@@ -54,7 +49,6 @@ export default function AnalyticsClient({
   totalClicks: number;
   daily: DailyRow[];
   venueRows: VenueRow[];
-  artistRows: ArtistRow[];
   eventRows: EventRow[];
 }) {
   const router = useRouter();
@@ -137,53 +131,9 @@ export default function AnalyticsClient({
         )}
       </section>
 
-      <section className="mb-10">
-        <h2 className="font-display text-2xl uppercase mb-3">
-          Top artists <span className="text-buzz-mute text-sm font-normal">({artistRows.length})</span>
-        </h2>
-        {artistRows.length === 0 ? (
-          <Empty />
-        ) : (
-          <div className="card overflow-x-auto">
-            <table className="w-full text-sm min-w-[640px]">
-              <thead className="bg-buzz-surface/40 text-xs uppercase tracking-wide text-buzz-mute">
-                <tr>
-                  <th className="text-left px-4 py-3 w-10">#</th>
-                  <th className="text-left px-4 py-3">Artist</th>
-                  <th className="text-right px-4 py-3 w-20">Views</th>
-                  <th className="text-right px-4 py-3 w-20">Clicks</th>
-                  <th className="text-left px-4 py-3">Top click types</th>
-                </tr>
-              </thead>
-              <tbody>
-                {artistRows.map((r, i) => (
-                  <tr key={r.id} className="border-t border-buzz-border/40 hover:bg-buzz-surface/20">
-                    <td className="px-4 py-2 text-buzz-mute">{i + 1}</td>
-                    <td className="px-4 py-2">
-                      {r.artist ? (
-                        <Link href={`/artists/${r.artist.slug}`} target="_blank" className="hover:text-buzz-accent">
-                          {r.artist.name}
-                        </Link>
-                      ) : (
-                        <span className="text-buzz-mute italic">Deleted artist ({r.id.slice(0, 8)}…)</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2 text-right font-mono">{r.views.toLocaleString()}</td>
-                    <td className="px-4 py-2 text-right font-mono">{r.clicks.toLocaleString()}</td>
-                    <td className="px-4 py-2 text-xs text-buzz-mute font-mono truncate">
-                      {topClickSummary(r.clicksByKind) || "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
       <section className="mb-4">
         <h2 className="font-display text-2xl uppercase mb-3">
-          Top events <span className="text-buzz-mute text-sm font-normal">({eventRows.length})</span>
+          Top sessions <span className="text-buzz-mute text-sm font-normal">({eventRows.length})</span>
         </h2>
         {eventRows.length === 0 ? (
           <Empty />

@@ -5,7 +5,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import AnalyticsClient from "./AnalyticsClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Analytics — The Buzz Guide admin" };
+export const metadata = { title: "Analytics — The Buzz Kids admin" };
 
 type WindowKey = "7" | "30" | "all";
 const WINDOW_LABELS: Record<WindowKey, string> = {
@@ -50,11 +50,11 @@ export default async function AnalyticsPage({ searchParams }: Props) {
   // picked. We loop with .range() until the page comes back short.
   //
   // Bound at 200k rows so a runaway crawler can't lock the admin page up.
-  const rows: { venue_id: string | null; artist_id: string | null; event_id: string | null; kind: string | null; viewed_at: string }[] = [];
+  const rows: { venue_id: string | null; event_id: string | null; kind: string | null; viewed_at: string }[] = [];
   const pageSize = 1000;
   const maxRows = 200_000;
   for (let from = 0; from < maxRows; from += pageSize) {
-    let q = sb.from("page_views").select("venue_id, artist_id, event_id, kind, viewed_at");
+    let q = sb.from("page_views").select("venue_id, event_id, kind, viewed_at");
     if (since) q = q.gte("viewed_at", since);
     q = q.order("viewed_at", { ascending: true }).range(from, from + pageSize - 1);
     const { data, error } = await q;
@@ -66,7 +66,6 @@ export default async function AnalyticsPage({ searchParams }: Props) {
   // Two parallel sets of counters: page views (kind = 'view') and clicks (everything else).
   type Counters = { views: number; clicks: number; clicksByKind: Record<string, number> };
   const venueStats = new Map<string, Counters>();
-  const artistStats = new Map<string, Counters>();
   const eventStats = new Map<string, Counters>();
   let totalViews = 0;
   let totalClicks = 0;
@@ -93,7 +92,6 @@ export default async function AnalyticsPage({ searchParams }: Props) {
       }
     };
     if (r.venue_id) apply(venueStats, r.venue_id);
-    if (r.artist_id) apply(artistStats, r.artist_id);
     if (r.event_id) apply(eventStats, r.event_id);
   }
 
@@ -138,15 +136,11 @@ export default async function AnalyticsPage({ searchParams }: Props) {
   const daily = dailyAll.slice(firstWithData);
 
   const topVenueIds = topNStats(venueStats, 30);
-  const topArtistIds = topNStats(artistStats, 30);
   const topEventIds = topNStats(eventStats, 20);
 
-  const [{ data: venues }, { data: artists }, { data: events }] = await Promise.all([
+  const [{ data: venues }, { data: events }] = await Promise.all([
     topVenueIds.length > 0
       ? sb.from("venues").select("id, name, slug, city:cities(slug)").in("id", topVenueIds.map((t) => t.id))
-      : Promise.resolve({ data: [] as any[] }),
-    topArtistIds.length > 0
-      ? sb.from("artists").select("id, name, slug").in("id", topArtistIds.map((t) => t.id))
       : Promise.resolve({ data: [] as any[] }),
     topEventIds.length > 0
       ? sb.from("events").select("id, title, start_time, venue:venues(name, slug, city:cities(slug))").in("id", topEventIds.map((t) => t.id))
@@ -156,10 +150,6 @@ export default async function AnalyticsPage({ searchParams }: Props) {
   const venueRows = topVenueIds.map((t) => {
     const v = (venues ?? []).find((x: any) => x.id === t.id);
     return { ...t, venue: v };
-  });
-  const artistRows = topArtistIds.map((t) => {
-    const a = (artists ?? []).find((x: any) => x.id === t.id);
-    return { ...t, artist: a };
   });
   const eventRows = topEventIds.map((t) => {
     const e = (events ?? []).find((x: any) => x.id === t.id);
@@ -174,7 +164,7 @@ export default async function AnalyticsPage({ searchParams }: Props) {
       <p className="eyebrow mt-3 mb-1">Admin</p>
       <h1 className="h-display text-4xl sm:text-5xl mb-2">Analytics</h1>
       <p className="text-buzz-mute mb-6 max-w-2xl">
-        Page views per venue, artist and event. Bot traffic filtered out server-side. Tracking started when migration <code>014_analytics.sql</code> was applied — historical data not available before that.
+        Page views per place and session. Bot traffic filtered out server-side. Tracking started when migration <code>014_analytics.sql</code> was applied — historical data not available before that.
       </p>
 
       <AnalyticsClient
@@ -184,7 +174,6 @@ export default async function AnalyticsPage({ searchParams }: Props) {
         totalClicks={totalClicks}
         daily={daily}
         venueRows={venueRows as any}
-        artistRows={artistRows as any}
         eventRows={eventRows as any}
       />
     </div>

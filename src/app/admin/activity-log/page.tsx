@@ -5,7 +5,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import ActivityLogClient, { type AuditRowProps } from "./ActivityLogClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Activity log — The Buzz Guide admin" };
+export const metadata = { title: "Activity log — The Buzz Kids admin" };
 
 // Postgres table_name -> the kind we render in the UI. Order here also
 // drives the filter pill order.
@@ -159,19 +159,18 @@ export default async function ActivityLogPage({ searchParams }: Props) {
       <p className="eyebrow mt-3 mb-1">Admin</p>
       <h1 className="h-display text-4xl sm:text-5xl mb-2">📜 Activity log</h1>
       <p className="text-buzz-mute mb-6 max-w-2xl">
-        Field-by-field record of edits + creates + deletes by venue owners,
-        artists, bands, DJs and event organisers — last 30 days. Cron jobs,
-        AI imports and admin approvals are excluded.
+        Field-by-field record of edits + creates + deletes by place owners
+        and event organisers — last 30 days. Cron jobs, AI imports and admin
+        approvals are excluded.
       </p>
 
       <div className="flex flex-wrap items-center gap-2 mb-5">
         <span className="text-xs uppercase tracking-wider text-buzz-mute mr-1">Filter</span>
         {([
           ["all", "All", counts.all],
-          ["venue", "🐝 Venues", counts.venue],
-          ["artist", "🎤 Artists", counts.artist],
+          ["venue", "🐝 Places", counts.venue],
           ["organiser", "📋 Organisers", counts.organiser],
-          ["event", "🎟️ Events", counts.event],
+          ["event", "🎟️ Sessions", counts.event],
         ] as const).map(([k, label, count]) => {
           const active = (kindFilter ?? "all") === k;
           return (

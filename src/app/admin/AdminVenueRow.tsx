@@ -47,7 +47,7 @@ export default function AdminVenueRow({
   function destroy() {
     const confirmed = confirm(
       `Delete "${venue.name}" permanently?\n\n` +
-        `This will also delete all of its gigs, genre tags and artist links. ` +
+        `This will also delete all of its sessions and category tags. ` +
         `Cannot be undone.\n\n` +
         `If you just want to take it offline, use Unapprove instead.`,
     );

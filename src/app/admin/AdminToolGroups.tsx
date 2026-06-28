@@ -31,7 +31,7 @@ export default function AdminToolGroups({ pendingCount }: { pendingCount: number
           href: "/admin/queue",
           label: "Approval queue",
           emoji: "✅",
-          description: "Pending venue / artist claims & gigs",
+          description: "Pending place / organiser claims & sessions",
           badge: pendingCount,
         },
         {
@@ -42,26 +42,26 @@ export default function AdminToolGroups({ pendingCount }: { pendingCount: number
         },
         {
           href: "/admin/events",
-          label: "Events search",
+          label: "Sessions search",
           emoji: "🔎",
-          description: "Find any gig, edit, or reassign",
+          description: "Find any session, edit or reassign",
         },
         {
           href: "/admin/messages",
           label: "Messages",
           emoji: "📬",
-          description: "Threads with venue owners + artists",
+          description: "Threads with place owners & organisers",
         },
       ],
     },
     {
-      title: "Add events",
+      title: "Add sessions",
       tools: [
         {
           href: "/admin/quick-import",
           label: "Quick import",
           emoji: "⚡",
-          description: "Drop a poster, AI extracts the gig",
+          description: "Drop a poster, AI extracts the session",
         },
         {
           href: "/admin/import-site",
@@ -90,7 +90,7 @@ export default function AdminToolGroups({ pendingCount }: { pendingCount: number
           href: "/admin/discover-venues",
           label: "Discover venues",
           emoji: "🗺️",
-          description: "Auto-find pubs across a region via Google Maps",
+          description: "Auto-find places across a region via Google Maps",
         },
         {
           href: "/admin/venues-enrich",
@@ -126,7 +126,7 @@ export default function AdminToolGroups({ pendingCount }: { pendingCount: number
           href: "/admin/events-dedupe",
           label: "Dedupe events",
           emoji: "🧹",
-          description: "Merge same-day duplicate events (festival-scope)",
+          description: "Merge same-day duplicate sessions",
         },
         {
           href: "/admin/venue-slug-cleanup",
@@ -143,7 +143,7 @@ export default function AdminToolGroups({ pendingCount }: { pendingCount: number
           href: "/admin/activity-log",
           label: "Activity log",
           emoji: "📜",
-          description: "Recent edits by venues, artists, organisers",
+          description: "Recent edits by places and organisers",
         },
         {
           href: "/admin/claimed-venues",
@@ -155,7 +155,7 @@ export default function AdminToolGroups({ pendingCount }: { pendingCount: number
           href: "/admin/favourites",
           label: "Favourites",
           emoji: "♥",
-          description: "Who's loved what — top venues, artists, events",
+          description: "Who's loved what — top places and sessions",
         },
         {
           href: "/admin/cities",
@@ -186,12 +186,6 @@ export default function AdminToolGroups({ pendingCount }: { pendingCount: number
           label: "Sponsors",
           emoji: "💼",
           description: "Local ad clients (takeaways, taxis)",
-        },
-        {
-          href: "/admin/payments",
-          label: "Payments",
-          emoji: "💷",
-          description: "Stripe transactions",
         },
       ],
     },

@@ -5,7 +5,7 @@ import QueueClient from "./QueueClient";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Approval queue — The Buzz Guide" };
+export const metadata = { title: "Approval queue — The Buzz Kids" };
 
 export default async function AdminQueuePage() {
   const supabase = await createClient();
@@ -24,7 +24,6 @@ export default async function AdminQueuePage() {
 
   const [
     { data: pendingEventsRaw },
-    { data: pendingArtists },
     { data: pendingSuggestionsRaw },
     { data: pendingClaimsRaw },
     { data: pendingVenuesRaw },
@@ -37,12 +36,6 @@ export default async function AdminQueuePage() {
         venue:venues(id, name, slug, city:cities(name, slug))
       `)
       .eq("status", "pending")
-      .order("created_at", { ascending: false })
-      .limit(100),
-    supabase
-      .from("artists")
-      .select("id, name, slug, image_url, created_at, claimed_by")
-      .eq("approved", false)
       .order("created_at", { ascending: false })
       .limit(100),
     supabase
@@ -65,8 +58,8 @@ export default async function AdminQueuePage() {
       .eq("status", "pending")
       .order("created_at", { ascending: false })
       .limit(100),
-    // Pending venues: approved=false AND owned by a real user (not auto-imported
-    // pubs sitting unclaimed). These are first-time venue signups awaiting review.
+    // Pending places: approved=false AND owned by a real user (not auto-imported
+    // places sitting unclaimed). These are first-time signups awaiting review.
     supabase
       .from("venues")
       .select("id, name, slug, address, postcode, owner_id, created_at, city:cities(name, slug)")
@@ -85,24 +78,12 @@ export default async function AdminQueuePage() {
       .limit(100),
   ]);
 
-  const { data: pendingArtistClaimsRaw } = await supabase
-    .from("artist_claims")
-    .select(`
-      id, artist_id, claimant_user_id, role, contact_phone, contact_email,
-      reason, created_at,
-      artist:artists(id, name, slug, claimed_by, image_url)
-    `)
-    .eq("status", "pending")
-    .order("created_at", { ascending: false })
-    .limit(100);
-
   // Look up submitter / claimant profiles separately — events/suggestions/claims reference auth.users,
   // not profiles, so PostgREST can't auto-resolve the relationship.
   const allSubmitterIds = Array.from(new Set([
     ...(pendingEventsRaw ?? []).map((e: any) => e.submitted_by).filter(Boolean),
     ...(pendingSuggestionsRaw ?? []).map((s: any) => s.submitted_by).filter(Boolean),
     ...(pendingClaimsRaw ?? []).map((c: any) => c.claimant_user_id).filter(Boolean),
-    ...(pendingArtistClaimsRaw ?? []).map((c: any) => c.claimant_user_id).filter(Boolean),
     ...(pendingVenuesRaw ?? []).map((v: any) => v.owner_id).filter(Boolean),
     ...(pendingOrganisersRaw ?? []).map((o: any) => o.claimed_by).filter(Boolean),
   ]));
@@ -128,10 +109,6 @@ export default async function AdminQueuePage() {
     ...c,
     claimant: c.claimant_user_id ? submitterMap.get(c.claimant_user_id) ?? null : null,
   }));
-  const pendingArtistClaims = (pendingArtistClaimsRaw ?? []).map((c: any) => ({
-    ...c,
-    claimant: c.claimant_user_id ? submitterMap.get(c.claimant_user_id) ?? null : null,
-  }));
   const pendingVenues = (pendingVenuesRaw ?? []).map((v: any) => ({
     ...v,
     owner: v.owner_id ? submitterMap.get(v.owner_id) ?? null : null,
@@ -149,16 +126,14 @@ export default async function AdminQueuePage() {
       <p className="eyebrow mt-3 mb-1">Admin</p>
       <h1 className="h-display text-4xl sm:text-5xl mb-2">Approval queue</h1>
       <p className="text-buzz-mute mb-8 max-w-2xl">
-        Pending gigs at listed venues are normally approved by the venue owner — this queue lets
-        you intervene if needed. New artists and venue suggestions need your review.
+        Pending sessions at listed places are normally approved by the place owner — this queue lets
+        you intervene if needed. Venue suggestions and new organiser claims need your review.
       </p>
 
       <QueueClient
         events={(pendingEvents ?? []) as any}
-        artists={(pendingArtists ?? []) as any}
         suggestions={(pendingSuggestions ?? []) as any}
         claims={(pendingClaims ?? []) as any}
-        artistClaims={(pendingArtistClaims ?? []) as any}
         venues={(pendingVenues ?? []) as any}
         organisers={(pendingOrganisers ?? []) as any}
       />

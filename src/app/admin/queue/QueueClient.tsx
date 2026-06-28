@@ -5,14 +5,10 @@ import Link from "next/link";
 import {
   approveEvent,
   rejectEvent,
-  approveArtist,
-  deleteArtist,
   dismissSuggestion,
   deleteSuggestion,
   approveVenueClaim,
   rejectVenueClaim,
-  approveArtistClaim,
-  rejectArtistClaim,
 } from "./actions";
 import {
   approveVenue,
@@ -28,15 +24,6 @@ type PendingEvent = {
   image_url: string | null;
   venue: { id: string; name: string; slug: string; city: { name: string; slug: string } | null } | null;
   submitter: { email: string | null; display_name: string | null } | null;
-};
-
-type PendingArtist = {
-  id: string;
-  name: string;
-  slug: string;
-  image_url: string | null;
-  created_at: string;
-  claimed_by: string | null;
 };
 
 type PendingSuggestion = {
@@ -73,25 +60,6 @@ type PendingClaim = {
   claimant: { email: string | null; display_name: string | null } | null;
 };
 
-type PendingArtistClaim = {
-  id: string;
-  artist_id: string;
-  claimant_user_id: string;
-  role: string | null;
-  contact_phone: string | null;
-  contact_email: string | null;
-  reason: string | null;
-  created_at: string;
-  artist: {
-    id: string;
-    name: string;
-    slug: string;
-    claimed_by: string | null;
-    image_url: string | null;
-  } | null;
-  claimant: { email: string | null; display_name: string | null } | null;
-};
-
 type PendingVenue = {
   id: string;
   name: string;
@@ -115,22 +83,18 @@ type PendingOrganiser = {
   claimer: { email: string | null; display_name: string | null } | null;
 };
 
-type Tab = "events" | "artists" | "suggestions" | "claims" | "artist-claims" | "venues" | "organisers";
+type Tab = "events" | "suggestions" | "claims" | "venues" | "organisers";
 
 export default function QueueClient({
   events,
-  artists,
   suggestions,
   claims,
-  artistClaims,
   venues,
   organisers,
 }: {
   events: PendingEvent[];
-  artists: PendingArtist[];
   suggestions: PendingSuggestion[];
   claims: PendingClaim[];
-  artistClaims: PendingArtistClaim[];
   venues: PendingVenue[];
   organisers: PendingOrganiser[];
 }) {
@@ -139,26 +103,22 @@ export default function QueueClient({
     : organisers.length > 0 ? "organisers"
     : events.length > 0 ? "events"
     : claims.length > 0 ? "claims"
-    : artistClaims.length > 0 ? "artist-claims"
-    : artists.length > 0 ? "artists"
     : "suggestions"
   );
 
   return (
     <>
       <div className="flex gap-2 mb-6 flex-wrap">
-        <TabPill active={tab === "venues"} onClick={() => setTab("venues")} label="New venues" count={venues.length} />
+        <TabPill active={tab === "venues"} onClick={() => setTab("venues")} label="New places" count={venues.length} />
         <TabPill active={tab === "organisers"} onClick={() => setTab("organisers")} label="New organisers" count={organisers.length} />
-        <TabPill active={tab === "events"} onClick={() => setTab("events")} label="Pending gigs" count={events.length} />
-        <TabPill active={tab === "claims"} onClick={() => setTab("claims")} label="Venue claims" count={claims.length} />
-        <TabPill active={tab === "artist-claims"} onClick={() => setTab("artist-claims")} label="Artist claims" count={artistClaims.length} />
-        <TabPill active={tab === "artists"} onClick={() => setTab("artists")} label="New artists" count={artists.length} />
-        <TabPill active={tab === "suggestions"} onClick={() => setTab("suggestions")} label="Venue suggestions" count={suggestions.length} />
+        <TabPill active={tab === "events"} onClick={() => setTab("events")} label="Pending sessions" count={events.length} />
+        <TabPill active={tab === "claims"} onClick={() => setTab("claims")} label="Place claims" count={claims.length} />
+        <TabPill active={tab === "suggestions"} onClick={() => setTab("suggestions")} label="Place suggestions" count={suggestions.length} />
       </div>
 
       {tab === "events" && (
         events.length === 0 ? (
-          <Empty message="No pending gigs. Venue owners are doing their bit. ✨" />
+          <Empty message="No pending sessions. Place owners are doing their bit. ✨" />
         ) : (
           <ul className="card divide-y divide-buzz-border/60">
             {events.map((e) => <EventRow key={e.id} event={e} />)}
@@ -168,30 +128,10 @@ export default function QueueClient({
 
       {tab === "claims" && (
         claims.length === 0 ? (
-          <Empty message="No pending venue claims. ✨" />
+          <Empty message="No pending place claims. ✨" />
         ) : (
           <ul className="card divide-y divide-buzz-border/60">
             {claims.map((c) => <ClaimRow key={c.id} claim={c} />)}
-          </ul>
-        )
-      )}
-
-      {tab === "artist-claims" && (
-        artistClaims.length === 0 ? (
-          <Empty message="No pending artist claims. ✨" />
-        ) : (
-          <ul className="card divide-y divide-buzz-border/60">
-            {artistClaims.map((c) => <ArtistClaimRow key={c.id} claim={c} />)}
-          </ul>
-        )
-      )}
-
-      {tab === "artists" && (
-        artists.length === 0 ? (
-          <Empty message="No new artists waiting." />
-        ) : (
-          <ul className="card divide-y divide-buzz-border/60">
-            {artists.map((a) => <ArtistRow key={a.id} artist={a} />)}
           </ul>
         )
       )}
@@ -491,85 +431,6 @@ function ClaimRow({ claim }: { claim: PendingClaim }) {
   );
 }
 
-function ArtistClaimRow({ claim }: { claim: PendingArtistClaim }) {
-  const [busy, start] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const [showReject, setShowReject] = useState(false);
-  const [rejectReason, setRejectReason] = useState("");
-
-  function approve() {
-    start(async () => {
-      const r = await approveArtistClaim(claim.id);
-      if (r?.error) setError(r.error);
-    });
-  }
-  function reject() {
-    start(async () => {
-      const r = await rejectArtistClaim(claim.id, rejectReason || undefined);
-      if (r?.error) setError(r.error);
-    });
-  }
-
-  const artistName = claim.artist?.name ?? "—";
-  const claimantLabel =
-    claim.claimant?.display_name ?? claim.claimant?.email ?? "anonymous claimant";
-
-  return (
-    <li className="p-4 flex flex-col gap-3">
-      <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:justify-between">
-        <div className="min-w-0 flex-1">
-          <div className="font-medium">{artistName}</div>
-          <div className="text-xs text-buzz-mute mt-0.5">
-            {claimantLabel} ({claim.claimant?.email ?? claim.contact_email ?? "no email"})
-            {claim.role ? ` · ${claim.role}` : ""}
-            {claim.contact_phone ? ` · ${claim.contact_phone}` : ""}
-          </div>
-          {claim.reason && (
-            <p className="text-sm text-buzz-text/90 mt-2 whitespace-pre-line">{claim.reason}</p>
-          )}
-          <div className="text-[11px] text-buzz-mute mt-2">
-            Submitted {new Date(claim.created_at).toLocaleString()}
-          </div>
-          {error && <div className="text-xs text-rose-400 mt-1">{error}</div>}
-        </div>
-        <div className="flex items-center gap-2 flex-wrap shrink-0">
-          {claim.artist && (
-            <Link href={`/artists/${claim.artist.slug}`} target="_blank" className="btn-ghost text-xs">
-              View artist
-            </Link>
-          )}
-          <button onClick={approve} disabled={busy} className="btn-primary">
-            {busy ? "…" : "Approve"}
-          </button>
-          <button onClick={() => setShowReject((s) => !s)} disabled={busy} className="btn-secondary">
-            Reject
-          </button>
-        </div>
-      </div>
-      {showReject && (
-        <div className="rounded-lg border border-buzz-border bg-buzz-surface/40 p-3 flex flex-col gap-2">
-          <input
-            type="text"
-            value={rejectReason}
-            onChange={(e) => setRejectReason(e.target.value)}
-            placeholder="Optional reason — emailed to the claimant"
-            maxLength={500}
-            className="rounded-md bg-buzz-card border border-buzz-border px-3 py-2 text-sm"
-          />
-          <div className="flex gap-2 justify-end">
-            <button onClick={() => { setShowReject(false); setRejectReason(""); }} className="btn-ghost" disabled={busy}>
-              Cancel
-            </button>
-            <button onClick={reject} disabled={busy} className="btn-danger">
-              {busy ? "…" : "Confirm reject"}
-            </button>
-          </div>
-        </div>
-      )}
-    </li>
-  );
-}
-
 function TabPill({ active, onClick, label, count }: { active: boolean; onClick: () => void; label: string; count: number }) {
   return (
     <button
@@ -616,7 +477,7 @@ function EventRow({ event: e }: { event: PendingEvent }) {
             style={{ backgroundImage: `url(${e.image_url})`, backgroundSize: "cover", backgroundPosition: "center" }}
           />
         ) : (
-          <div className="w-14 h-14 rounded-lg bg-buzz-surface border border-buzz-border grid place-items-center text-2xl shrink-0">🎤</div>
+          <div className="w-14 h-14 rounded-lg bg-buzz-surface border border-buzz-border grid place-items-center text-2xl shrink-0">🎪</div>
         )}
         <div className="flex-1 min-w-0">
           <div className="font-semibold truncate">{e.title}</div>
@@ -656,78 +517,6 @@ function EventRow({ event: e }: { event: PendingEvent }) {
             })}
           >
             Reject
-          </button>
-        </div>
-      </div>
-      {error && <div className="text-xs text-rose-400 mt-2">{error}</div>}
-    </li>
-  );
-}
-
-function ArtistRow({ artist: a }: { artist: PendingArtist }) {
-  const [pending, start] = useTransition();
-  const [done, setDone] = useState<"approved" | "deleted" | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  if (done) {
-    return (
-      <li className="px-4 py-3 text-sm text-buzz-mute">
-        {done === "approved" ? "Approved" : "Deleted"}: {a.name}
-      </li>
-    );
-  }
-
-  return (
-    <li className="px-4 py-4">
-      <div className="flex items-center gap-3">
-        {a.image_url ? (
-          <div
-            className="w-12 h-12 rounded-full bg-buzz-surface shrink-0"
-            style={{ backgroundImage: `url(${a.image_url})`, backgroundSize: "cover", backgroundPosition: "center" }}
-          />
-        ) : (
-          <div className="w-12 h-12 rounded-full bg-buzz-surface border border-buzz-border grid place-items-center text-xl shrink-0">🎵</div>
-        )}
-        <div className="flex-1 min-w-0">
-          <div className="font-semibold truncate">{a.name}</div>
-          <div className="text-xs text-buzz-mute">
-            /{a.slug} · {a.claimed_by ? "claimed" : "auto-created"} · {new Date(a.created_at).toLocaleDateString("en-GB")}
-          </div>
-        </div>
-        <div className="flex gap-1.5 shrink-0">
-          <Link
-            href={`/artists/${a.slug}`}
-            target="_blank"
-            className="btn-secondary !py-1.5 !px-3 text-xs"
-          >
-            View
-          </Link>
-          <button
-            type="button"
-            disabled={pending}
-            className="btn-primary !py-1.5 !px-3 text-xs"
-            onClick={() => start(async () => {
-              const r = await approveArtist(a.id);
-              if (r?.error) setError(r.error);
-              else setDone("approved");
-            })}
-          >
-            Approve
-          </button>
-          <button
-            type="button"
-            disabled={pending}
-            className="btn-danger !py-1.5 !px-3 text-xs"
-            onClick={() => {
-              if (!confirm(`Delete ${a.name}? This removes the artist row entirely.`)) return;
-              start(async () => {
-                const r = await deleteArtist(a.id);
-                if (r?.error) setError(r.error);
-                else setDone("deleted");
-              });
-            }}
-          >
-            Delete
           </button>
         </div>
       </div>
