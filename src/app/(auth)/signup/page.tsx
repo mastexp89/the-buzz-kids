@@ -105,7 +105,7 @@ function SignupForm() {
           <TypeCard
             emoji="♡"
             title="Parent / carer"
-            tagline="Plan days out, save places to your wishlist, and review the ones you've been to. We'll let you know about new activities each holiday."
+            tagline="Plan days out, save places to your bucket list, and review the ones you've been to. We'll let you know about new activities each holiday."
             onClick={() => setAccountType("fan")}
           />
           <TypeCard
@@ -137,7 +137,7 @@ function SignupForm() {
     : "List your activity, free.";
 
   const subline = isFan
-    ? "Free account. Save places to your wishlist, review the ones you've been to, and hear about new activities each school holiday."
+    ? "Free account. Save places to your bucket list, review the ones you've been to, and hear about new activities each school holiday."
     : "Free to list and manage. Add your sessions, opening times, prices and accessibility info — and reach local families looking for things to do.";
 
   const typeLabel =

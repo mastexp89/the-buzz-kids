@@ -83,7 +83,7 @@ export default function PrivacyPage() {
           <ul className="list-disc pl-6 space-y-2 mt-2">
             <li>
               <strong>Account info</strong> — email address, display name, and password (passwords
-              are stored encrypted by our auth provider, Supabase). For organiser accounts, we also
+              are stored encrypted by our authentication provider). For organiser accounts, we also
               store the details you choose to provide about your activity or venue (name, address,
               postcode, phone, opening hours, prices and links).
             </li>
@@ -108,7 +108,7 @@ export default function PrivacyPage() {
             </li>
             <li>
               <strong>Basic usage logs</strong> — IP address, browser and pages visited, kept by our
-              hosting provider Vercel for security and abuse prevention.
+              hosting provider for security and abuse prevention.
             </li>
           </ul>
         </section>
@@ -118,7 +118,7 @@ export default function PrivacyPage() {
           <ul className="list-disc pl-6 space-y-2 mt-2">
             <li>To run your account and let you sign in.</li>
             <li>To show organiser listings, and approved reviews, publicly on the site.</li>
-            <li>To let you save places to your wishlist and plan days out.</li>
+            <li>To let you save places to your bucket list and plan days out.</li>
             <li>To send transactional emails — listing approvals, password resets, signup confirmations.</li>
             <li>To calculate distance to venues if you opt into "Near me".</li>
             <li>To moderate reviews and investigate abuse, spam or technical issues.</li>
@@ -132,16 +132,20 @@ export default function PrivacyPage() {
         <section>
           <h2 className="font-display text-2xl uppercase mb-2 mt-6">Who we share data with</h2>
           <p>
-            We use a small number of third-party services to operate the site. Each only sees the
-            minimum data needed for their part of the system:
+            We use a small number of trusted third-party providers to operate the site. Each only
+            sees the minimum data needed for their part of the system:
           </p>
           <ul className="list-disc pl-6 space-y-2 mt-2">
-            <li><strong>Supabase</strong> — database, authentication and file storage.</li>
-            <li><strong>Vercel</strong> — website hosting.</li>
-            <li><strong>Resend</strong> — transactional email delivery.</li>
-            <li><strong>postcodes.io</strong> — UK postcode → coordinates lookup for venue locations (no personal data sent).</li>
-            <li><strong>OpenStreetMap</strong> — venue map tiles. Tile requests include your IP, the same as any web map.</li>
+            <li><strong>Cloud database, authentication and file storage</strong> — securely holds your account, listings and uploads.</li>
+            <li><strong>Website hosting</strong> — serves the site and keeps short security and abuse-prevention logs.</li>
+            <li><strong>Email delivery</strong> — sends transactional emails such as sign-up confirmations and password resets.</li>
+            <li><strong>Postcode lookup</strong> — converts UK postcodes to map coordinates for venue locations (no personal data sent).</li>
+            <li><strong>Map tiles</strong> — displays venue maps; tile requests include your IP, the same as any web map.</li>
           </ul>
+          <p className="mt-3">
+            Our providers operate under appropriate data-protection safeguards. If you'd like to know
+            exactly which companies we use, just email us and we'll tell you.
+          </p>
         </section>
 
         <section>
