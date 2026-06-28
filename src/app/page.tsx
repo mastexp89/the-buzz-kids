@@ -1,11 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
-import EventCard from "@/components/EventCard";
-import { dateRangeFor } from "@/lib/dateRange";
-import { effectiveEndTime } from "@/lib/utils";
 import { trackPageView } from "@/lib/track";
-import type { EventWithVenue } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -27,55 +23,6 @@ export default async function Home() {
   trackPageView({ source: "homepage" });
 
   const { data: cities } = await supabase.from("cities").select("*").order("name");
-
-  // "What's on tonight" — fetched per active city so each section stays
-  // city-pure (no mixing). Sections render only when their city has events.
-  const activeCitiesForTonight = (cities ?? [])
-    .filter((c) => c.active)
-    .sort((a, b) => {
-      // Dundee first (it's the largest catchment), then alphabetical.
-      if (a.slug === "dundee") return -1;
-      if (b.slug === "dundee") return 1;
-      return a.name.localeCompare(b.name);
-    });
-
-  type CityTonight = { city: { id: string; slug: string; name: string }; events: EventWithVenue[] };
-  const tonightByCity: CityTonight[] = [];
-
-  for (const c of activeCitiesForTonight) {
-    const { data: cityVenues } = await supabase
-      .from("venues")
-      .select("id")
-      .eq("city_id", c.id)
-      .eq("approved", true);
-    const venueIds = (cityVenues ?? []).map((v) => v.id);
-    if (venueIds.length === 0) {
-      tonightByCity.push({ city: c, events: [] });
-      continue;
-    }
-
-    const { from, to } = dateRangeFor("today");
-    const now = new Date();
-    const { data: rawEvents } = await supabase
-      .from("events")
-      .select(`*, venue:venues(*, city:cities(*)), event_genres(genre:genres(*))`)
-      .in("venue_id", venueIds)
-      .gte("start_time", from.toISOString())
-      .lte("start_time", to.toISOString())
-      .eq("cancelled", false)
-      .eq("status", "approved")
-      .order("start_time", { ascending: true })
-      .limit(20);
-
-    const events = (rawEvents ?? [])
-      .filter((e: any) => effectiveEndTime(e, e.venue).getTime() > now.getTime())
-      .slice(0, 6)
-      .map((e: any) => ({
-        ...e,
-        genres: (e.event_genres ?? []).map((eg: any) => eg.genre).filter(Boolean),
-      }));
-    tonightByCity.push({ city: c, events });
-  }
 
   // Spotlight venues (active venue spotlights, in active cities)
   const nowIso = new Date().toISOString();
@@ -135,7 +82,7 @@ export default async function Home() {
               <Link href="/surprise" className="btn-secondary btn-lg">🎲 Surprise me</Link>
             </div>
             <p className="mt-4 text-sm text-buzz-mute">
-              Want to save your favourites and hear about new activities each holiday?{" "}
+              Want to save to your bucket list, leave reviews, and get holiday activity alerts?{" "}
               <Link href="/signup?as=fan" className="text-buzz-accent hover:text-buzz-accent2 font-medium">
                 ♡ Sign up free
               </Link>
@@ -170,59 +117,6 @@ export default async function Home() {
           </div>
         </div>
       </section>
-
-      {/* One "On today in <City>" section per active city. Each section
-          renders only when its city has events today. If none has anything,
-          fall through to a single "Quiet day so far" card. */}
-      {tonightByCity.some((c) => c.events.length > 0) ? (
-        tonightByCity
-          .filter((c) => c.events.length > 0)
-          .map((entry) => (
-            <section key={entry.city.id} className="container-page py-12 sm:py-16">
-              <div className="flex items-end justify-between mb-6 gap-4">
-                <div>
-                  <p className="eyebrow mb-2">What's on today</p>
-                  <h2 className="h-display text-4xl sm:text-5xl">
-                    On today in {entry.city.name}
-                  </h2>
-                </div>
-                <Link
-                  href={`/${entry.city.slug}`}
-                  className="text-sm text-buzz-accent hover:text-buzz-accent2 hidden sm:inline whitespace-nowrap"
-                >
-                  See all activities →
-                </Link>
-              </div>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {entry.events.map((e) => (
-                  <EventCard key={e.id} event={e} citySlug={entry.city.slug} />
-                ))}
-              </div>
-              <div className="mt-6 sm:hidden">
-                <Link href={`/${entry.city.slug}`} className="btn-secondary w-full">
-                  See all activities →
-                </Link>
-              </div>
-            </section>
-          ))
-      ) : (
-        <section className="container-page py-12 sm:py-16">
-          <div className="card p-10 text-center">
-            <p className="eyebrow mb-2">What's on today</p>
-            <h2 className="h-display text-3xl sm:text-4xl mb-2">Quiet day so far</h2>
-            <p className="text-buzz-mute max-w-md mx-auto">
-              Nothing listed for today yet. Check back soon, or browse what's coming up this week — there's loads on in the holidays.
-            </p>
-            <div className="mt-5 flex flex-wrap justify-center gap-2">
-              {activeCitiesForTonight.map((c) => (
-                <Link key={c.id} href={`/${c.slug}?when=week`} className="btn-primary">
-                  Browse {c.name} this week →
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
 
       {spotlight.length > 0 && (
         <section className="container-page py-12 sm:py-16 border-t border-buzz-border">
@@ -294,9 +188,8 @@ export default async function Home() {
             Never miss a great day out.
           </h2>
           <p className="max-w-xl mx-auto text-buzz-mute mb-6">
-            Heart your favourite places and activities. We'll let you know when new
-            sessions are added for the school holidays, and send a handy reminder
-            before the ones you've saved. Free, no spam.
+            Save places and activities to your bucket list, leave reviews for other parents,
+            and get alerts when new sessions drop for the school holidays. Free, no spam.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Link
