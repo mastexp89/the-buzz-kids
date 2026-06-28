@@ -7,8 +7,10 @@ import EventsList from "@/components/EventsList";
 import EventFilters from "@/components/EventFilters";
 import { AccessibilityLegend } from "@/components/AccessibilityBadges";
 import PlaceCard from "@/components/PlaceCard";
+import PlaceFilters from "@/components/PlaceFilters";
 import CityViewToggle from "@/components/CityViewToggle";
 import CitySwitcher from "@/components/CitySwitcher";
+import { fetchPlaces } from "@/lib/places";
 import { dateRangeFor, type DateFilter } from "@/lib/dateRange";
 import { formatDateRangeLabel, effectiveEndTime } from "@/lib/utils";
 import { trackPageView } from "@/lib/track";
@@ -18,7 +20,7 @@ export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ city: string }>;
-  searchParams: Promise<{ when?: string; genre?: string; view?: string }>;
+  searchParams: Promise<{ when?: string; genre?: string; view?: string; cat?: string; access?: string; toddler?: string }>;
 };
 
 export async function generateMetadata({ params }: Props) {
@@ -154,19 +156,17 @@ export default async function CityPage({ params, searchParams }: Props) {
     }
   }
 
-  // Places directory: always-on attractions + venues that are also open to
-  // visit (venue_type attraction | both), with their categories for filtering.
-  const { data: rawPlaces } = await supabase
-    .from("venues")
-    .select("*, venue_genres ( genre:genres ( name, slug ) )")
-    .eq("city_id", city.id)
-    .eq("approved", true)
-    .in("venue_type", ["attraction", "both"])
-    .order("name");
-  const places = (rawPlaces ?? []).map((p: any) => ({
-    ...p,
-    categories: (p.venue_genres ?? []).map((vg: any) => vg.genre).filter(Boolean),
-  }));
+  // Places directory: always-on attractions + venues open to visit
+  // (venue_type attraction | both), filtered by the place filters.
+  const placeCats = (sp.cat || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const placeAccess = (sp.access || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const placeToddler = sp.toddler === "1";
+  const places = await fetchPlaces(supabase, {
+    cityId: city.id,
+    catSlugs: placeCats,
+    toddler: placeToddler,
+    accessKeys: placeAccess,
+  });
 
   const dateLabel = formatDateRangeLabel(when);
 
@@ -212,6 +212,9 @@ export default async function CityPage({ params, searchParams }: Props) {
         {view === "places" ? (
           /* ---------- PLACES TO GO — the always-on directory ---------- */
           <>
+            <div className="mb-8">
+              <PlaceFilters genres={genres ?? []} />
+            </div>
             <div className="mb-8">
               <AccessibilityLegend />
             </div>
