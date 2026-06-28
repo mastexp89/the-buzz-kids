@@ -150,7 +150,7 @@ export async function importEventsFromSiteUrl(opts: {
         venueName: "(unknown — please detect from screenshot)",
         postedAt: new Date().toISOString(),
         imageUrls: opts.imageUrls.slice(0, 8),
-        availableGenres,
+        availableCategories: availableGenres,
         locationFilter: allowedLocation,
       });
     } catch (e: any) {
@@ -162,11 +162,8 @@ export async function importEventsFromSiteUrl(opts: {
       starts_at: e.starts_at,
       ends_at: e.ends_at,
       description: e.description ?? "",
-      genres: e.genres ?? [],
-      artists: (e.artists ?? [])
-        .map((s) => s.trim())
-        .filter(Boolean)
-        .map((name): QuickDraftArtist => ({ name })),
+      genres: e.categories ?? [],
+      artists: [],
       confidence: e.confidence,
       venue_hint: e.venue_hint,
       cover_charge: e.cover_charge,
@@ -348,7 +345,7 @@ async function runExtraction(
     postedAt: new Date().toISOString(),
     textContent: text,
     imageUrls: imageUrls.slice(0, 3), // cap images to keep AI cost down
-    availableGenres,
+    availableCategories: availableGenres,
     locationFilter,
   });
   return extraction.events.map((e: ExtractedEvent): QuickDraft => ({
@@ -356,11 +353,8 @@ async function runExtraction(
     starts_at: e.starts_at,
     ends_at: e.ends_at,
     description: e.description ?? "",
-    genres: e.genres ?? [],
-    artists: (e.artists ?? [])
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .map((name): QuickDraftArtist => ({ name })),
+    genres: e.categories ?? [],
+    artists: [],
     confidence: e.confidence,
     venue_hint: e.venue_hint,
     cover_charge: e.cover_charge,

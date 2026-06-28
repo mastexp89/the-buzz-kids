@@ -72,7 +72,7 @@ export async function extractDraftsFromPoster(opts: {
       venueName: venue.name,
       postedAt: new Date().toISOString(),
       imageUrls: [opts.imageUrl],
-      availableGenres: (genres ?? []).map((g) => ({ slug: g.slug, name: g.name })),
+      availableCategories: (genres ?? []).map((g) => ({ slug: g.slug, name: g.name })),
     });
   } catch (e: any) {
     return { error: `Extraction failed: ${e?.message ?? "unknown error"}` };
@@ -83,8 +83,8 @@ export async function extractDraftsFromPoster(opts: {
     starts_at: e.starts_at,
     ends_at: e.ends_at,
     description: e.description ?? "",
-    genres: e.genres ?? [],
-    artists: (e.artists ?? []).map((s) => s.trim()).filter((s) => s.length > 0 && s.length <= 80),
+    genres: e.categories ?? [],
+    artists: [],
     confidence: e.confidence,
   }));
 

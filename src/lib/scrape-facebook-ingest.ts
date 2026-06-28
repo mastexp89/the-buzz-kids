@@ -184,7 +184,7 @@ export async function scrapeAndIngestVenue(opts: IngestOptions): Promise<IngestR
           postedAt: post.postedAt,
           textContent: post.text || null,
           imageUrls: post.imageUrls,
-          availableGenres,
+          availableCategories: availableGenres,
         });
         if (extraction.events.length === 0) continue;
 
@@ -298,13 +298,13 @@ export async function scrapeAndIngestVenue(opts: IngestOptions): Promise<IngestR
             }
           }
           // Genres
-          const gLinks = (draft.genres ?? [])
-            .map((s) => genreSlugToId.get(s))
-            .filter((id): id is string => !!id)
-            .map((gid) => ({ event_id: eventId, genre_id: gid }));
+          const gLinks = (draft.categories ?? [])
+            .map((s: string) => genreSlugToId.get(s))
+            .filter((id: string | undefined): id is string => !!id)
+            .map((gid: string) => ({ event_id: eventId, genre_id: gid }));
           if (gLinks.length > 0) await sb.from("event_genres").insert(gLinks);
-          // Artists (find or create)
-          const names = (draft.artists ?? []).map((s) => s.trim()).filter((s) => s.length > 0 && s.length <= 80);
+          // Artists not extracted by kids prompt — skip
+          const names: string[] = [];
           for (const name of names) {
             const { data: existing } = await sb
               .from("artists")

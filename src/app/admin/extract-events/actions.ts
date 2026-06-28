@@ -51,9 +51,9 @@ export async function runExtraction(input: {
     return { error: "Need text content or at least one image." };
   }
 
-  // Pull the available genres so Claude only picks valid slugs
+  // Pull the available categories so Claude only picks valid slugs
   const { data: genres } = await sb.from("genres").select("id, slug, name").order("name");
-  const availableGenres = (genres ?? []).map((g) => ({ slug: g.slug, name: g.name }));
+  const availableCategories = (genres ?? []).map((g) => ({ slug: g.slug, name: g.name }));
   const genreSlugToId = new Map<string, string>();
   for (const g of genres ?? []) genreSlugToId.set(g.slug, g.id);
 
@@ -73,7 +73,7 @@ export async function runExtraction(input: {
       postedAt,
       textContent: input.textContent ?? null,
       imageUrls: input.imageUrls ?? [],
-      availableGenres,
+      availableCategories,
     });
   } catch (e: any) {
     // Save a failed batch so we can retry
@@ -147,8 +147,8 @@ export async function runExtraction(input: {
         auto_import_post_text: input.textContent ?? null,
         auto_import_batch_id: batch.id,
       },
-      genres: e.genres ?? [],
-      artists: (e.artists ?? []).map((s) => s.trim()).filter((s) => s.length > 0 && s.length <= 80),
+      genres: e.categories ?? [],
+      artists: [],
       posterSourceUrl,
     };
   });

@@ -129,7 +129,7 @@ export async function extractQuickFromPoster(opts: {
       venueName: "(unknown — please detect from poster)",
       postedAt: new Date().toISOString(),
       imageUrls: [opts.imageUrl],
-      availableGenres: (genres ?? []).map((g) => ({ slug: g.slug, name: g.name })),
+      availableCategories: (genres ?? []).map((g) => ({ slug: g.slug, name: g.name })),
     });
   } catch (e: any) {
     return { error: `Extraction failed: ${e?.message ?? "unknown error"}` };
@@ -140,11 +140,8 @@ export async function extractQuickFromPoster(opts: {
     starts_at: e.starts_at,
     ends_at: e.ends_at,
     description: e.description ?? "",
-    genres: e.genres ?? [],
-    artists: (e.artists ?? [])
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .map((name): QuickDraftArtist => ({ name })),
+    genres: e.categories ?? [],
+    artists: [],
     confidence: e.confidence,
     venue_hint: e.venue_hint,
     cover_charge: e.cover_charge,

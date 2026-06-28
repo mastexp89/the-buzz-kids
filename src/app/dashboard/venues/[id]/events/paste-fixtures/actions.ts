@@ -71,7 +71,7 @@ export async function parseFixturesText(
       postedAt: new Date().toISOString(),
       textContent: trimmed,
       imageUrls: [],
-      availableGenres: (genreRows ?? []).map((g: any) => ({
+      availableCategories: (genreRows ?? []).map((g: any) => ({
         slug: g.slug,
         name: g.name,
       })),
@@ -84,9 +84,9 @@ export async function parseFixturesText(
         starts_at: e.starts_at,
         ends_at: e.ends_at,
         description: e.description ?? "",
-        type: e.type,
+        type: "",
         confidence: e.confidence,
-        genres: e.genres ?? [],
+        genres: e.categories ?? [],
       })),
     };
   } catch (e: any) {

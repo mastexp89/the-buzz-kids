@@ -107,7 +107,7 @@ export async function extractFestivalPosterDrafts(opts: {
       venueName: festival.name,
       postedAt,
       imageUrls: [opts.imageUrl],
-      availableGenres: (genreRows ?? []).map((g) => ({ slug: g.slug, name: g.name })),
+      availableCategories: (genreRows ?? []).map((g) => ({ slug: g.slug, name: g.name })),
     });
   } catch (e: any) {
     return { error: `AI extraction failed: ${e?.message ?? "unknown error"}` };
@@ -143,8 +143,8 @@ export async function extractFestivalPosterDrafts(opts: {
       venueHint: e.venue_hint,
       matchedVenueId,
       matchedVenueName,
-      genres: e.genres ?? [],
-      artists: e.artists ?? [],
+      genres: e.categories ?? [],
+      artists: [],
       confidence: e.confidence,
     };
   });
