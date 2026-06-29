@@ -7,6 +7,7 @@ import { createOffer, deleteOffer } from "./actions";
 type Offer = {
   id: string; category: string; title: string; provider: string | null;
   terms: string | null; url: string | null; scope: string; city_id: string | null; approved: boolean;
+  reports?: number;
 };
 type City = { id: string; name: string; slug: string };
 
@@ -54,7 +55,15 @@ export default function OffersAdminClient({ offers, cities }: { offers: Offer[];
           {items.map((o) => (
             <li key={o.id} className="p-4 flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="font-medium">{o.title}{!o.approved && <span className="ml-2 text-[10px] uppercase bg-amber-500/15 text-amber-600 px-1.5 py-0.5 rounded">hidden</span>}</div>
+                <div className="font-medium flex items-center gap-2 flex-wrap">
+                  {o.title}
+                  {!o.approved && <span className="text-[10px] uppercase bg-amber-500/15 text-amber-600 px-1.5 py-0.5 rounded">hidden</span>}
+                  {!!o.reports && o.reports > 0 && (
+                    <span className="text-[10px] uppercase bg-rose-500/15 text-rose-500 px-1.5 py-0.5 rounded" title="Visitors flagged this as ended">
+                      ⚠️ {o.reports} report{o.reports === 1 ? "" : "s"}
+                    </span>
+                  )}
+                </div>
                 <div className="text-xs text-buzz-mute">
                   {o.provider ?? ""}{o.scope === "local" ? " · Local" : " · UK-wide"}
                 </div>

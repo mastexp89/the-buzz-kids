@@ -1,4 +1,5 @@
 import Link from "next/link";
+import OfferReportButton from "@/components/OfferReportButton";
 
 type Offer = {
   id: string;
@@ -50,11 +51,14 @@ export default function OffersView({ offers, category }: { offers: Offer[]; cate
                 ℹ️ {o.terms}
               </p>
             )}
-            {o.url && (
-              <Link href={o.url} target="_blank" rel="noreferrer" className="text-sm text-buzz-accent hover:underline mt-auto pt-1 font-medium">
-                View the offer →
-              </Link>
-            )}
+            <div className="mt-auto pt-2 flex items-center justify-between gap-3 flex-wrap">
+              {o.url ? (
+                <Link href={o.url} target="_blank" rel="noreferrer" className="text-sm text-buzz-accent hover:underline font-medium">
+                  View the offer →
+                </Link>
+              ) : <span />}
+              <OfferReportButton offerId={o.id} />
+            </div>
           </div>
         ))}
       </div>

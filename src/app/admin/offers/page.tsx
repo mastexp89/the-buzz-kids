@@ -21,7 +21,7 @@ export default async function OffersAdminPage() {
   }
 
   const [{ data: offers }, { data: cities }] = await Promise.all([
-    supabase.from("offers").select("id, category, title, provider, terms, url, scope, city_id, approved").order("category").order("sort_order"),
+    supabase.from("offers").select("id, category, title, provider, terms, url, scope, city_id, approved, reports").order("category").order("sort_order"),
     supabase.from("cities").select("id, name, slug").order("name"),
   ]);
 
