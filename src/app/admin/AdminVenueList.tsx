@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import AdminVenueRow from "./AdminVenueRow";
 import {
   bulkApproveVenues,
@@ -18,17 +18,39 @@ type Venue = {
 export default function AdminVenueList({
   venues,
   pending,
+  searchable,
+  initialQuery,
 }: {
   venues: Venue[];
   pending?: boolean;
+  searchable?: boolean;
+  initialQuery?: string;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
   const [busy, start] = useTransition();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery ?? "");
 
-  // Client-side search across name, town and address.
+  // Server-side search: push ?q= (debounced) so the result set covers the
+  // WHOLE table, not just the ~1000 rows this page loaded. The local filter
+  // below still narrows instantly as you type for snappy feedback.
+  const firstRun = useRef(true);
+  useEffect(() => {
+    if (!searchable) return;
+    if (firstRun.current) { firstRun.current = false; return; }
+    const t = setTimeout(() => {
+      const sp = new URLSearchParams(params.toString());
+      const q = query.trim();
+      if (q) sp.set("q", q); else sp.delete("q");
+      router.push(`${pathname}?${sp.toString()}`, { scroll: false });
+    }, 350);
+    return () => clearTimeout(t);
+  }, [query, searchable]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Instant local filter over the loaded rows (name / town / postcode / address).
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return venues;
@@ -91,20 +113,24 @@ export default function AdminVenueList({
     });
   }
 
-  if (venues.length === 0) return null;
+  // Keep the search box mounted even with zero rows (so a no-match search
+  // can still be cleared); only bail entirely for a non-searchable empty list.
+  if (venues.length === 0 && !searchable) return null;
 
   return (
     <div className="card overflow-hidden">
-      {/* Search */}
-      <div className="px-4 pt-3">
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by name, town or postcode…"
-          className="input w-full"
-        />
-      </div>
+      {searchable && (
+        <div className="px-4 pt-3">
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search all places by name, town or postcode…"
+            className="input w-full"
+            autoComplete="off"
+          />
+        </div>
+      )}
       {/* Toolbar — sticky at the top of the list when scrolling a long list */}
       <div className="px-4 py-3 border-b border-buzz-border/60 bg-buzz-surface/40 flex flex-wrap items-center gap-3">
         <label className="flex items-center gap-2 cursor-pointer text-sm select-none">
@@ -119,7 +145,7 @@ export default function AdminVenueList({
           />
           <span className="text-buzz-mute">
             {selected.size === 0
-              ? (query ? `${filtered.length} of ${venues.length}` : `Select all (${venues.length})`)
+              ? (query.trim() ? `${filtered.length} result${filtered.length === 1 ? "" : "s"}` : `Select all (${venues.length})`)
               : `${selected.size} of ${filtered.length} selected`}
           </span>
         </label>

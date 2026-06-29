@@ -9,7 +9,7 @@ import LiveActivity from "./LiveActivity";
 
 export const dynamic = "force-dynamic";
 
-type Props = { searchParams: Promise<{ city?: string }> };
+type Props = { searchParams: Promise<{ city?: string; q?: string }> };
 
 export default async function AdminPage({ searchParams }: Props) {
   const supabase = await createClient();
@@ -66,6 +66,10 @@ export default async function AdminPage({ searchParams }: Props) {
 
   const sp = await searchParams;
   const cityFilterSlug = sp.city && sp.city !== "all" ? sp.city : null;
+  // Server-side search across the WHOLE table (so it isn't capped to the
+  // ~1000 rows a single page would otherwise load). Matches name/town/postcode.
+  const searchQ = (sp.q ?? "").trim();
+  const searchEsc = searchQ.replace(/[%_,()]/g, " ");
 
   // Fetch every city (active OR hidden) for the admin filter pills, so
   // admin can still drill into a hidden region's venues while populating
@@ -83,21 +87,25 @@ export default async function AdminPage({ searchParams }: Props) {
   const in24hIso = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
 
   // Conditionally apply city filter to the venue queries.
-  const pendingBase = supabase
+  const searchOr = searchEsc
+    ? `name.ilike.%${searchEsc}%,address.ilike.%${searchEsc}%,postcode.ilike.%${searchEsc}%`
+    : null;
+
+  let pendingBase = supabase
     .from("venues")
     .select("*, city:cities(*), owner:profiles!owner_id(email, display_name)")
     .eq("approved", false);
-  const pendingQuery = filterCityId
-    ? pendingBase.eq("city_id", filterCityId).order("created_at", { ascending: false })
-    : pendingBase.order("created_at", { ascending: false });
+  if (filterCityId) pendingBase = pendingBase.eq("city_id", filterCityId);
+  if (searchOr) pendingBase = pendingBase.or(searchOr);
+  const pendingQuery = pendingBase.order("created_at", { ascending: false });
 
-  const approvedBase = supabase
+  let approvedBase = supabase
     .from("venues")
     .select("*, city:cities(*), owner:profiles!owner_id(email, display_name)")
     .eq("approved", true);
-  const approvedQuery = filterCityId
-    ? approvedBase.eq("city_id", filterCityId).order("name")
-    : approvedBase.order("name");
+  if (filterCityId) approvedBase = approvedBase.eq("city_id", filterCityId);
+  if (searchOr) approvedBase = approvedBase.or(searchOr);
+  const approvedQuery = approvedBase.order("name");
 
   const [
     { data: pending },
@@ -326,7 +334,7 @@ export default async function AdminPage({ searchParams }: Props) {
         )}
       </section>
 
-      <details className="mb-12 group">
+      <details className="mb-12 group" open={searchQ ? true : undefined}>
         <summary className="cursor-pointer list-none flex items-center gap-2 mb-3 hover:text-buzz-accent transition">
           <span className="inline-block transition-transform group-open:rotate-90 text-buzz-mute">▶</span>
           <h2 className="font-display text-2xl uppercase inline">
@@ -335,8 +343,8 @@ export default async function AdminPage({ searchParams }: Props) {
             <span className="text-buzz-mute text-sm font-normal"> ({approved?.length ?? 0})</span>
           </h2>
         </summary>
-        {approved && approved.length > 0 ? (
-          <AdminVenueList venues={approved as any} />
+        {(approved && approved.length > 0) || searchQ ? (
+          <AdminVenueList venues={(approved ?? []) as any} searchable initialQuery={searchQ} />
         ) : (
           <div className="card p-6 text-buzz-mute">No approved places yet.</div>
         )}
