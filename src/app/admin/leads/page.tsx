@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 // Bumping to 5 minutes; harmless if your plan caps it lower (Vercel just
 // falls back to the plan max).
 export const maxDuration = 300;
-export const metadata = { title: "Lead generator — The Buzz Guide admin" };
+export const metadata = { title: "Lead generator — The Buzz Kids admin" };
 
 export default async function LeadsAdminPage() {
   const supabase = await createClient();

@@ -4,7 +4,7 @@ import { listMyMessages, markMyMessagesRead } from "@/lib/messages-actions";
 import UserThreadClient from "./UserThreadClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Messages — The Buzz Guide" };
+export const metadata = { title: "Messages — The Buzz Kids" };
 
 export default async function DashboardMessagesPage() {
   const supabase = await createClient();

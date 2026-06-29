@@ -26,11 +26,11 @@ export async function generateMetadata({ params }: Props) {
   const { data: v } = await supabase.from("venues").select("name, description, image_url").eq("slug", slug).single();
   if (!v) return {};
   return {
-    title: `${v.name} — The Buzz Guide`,
+    title: `${v.name} — The Buzz Kids`,
     description: v.description?.slice(0, 160) ?? `What's on at ${v.name}.`,
     alternates: { canonical: `/${city}/venues/${slug}` },
     openGraph: {
-      title: `${v.name} — Pub & venue on The Buzz Guide`,
+      title: `${v.name} — Family day out on The Buzz Kids`,
       images: v.image_url ? [v.image_url] : [],
     },
   };
@@ -140,7 +140,7 @@ export default async function VenuePage({ params }: Props) {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
     name: venue.name,
-    description: venue.description ?? `Pub and venue in ${cityName}`,
+    description: venue.description ?? `Family-friendly place in ${cityName}`,
     url: `${siteUrl}/${citySlug}/venues/${venue.slug}`,
     image: venue.image_url ?? venue.logo_url ?? undefined,
     telephone: venue.phone ?? undefined,

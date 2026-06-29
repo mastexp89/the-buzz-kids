@@ -5,7 +5,7 @@ import { listSponsors, listCitiesForForm } from "./actions";
 import SponsorsListClient from "./SponsorsListClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Sponsors — The Buzz Guide admin" };
+export const metadata = { title: "Sponsors — The Buzz Kids admin" };
 
 export default async function SponsorsAdminPage() {
   const supabase = await createClient();

@@ -175,7 +175,7 @@ export async function messageVenueOwner(
     subject: trimmedSubject,
     text:
       trimmedBody +
-      `\n\n— The Buzz Guide team\nReply to this email to reach us at ${adminReplyTo}.`,
+      `\n\n— The Buzz Kids team\nReply to this email to reach us at ${adminReplyTo}.`,
   });
 
   if (!sent)

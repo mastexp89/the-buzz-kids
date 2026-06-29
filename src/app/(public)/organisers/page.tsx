@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
-  title: "Event organisers — The Buzz Guide",
+  title: "Event organisers — The Buzz Kids",
   description: "Promoters and event organisers on The Buzz Guide.",
 };
 

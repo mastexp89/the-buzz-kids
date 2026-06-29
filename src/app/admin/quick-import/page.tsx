@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import QuickImportClient from "./QuickImportClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Quick import — The Buzz Guide admin" };
+export const metadata = { title: "Quick import — The Buzz Kids admin" };
 
 export default async function QuickImportPage() {
   const supabase = await createClient();

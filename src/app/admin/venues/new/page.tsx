@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import NewVenueForm from "./NewVenueForm";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Add venue — The Buzz Guide admin" };
+export const metadata = { title: "Add venue — The Buzz Kids admin" };
 
 export default async function NewVenuePage() {
   const supabase = await createClient();

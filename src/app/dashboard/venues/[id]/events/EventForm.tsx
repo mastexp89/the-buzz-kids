@@ -83,7 +83,7 @@ export default function EventForm({
 
   function onDelete() {
     if (!event) return;
-    if (!confirm("Delete this gig? This cannot be undone.")) return;
+    if (!confirm("Delete this event? This cannot be undone.")) return;
     setDeleting(async () => {
       const res = await deleteEvent(event.id);
       if (res?.error) setError(res.error);
@@ -141,13 +141,13 @@ export default function EventForm({
       </div>
 
       <div className="sm:col-span-2">
-        <label className="label">Artists / bands</label>
+        <label className="label">Performers <span className="text-buzz-mute font-normal">(optional)</span></label>
         <ArtistTagger initial={initialArtists} onChange={setArtistTags} />
-        <p className="help">Type to find existing artists. Press Enter (or click "Create") for new ones — they'll get their own page on The Buzz Guide.</p>
+        <p className="help">Acts, entertainers or groups appearing — e.g. a magician, a band or a dance troupe. Press Enter (or click "Create") to add a new one.</p>
       </div>
 
       <div className="sm:col-span-2">
-        <label className="label">Gig poster / photo</label>
+        <label className="label">Event poster / photo</label>
         <ImageUploader folder="events" value={imageUrl} onChange={setImageUrl} />
       </div>
 
@@ -169,7 +169,7 @@ export default function EventForm({
               onChange={(e) => setAlsoRepeatOnCreate(e.target.checked)}
               className="accent-buzz-accent"
             />
-            <span>Also create copies of this gig for the next</span>
+            <span>Also create copies of this event for the next</span>
             <input
               type="number"
               min={1}

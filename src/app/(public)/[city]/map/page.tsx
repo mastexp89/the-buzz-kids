@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: Props) {
   const { city } = await params;
   const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
   return {
-    title: `Venue map — ${cap(city)} — The Buzz Guide`,
+    title: `Venue map — ${cap(city)} — The Buzz Kids`,
     description: `Pubs and venues in ${cap(city)} on a map.`,
   };
 }

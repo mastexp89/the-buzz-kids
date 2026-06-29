@@ -6,7 +6,7 @@ import SponsorOutreachClient, { type SavedLead, type CityOption } from "./Sponso
 import { BUSINESS_TYPE_PRESETS } from "./constants";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Sponsor outreach — The Buzz Guide admin" };
+export const metadata = { title: "Sponsor outreach — The Buzz Kids admin" };
 
 export default async function SponsorOutreachPage() {
   const supabase = await createClient();

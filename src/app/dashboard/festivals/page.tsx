@@ -5,7 +5,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { formatFestivalDateRange } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Festivals — The Buzz Guide" };
+export const metadata = { title: "Festivals — The Buzz Kids" };
 
 // Cross-festival picks page.
 //

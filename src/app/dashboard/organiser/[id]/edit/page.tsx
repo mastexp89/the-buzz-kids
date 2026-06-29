@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ id: string }> };
 
-export const metadata = { title: "Edit your organiser page — The Buzz Guide" };
+export const metadata = { title: "Edit your organiser page — The Buzz Kids" };
 
 export default async function EditOrganiserPage({ params }: Props) {
   const supabase = await createClient();

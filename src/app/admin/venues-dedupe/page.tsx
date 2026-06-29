@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import VenuesDedupeClient from "./VenuesDedupeClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Dedupe venues — The Buzz Guide admin" };
+export const metadata = { title: "Dedupe venues — The Buzz Kids admin" };
 
 export default async function VenuesDedupePage() {
   const supabase = await createClient();

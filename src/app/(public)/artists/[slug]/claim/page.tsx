@@ -10,7 +10,7 @@ type Props = { params: Promise<{ slug: string }> };
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params;
   return {
-    title: `Claim ${slug.replace(/-/g, " ")} — The Buzz Guide`,
+    title: `Claim ${slug.replace(/-/g, " ")} — The Buzz Kids`,
     robots: { index: false, follow: false },
   };
 }

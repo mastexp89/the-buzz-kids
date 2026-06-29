@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
-  title: "Local businesses & advertisers — The Buzz Guide",
+  title: "Local businesses & advertisers — The Buzz Kids",
   description:
     "Local businesses that support The Buzz Guide. Takeaways, taxis, services — discover what's in your area.",
 };

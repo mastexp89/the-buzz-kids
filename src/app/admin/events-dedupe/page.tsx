@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import EventsDedupeClient from "./EventsDedupeClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Dedupe events — The Buzz Guide admin" };
+export const metadata = { title: "Dedupe events — The Buzz Kids admin" };
 
 type Props = { searchParams: Promise<{ festival?: string }> };
 

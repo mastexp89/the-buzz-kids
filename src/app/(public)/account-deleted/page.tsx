@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Account deleted — The Buzz Guide",
+  title: "Account deleted — The Buzz Kids",
   description: "Your account has been deleted from The Buzz Guide.",
 };
 

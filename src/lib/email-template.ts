@@ -138,7 +138,7 @@ export function buildEmailText(blocks: EmailBlock[]): string {
       lines.push(`${block.text}: ${block.href}`, "");
     }
   }
-  lines.push("— The Buzz Guide");
+  lines.push("— The Buzz Kids");
   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 

@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import EventsAdminClient from "./EventsAdminClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Events search — The Buzz Guide admin" };
+export const metadata = { title: "Events search — The Buzz Kids admin" };
 
 export default async function EventsAdminPage() {
   const supabase = await createClient();

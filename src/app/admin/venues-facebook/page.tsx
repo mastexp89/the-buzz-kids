@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import VenuesFacebookEditor from "./VenuesFacebookEditor";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Venue Facebook URLs — The Buzz Guide admin" };
+export const metadata = { title: "Venue Facebook URLs — The Buzz Kids admin" };
 
 type Row = {
   id: string;

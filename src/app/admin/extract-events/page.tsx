@@ -7,7 +7,7 @@ import PosterRediscoverPanel from "./PosterRediscoverPanel";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Extract events — The Buzz Guide admin" };
+export const metadata = { title: "Extract events — The Buzz Kids admin" };
 
 export default async function ExtractEventsPage() {
   const supabase = await createClient();

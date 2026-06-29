@@ -57,7 +57,7 @@ export default function QRCodeCard({
         <h1>${label}</h1>
         <img src="${dataUrl}" alt="QR code" />
         <p>${url}</p>
-        <p style="font-size:12px;font-style:italic;">Scan for what's on · The Buzz Guide</p>
+        <p style="font-size:12px;font-style:italic;">Scan for what's on · The Buzz Kids</p>
         <script>window.onload=()=>{setTimeout(()=>window.print(),200);}</script>
       </body></html>
     `);
@@ -69,10 +69,10 @@ export default function QRCodeCard({
       <canvas ref={canvasRef} className="rounded-xl shrink-0 w-40 h-40 sm:w-48 sm:h-48" />
       <div className="flex-1 min-w-0">
         <p className="eyebrow text-[10px] mb-1">QR code</p>
-        <h3 className="font-display text-xl uppercase mb-1">Promote your venue page</h3>
+        <h3 className="font-display text-xl uppercase mb-1">Promote your place</h3>
         <p className="text-sm text-buzz-mute mb-3">
-          Print this on flyers, table-talkers, posters, or stick it next to the bar. Customers scan to see
-          everything you've got coming up.
+          Print this on flyers, posters, or pop it on your noticeboard or by the entrance. Families scan to see
+          everything you've got on.
         </p>
         <div className="flex flex-wrap gap-2">
           <button onClick={download} disabled={!dataUrl} className="btn-secondary">⬇ Download PNG</button>

@@ -5,7 +5,7 @@ import { findSuffixedVenues } from "./actions";
 import SlugCleanupClient from "./SlugCleanupClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Clean up venue slugs — The Buzz Guide admin" };
+export const metadata = { title: "Clean up venue slugs — The Buzz Kids admin" };
 
 export default async function VenueSlugCleanupPage() {
   const supabase = await createClient();

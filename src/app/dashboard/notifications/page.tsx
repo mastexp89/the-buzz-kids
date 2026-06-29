@@ -4,7 +4,7 @@ import { getMyNotificationPrefs } from "./actions";
 import NotificationPrefsClient from "./NotificationPrefsClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Notifications — The Buzz Guide" };
+export const metadata = { title: "Notifications — The Buzz Kids" };
 
 export default async function NotificationsPage() {
   const supabase = await createClient();

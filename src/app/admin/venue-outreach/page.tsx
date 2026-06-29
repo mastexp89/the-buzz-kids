@@ -5,7 +5,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import VenueOutreachClient, { type OutreachRow } from "./VenueOutreachClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Venue outreach — The Buzz Guide admin" };
+export const metadata = { title: "Venue outreach — The Buzz Kids admin" };
 
 export default async function VenueOutreachPage() {
   const supabase = await createClient();

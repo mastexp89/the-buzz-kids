@@ -21,7 +21,7 @@ export async function generateMetadata({
     .maybeSingle();
   if (!sponsor) return { title: "Not found" };
   return {
-    title: `${sponsor.name} — The Buzz Guide`,
+    title: `${sponsor.name} — The Buzz Kids`,
     description: sponsor.blurb ?? `${sponsor.name} on The Buzz Guide.`,
   };
 }

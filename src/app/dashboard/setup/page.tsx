@@ -5,7 +5,7 @@ import { getMyArtistStatus } from "./actions";
 import SetupClient from "./SetupClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Add an artist page — The Buzz Guide" };
+export const metadata = { title: "Add an artist page — The Buzz Kids" };
 
 export default async function SetupPage() {
   const supabase = await createClient();

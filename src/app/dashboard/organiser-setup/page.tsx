@@ -5,7 +5,7 @@ import { getMyOrganiserStatus } from "./actions";
 import OrganiserSetupClient from "./OrganiserSetupClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Add an organiser page — The Buzz Guide" };
+export const metadata = { title: "Add an organiser page — The Buzz Kids" };
 
 export default async function OrganiserSetupPage() {
   const supabase = await createClient();

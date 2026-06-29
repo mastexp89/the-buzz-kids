@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Favourites — The Buzz Guide admin" };
+export const metadata = { title: "Favourites — The Buzz Kids admin" };
 
 // Admin view: who's loved what. Pulls every favourite row, joins with
 // the target entity for name/slug, and the user profile for email +

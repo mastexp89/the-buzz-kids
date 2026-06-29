@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 // 30 venues to look up (1.1s rate limit each). Default Vercel timeout
 // is too low — give the scan headroom.
 export const maxDuration = 60;
-export const metadata = { title: "Enrich venues — The Buzz Guide admin" };
+export const metadata = { title: "Enrich venues — The Buzz Kids admin" };
 
 export default async function VenuesEnrichPage() {
   const supabase = await createClient();

@@ -15,9 +15,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     .select("name, tagline, hero_image_url, published")
     .eq("slug", slug)
     .maybeSingle();
-  if (!festival || !festival.published) return { title: "Festival — The Buzz Guide" };
+  if (!festival || !festival.published) return { title: "Festival — The Buzz Kids" };
   return {
-    title: `${festival.name} — The Buzz Guide`,
+    title: `${festival.name} — The Buzz Kids`,
     description: festival.tagline ?? `${festival.name} listings on The Buzz Guide`,
     openGraph: festival.hero_image_url ? { images: [festival.hero_image_url] } : undefined,
   };

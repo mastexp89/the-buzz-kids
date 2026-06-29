@@ -8,15 +8,30 @@ export type CreateEventResult =
   | { ok: true; citySlug: string; eventId: string }
   | { error: string };
 
-// Build a UK-local ISO timestamp from a date + optional time. Approximates
-// British Summer Time (BST, +01:00) for Apr–Oct, GMT otherwise — good enough
-// for display; admins can fine-tune on the event afterwards.
+// Convert a UK-local (Europe/London) wall-clock date + time into a correct
+// UTC ISO timestamp, handling BST/GMT exactly (no DST guesswork). The admin
+// types "10:30" meaning 10:30 in the UK; we store the real instant so the
+// Europe/London formatters display "10:30" back, summer or winter.
 function toIso(date: string, time: string): string | null {
   if (!date) return null;
   const t = /^\d{2}:\d{2}$/.test(time) ? time : "10:00";
-  const month = parseInt(date.slice(5, 7), 10);
-  const offset = month >= 4 && month <= 10 ? "+01:00" : "+00:00";
-  return `${date}T${t}:00${offset}`;
+  const [y, mo, d] = date.split("-").map(Number);
+  const [h, mi] = t.split(":").map(Number);
+  const wantUtc = Date.UTC(y, mo - 1, d, h, mi);
+  let utcMs = wantUtc;
+  // Find the instant whose Europe/London wall-clock equals what was typed.
+  for (let i = 0; i < 3; i++) {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/London", hour12: false,
+      year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
+    }).formatToParts(new Date(utcMs));
+    const g = (type: string) => Number(parts.find((p) => p.type === type)!.value);
+    const londonAsUtc = Date.UTC(g("year"), g("month") - 1, g("day"), g("hour") === 24 ? 0 : g("hour"), g("minute"));
+    const diff = wantUtc - londonAsUtc;
+    if (diff === 0) break;
+    utcMs += diff;
+  }
+  return new Date(utcMs).toISOString();
 }
 
 async function requireAdmin() {

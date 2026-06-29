@@ -82,7 +82,7 @@ export default async function VenueDashboardPage({ params }: { params: Promise<{
           )}
           <div>
             <p className="eyebrow mb-1">
-              {(venue.city as any)?.name ?? "Venue"} · {venue.approved ? <span className="text-emerald-400">Live</span> : <span className="text-buzz-accent">Pending</span>}
+              {(venue.city as any)?.name ?? "Place"} · {venue.approved ? <span className="text-emerald-400">Live</span> : <span className="text-buzz-accent">Pending</span>}
             </p>
             <h1 className="h-display text-4xl sm:text-5xl">{venue.name}</h1>
           </div>
@@ -98,7 +98,7 @@ export default async function VenueDashboardPage({ params }: { params: Promise<{
             </Link>
           )}
           <Link href={`/dashboard/venues/${venue.id}/promote`} className="btn-secondary">📣 Promote</Link>
-          <Link href={`/dashboard/venues/${venue.id}/edit`} className="btn-secondary">Edit venue</Link>
+          <Link href={`/dashboard/venues/${venue.id}/edit`} className="btn-secondary">Edit place</Link>
           <Link href={`/dashboard/venues/${venue.id}/events/upload-poster`} className="btn-secondary">📸 Upload poster</Link>
           <Link href={`/dashboard/venues/${venue.id}/events/paste-fixtures`} className="btn-secondary">📋 Paste fixtures</Link>
           {/* Admin-only: re-runs the FB scraper just for this venue when
@@ -119,7 +119,7 @@ export default async function VenueDashboardPage({ params }: { params: Promise<{
           <div>
             <div className="font-semibold text-buzz-accent">Awaiting admin approval</div>
             <div className="text-buzz-mute mt-0.5">
-              Please continue to edit your venue details and add gigs as you like — your page won't appear publicly until we've approved it. We usually review within 24 hours.
+              Please continue to edit your place details and add events as you like — your page won't appear publicly until we've approved it. We usually review within 24 hours.
             </div>
           </div>
         </div>
@@ -128,7 +128,7 @@ export default async function VenueDashboardPage({ params }: { params: Promise<{
           <span className="text-base">✓</span>
           <div className="flex-1">
             <span className="font-semibold text-emerald-400">Admin approved</span>
-            <span className="text-buzz-mute"> — your venue is live and your edits go straight to the public page.</span>
+            <span className="text-buzz-mute"> — your place is live and your edits go straight to the public page.</span>
           </div>
         </div>
       )}
@@ -139,14 +139,14 @@ export default async function VenueDashboardPage({ params }: { params: Promise<{
             🎟️ Pending approvals ({pendingGigs.length})
           </h2>
           <p className="text-sm text-buzz-mute mb-3">
-            Artists have submitted these gigs at your venue. Approve to publish, reject if it's wrong.
+            These events have been submitted for your place. Approve to publish, reject if it's wrong.
           </p>
           <PendingGigsList gigs={pendingGigs as any} venueId={venue.id} />
         </section>
       )}
 
       <section>
-        <h2 className="eyebrow mb-3">Upcoming gigs</h2>
+        <h2 className="eyebrow mb-3">Upcoming events</h2>
         {upcoming && upcoming.length > 0 ? (
           <ul className="card divide-y divide-buzz-border/60">
             {upcoming.map((e) => (
@@ -174,9 +174,9 @@ export default async function VenueDashboardPage({ params }: { params: Promise<{
           </ul>
         ) : (
           <div className="card p-10 text-center">
-            <div className="text-4xl mb-3">🎸</div>
-            <h3 className="font-display text-2xl uppercase mb-1">No gigs yet</h3>
-            <p className="text-buzz-mute mb-5">Add your first one and start filling rooms.</p>
+            <div className="text-4xl mb-3">📅</div>
+            <h3 className="font-display text-2xl uppercase mb-1">No events yet</h3>
+            <p className="text-buzz-mute mb-5">Add your first one to reach local families.</p>
             <Link href={`/dashboard/venues/${venue.id}/events/new`} className="btn-primary">+ Add an event</Link>
           </div>
         )}

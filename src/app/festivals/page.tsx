@@ -15,7 +15,7 @@ import { formatFestivalDateRange } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Festivals in Scotland — The Buzz Guide",
+  title: "Festivals in Scotland — The Buzz Kids",
   description:
     "Every festival we cover — live now, coming up, and recent past. Lineups, stage times, maps and tickets for music festivals across Scotland.",
 };

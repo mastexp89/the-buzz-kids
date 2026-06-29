@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 // the batch action awaits all of them, so worst case is ~50s. Give the
 // action room to finish before Vercel cuts it off.
 export const maxDuration = 90;
-export const metadata = { title: "Photos & opening hours — The Buzz Guide admin" };
+export const metadata = { title: "Photos & opening hours — The Buzz Kids admin" };
 
 export default async function VenuesPhotosHoursPage() {
   const supabase = await createClient();

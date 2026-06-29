@@ -6,7 +6,7 @@ import ImportSiteClient from "./ImportSiteClient";
 export const dynamic = "force-dynamic";
 // Server action calls can take up to ~60s when scraping many detail pages.
 export const maxDuration = 60;
-export const metadata = { title: "Import from website — The Buzz Guide admin" };
+export const metadata = { title: "Import from website — The Buzz Kids admin" };
 
 export default async function ImportSitePage() {
   const supabase = await createClient();

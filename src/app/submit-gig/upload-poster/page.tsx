@@ -6,7 +6,7 @@ import PosterUploadFlow from "./PosterUploadFlow";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Upload poster — The Buzz Guide",
+  title: "Upload poster — The Buzz Kids",
 };
 
 export default async function UploadPosterPage() {

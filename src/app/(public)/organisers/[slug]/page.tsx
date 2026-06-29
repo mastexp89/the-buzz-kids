@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: Props) {
     .maybeSingle();
   if (!o) return {};
   return {
-    title: `${o.name} — The Buzz Guide`,
+    title: `${o.name} — The Buzz Kids`,
     description: o.bio?.slice(0, 160) ?? `Events organised by ${o.name}.`,
     alternates: { canonical: `/organisers/${slug}` },
     openGraph: {

@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import CitiesAdminClient from "./CitiesAdminClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Cities — The Buzz Guide admin" };
+export const metadata = { title: "Cities — The Buzz Kids admin" };
 
 export default async function CitiesAdminPage() {
   const supabase = await createClient();

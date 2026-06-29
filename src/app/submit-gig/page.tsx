@@ -6,7 +6,7 @@ import SubmitGigForm from "./SubmitGigForm";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Submit a gig — The Buzz Guide",
+  title: "Submit a gig — The Buzz Kids",
   description: "Playing a gig at one of our venues? Submit it and we'll get it listed.",
 };
 

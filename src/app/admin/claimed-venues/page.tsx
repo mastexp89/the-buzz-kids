@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Claimed venues activity — The Buzz Guide admin" };
+export const metadata = { title: "Claimed venues activity — The Buzz Kids admin" };
 
 // Companion to the FB scrape "skip active claimed venues" rule (sql/059
 // + cron filter). Shows every claimed venue ordered by oldest activity

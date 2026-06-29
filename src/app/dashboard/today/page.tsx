@@ -5,7 +5,7 @@ import { getMyFavouriteEventsInWindow, type PlannerEvent } from "@/lib/favourite
 import DayPlannerMap from "@/components/DayPlannerMapWrapper";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Day planner — The Buzz Guide" };
+export const metadata = { title: "Day planner — The Buzz Kids" };
 
 type Tab = "today" | "tomorrow" | "week" | "all";
 

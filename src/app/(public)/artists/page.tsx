@@ -5,7 +5,7 @@ import ArtistsIndexClient from "./ArtistsIndexClient";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Artists, bands, DJs & hosts — The Buzz Guide",
+  title: "Artists, bands, DJs & hosts — The Buzz Kids",
   description: "Browse every artist, band, DJ and host with upcoming or past gigs on The Buzz Guide.",
 };
 

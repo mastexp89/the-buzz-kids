@@ -5,7 +5,7 @@ import { getCronDailyStats, getFbScrapeBudget } from "./actions";
 import CronRunButtons from "./CronRunButtons";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Cron runs — The Buzz Guide admin" };
+export const metadata = { title: "Cron runs — The Buzz Kids admin" };
 
 export default async function CronRunsPage() {
   const supabase = await createClient();

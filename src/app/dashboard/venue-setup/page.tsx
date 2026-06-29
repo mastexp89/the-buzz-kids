@@ -5,7 +5,7 @@ import { getMyVenueStatus } from "./actions";
 import VenueSetupClient from "./VenueSetupClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Add a venue — The Buzz Guide" };
+export const metadata = { title: "Add a venue — The Buzz Kids" };
 
 export default async function VenueSetupPage() {
   const supabase = await createClient();

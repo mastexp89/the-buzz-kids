@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import DeleteAccountButton from "./DeleteAccountButton";
 
 export const metadata = {
-  title: "Delete your account — The Buzz Guide",
+  title: "Delete your account — The Buzz Kids",
   description:
     "How to delete your The Buzz Guide account and request removal of your data.",
 };
