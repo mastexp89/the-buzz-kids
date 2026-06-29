@@ -406,7 +406,7 @@ export default async function VenuePage({ params }: Props) {
                 href={`/${citySlug}/venues/${venue.slug}/claim`}
                 className="btn-primary shrink-0"
               >
-                Take ownership →
+                Claim this listing →
               </Link>
             </div>
           </section>

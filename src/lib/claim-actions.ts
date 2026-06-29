@@ -3,13 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { notifyVenueClaim } from "@/lib/email";
+import { notifyVenueClaim, notifyNewSignup } from "@/lib/email";
 
 export type SubmitClaimResult =
   | { ok: true; venueName: string }
   | { error: string };
 
-// Shared validated fields pulled from the claim form (both flows).
+// Shared validated fields pulled from the claim/listing form.
 type ClaimFields = {
   firstName: string | null;
   lastName: string | null;
@@ -41,7 +41,7 @@ function readClaimFields(formData: FormData): ClaimFields {
 }
 
 /**
- * Logged-in path: an existing account claims an unclaimed venue. Inserts the
+ * Logged-in path: an existing account claims an unclaimed place. Inserts the
  * claim under the user's own RLS context and refreshes their profile name if
  * they gave one.
  */
@@ -96,7 +96,6 @@ export async function submitVenueClaim(formData: FormData): Promise<SubmitClaimR
     return { error: insertErr.message };
   }
 
-  // Fill the profile name from the form if it was blank.
   const fullName = [f.firstName, f.lastName].filter(Boolean).join(" ").trim();
   if (fullName && !profile?.display_name) {
     await supabase.from("profiles").update({ display_name: fullName }).eq("id", user.id);
@@ -147,8 +146,6 @@ export async function attachClaimAfterSignup(input: {
 
   const svc = createServiceClient();
 
-  // Verify the userId genuinely owns this email — defends against a client
-  // passing someone else's id. getUserById is admin-only (service role).
   const { data: userRes, error: userErr } = await svc.auth.admin.getUserById(userId);
   if (userErr || !userRes?.user) return { error: "Account not found — please try again." };
   if ((userRes.user.email ?? "").toLowerCase() !== email.toLowerCase()) {
@@ -184,7 +181,6 @@ export async function attachClaimAfterSignup(input: {
     return { error: insertErr.message };
   }
 
-  // Make sure the profile carries their name + that they're a venue account.
   const fullName = [f.firstName, f.lastName].filter(Boolean).join(" ").trim();
   await svc
     .from("profiles")
@@ -210,4 +206,39 @@ export async function attachClaimAfterSignup(input: {
 
   revalidatePath(`/admin/queue`);
   return { ok: true, venueName: venue.name };
+}
+
+/**
+ * "List an activity" path (no existing venue). The form created the account
+ * client-side; this just makes sure the new profile is flagged as a venue
+ * account and notifies admin of the signup. The place itself is created in
+ * the /dashboard/venue-setup wizard afterwards.
+ */
+export async function recordBusinessSignup(input: {
+  userId: string;
+  email: string;
+  displayName: string | null;
+}): Promise<{ ok: true }> {
+  try {
+    const svc = createServiceClient();
+    // Confirm the id owns the email before touching the profile.
+    const { data: userRes } = await svc.auth.admin.getUserById(input.userId);
+    if (userRes?.user && (userRes.user.email ?? "").toLowerCase() === input.email.toLowerCase()) {
+      await svc
+        .from("profiles")
+        .update({
+          ...(input.displayName ? { display_name: input.displayName } : {}),
+          role: "venue",
+        })
+        .eq("id", input.userId);
+    }
+    await notifyNewSignup({
+      displayName: input.displayName,
+      email: input.email,
+      accountType: "venue",
+    });
+  } catch {
+    // best-effort
+  }
+  return { ok: true };
 }

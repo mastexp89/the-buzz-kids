@@ -70,7 +70,7 @@ export default async function AboutPage() {
 
       <div className="mt-10 flex flex-wrap gap-3">
         <Link href={browseHref} className="btn-primary">{browseLabel}</Link>
-        <Link href="/signup?as=venue" className="btn-secondary">List your place free</Link>
+        <Link href="/list-your-activity" className="btn-secondary">List your place free</Link>
         <Link href="/signup?as=fan" className="btn-secondary">Create a parent account</Link>
       </div>
     </div>

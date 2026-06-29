@@ -31,8 +31,7 @@ export default async function UploadPosterPage() {
           your role and you'll be able to upload posters straight away.
         </p>
         <div className="flex gap-2 justify-center flex-wrap">
-          <Link href="/signup?as=artist" className="btn-primary">Sign up as artist</Link>
-          <Link href="/signup?as=venue" className="btn-secondary">Sign up as venue</Link>
+          <Link href="/list-your-activity" className="btn-primary">List your activity</Link>
         </div>
       </div>
     );

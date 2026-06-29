@@ -1,27 +1,27 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { recordSignup } from "./actions";
 
-type AccountType = "venue" | "artist" | "organiser" | "fan";
-
-const VALID_TYPES: AccountType[] = ["venue", "artist", "organiser", "fan"];
-
+// Self-serve signup is parent/carer ("fan") only. Businesses no longer sign
+// up here — they reach an account via "Claim this listing" on a place, or the
+// "List your activity" page. Anyone arriving with ?as=venue / ?as=organiser is
+// redirected there.
 function SignupForm() {
   const router = useRouter();
   const params = useSearchParams();
-  // ?as=artist, ?as=organiser, ?as=venue, ?as=fan — when set, skip the picker
-  // and jump straight to the form. When absent, show the picker so users
-  // explicitly choose before seeing any form fields (avoids the
-  // "accidentally signed up as fan when I'm actually a venue" footgun).
-  const urlType = params.get("as") as AccountType | null;
-  const initialType: AccountType | null =
-    urlType && VALID_TYPES.includes(urlType) ? urlType : null;
+  const urlType = params.get("as");
   const next = params.get("next");
-  const [accountType, setAccountType] = useState<AccountType | null>(initialType);
+
+  // Bounce business/organiser intents to the dedicated listing flow.
+  const redirectToListing = urlType === "venue" || urlType === "organiser";
+  useEffect(() => {
+    if (redirectToListing) router.replace("/list-your-activity");
+  }, [redirectToListing, router]);
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -30,10 +30,6 @@ function SignupForm() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // The form is only rendered after a type is picked, so this should
-    // never fire — but the early return narrows the type for TS so we
-    // can pass accountType through to the actions below without a `!`.
-    if (accountType === null) return;
     setLoading(true);
     setError(null);
     const supabase = createClient();
@@ -45,7 +41,7 @@ function SignupForm() {
         emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback`,
         data: {
           display_name: name,
-          account_type: accountType,
+          account_type: "fan",
         },
       },
     });
@@ -56,115 +52,33 @@ function SignupForm() {
       return;
     }
 
-    // Fire-and-forget admin notification — don't block the redirect on it.
-    recordSignup({
-      displayName: name,
-      email,
-      accountType,
-    }).catch(() => {});
+    recordSignup({ displayName: name, email, accountType: "fan" }).catch(() => {});
 
     if (data.user && !data.session) {
-      // Email verification required — soft nav is fine here, no auth cookie yet.
-      // Pass the email through so /check-email can offer a "Resend" button
-      // without asking the user to type their address again.
       router.replace(`/check-email?email=${encodeURIComponent(email)}`);
     } else {
-      // Force full page nav so server picks up the new auth cookie immediately.
-      // Each role has its own setup wizard so we don't create duplicate pages
-      // for venues / artists that already exist in the directory.
-      let dest = "/dashboard";
-      if (accountType === "artist") {
-        dest = "/dashboard/setup";
-      } else if (accountType === "venue") {
-        dest = "/dashboard/venue-setup";
-      } else if (accountType === "organiser") {
-        dest = next || "/dashboard/organiser-setup";
-      } else if (accountType === "fan") {
-        // Fans skip the setup wizard entirely — drop them on their
-        // favourites page (or whatever "next" they were trying to reach
-        // when they hit the signup wall).
-        dest = next || "/dashboard/favourites";
-      }
-      window.location.assign(dest);
+      // Parents skip the setup wizard — drop them on their favourites page
+      // (or wherever they were headed when they hit the signup wall).
+      window.location.assign(next || "/dashboard/favourites");
     }
   }
 
-  // STEP 1 — picker. Shown when accountType is null (no ?as= param + nothing
-  // clicked yet). User must pick an option before the form renders, so they
-  // can't accidentally submit as "fan" when they really intended "venue".
-  if (accountType === null) {
+  if (redirectToListing) {
     return (
-      <div className="max-w-lg mx-auto px-4 py-12">
-        <p className="eyebrow mb-2">Create an account</p>
-        <h1 className="h-display text-4xl mb-3">Welcome to The Buzz Kids</h1>
-        <p className="text-buzz-mute mb-8">
-          What are you signing up as? Pick one to continue.
-        </p>
-
-        <div className="flex flex-col gap-3">
-          <TypeCard
-            emoji="♡"
-            title="Parent / carer"
-            tagline="Plan days out, save places to your bucket list and review the ones you've been to. We'll let you know about new activities each holiday."
-            onClick={() => setAccountType("fan")}
-          />
-          <TypeCard
-            emoji="🐝"
-            title="Activity organiser"
-            tagline="Run a soft play, farm, club, class or holiday camp? List your place, add sessions, manage your page and reach local families."
-            onClick={() => setAccountType("venue")}
-          />
-        </div>
-
-        <p className="text-sm text-buzz-mute text-center mt-8">
-          Already have an account?{" "}
-          <Link href="/login" className="text-buzz-accent">
-            Sign in
-          </Link>
-        </p>
+      <div className="max-w-md mx-auto px-4 py-12 text-buzz-mute">
+        Taking you to the listing form…
       </div>
     );
   }
 
-  // STEP 2 — actual signup form. accountType is now guaranteed non-null.
-  const isVenue = accountType === "venue";
-  const isFan = accountType === "fan";
-
-  const headline = isFan
-    ? "Plan your days out."
-    : isVenue
-    ? "List your activity, free."
-    : "List your activity, free.";
-
-  const subline = isFan
-    ? "Free account. Save places to your bucket list, review the ones you've been to and hear about new activities each school holiday."
-    : "Free to list and manage. Add your sessions, opening times, prices and accessibility info — and reach local families looking for things to do.";
-
-  const typeLabel =
-    accountType === "fan" ? "♡ Parent / carer" : "🐝 Activity organiser";
-
   return (
     <div className="max-w-md mx-auto px-4 py-12">
       <p className="eyebrow mb-2">Create an account</p>
-      <h1 className="h-display text-4xl mb-2">{headline}</h1>
-      <p className="text-buzz-mute mb-4">{subline}</p>
-
-      {/* Current selection summary with "Change" link — replaces the old
-          pill row. Keeping a single visible choice makes it unambiguous
-          which account type the form below will submit as. */}
-      <div className="flex items-center justify-between gap-3 mb-6 px-4 py-2 rounded-lg bg-buzz-card border border-buzz-border">
-        <div className="text-sm">
-          <span className="text-buzz-mute">Signing up as:</span>{" "}
-          <strong className="text-buzz-accent">{typeLabel}</strong>
-        </div>
-        <button
-          type="button"
-          onClick={() => setAccountType(null)}
-          className="text-xs text-buzz-mute hover:text-buzz-accent transition"
-        >
-          Change
-        </button>
-      </div>
+      <h1 className="h-display text-4xl mb-2">Plan your days out.</h1>
+      <p className="text-buzz-mute mb-6">
+        Free parent account. Save places to your bucket list, review the ones you've
+        been to and hear about new activities each school holiday.
+      </p>
 
       <form onSubmit={onSubmit} className="card p-6 flex flex-col gap-4">
         <div>
@@ -174,13 +88,9 @@ function SignupForm() {
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder={isFan ? "Your first name" : "Alex Smith"}
+            placeholder="Your first name"
           />
-          <p className="help">
-            {isFan
-              ? "What should we call you? Used on your reviews and emails."
-              : "Just your name — you'll set up your activity page on the next step."}
-          </p>
+          <p className="help">What should we call you? Used on your reviews and emails.</p>
         </div>
         <div>
           <label className="label">Email</label>
@@ -199,45 +109,14 @@ function SignupForm() {
           Already have an account? <Link href="/login" className="text-buzz-accent">Sign in</Link>
         </p>
       </form>
-    </div>
-  );
-}
 
-// Large-card picker option used in step 1. Bigger and more deliberate than
-// the old pill chips — harder to skip past, easier to read on mobile.
-function TypeCard({
-  emoji,
-  title,
-  tagline,
-  onClick,
-}: {
-  emoji: string;
-  title: string;
-  tagline: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="text-left p-4 sm:p-5 rounded-xl bg-buzz-card border border-buzz-border hover:border-buzz-accent hover:bg-buzz-surface transition group flex items-start gap-4"
-    >
-      <span className="text-2xl shrink-0 leading-none mt-0.5" aria-hidden>
-        {emoji}
-      </span>
-      <div className="flex-1 min-w-0">
-        <div className="font-display text-lg uppercase tracking-wide group-hover:text-buzz-accent transition">
-          {title}
-        </div>
-        <p className="text-sm text-buzz-mute mt-1 leading-snug">{tagline}</p>
-      </div>
-      <span
-        className="shrink-0 text-buzz-mute group-hover:text-buzz-accent group-hover:translate-x-1 transition-all self-center"
-        aria-hidden
-      >
-        →
-      </span>
-    </button>
+      <p className="text-sm text-buzz-mute text-center mt-6">
+        Run a place or activity?{" "}
+        <Link href="/list-your-activity" className="text-buzz-accent hover:underline">
+          List it free
+        </Link>
+      </p>
+    </div>
   );
 }
 

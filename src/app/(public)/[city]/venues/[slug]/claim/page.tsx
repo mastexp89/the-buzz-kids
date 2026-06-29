@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import ClaimForm from "./ClaimForm";
+import ListingSignupForm from "@/components/ListingSignupForm";
 
 export const dynamic = "force-dynamic";
 
@@ -83,7 +83,7 @@ export default async function ClaimVenuePage({ params }: Props) {
           </p>
         </div>
       ) : (
-        <ClaimForm
+        <ListingSignupForm
           venueId={venue.id}
           venueName={venue.name}
           loggedIn={!!user}

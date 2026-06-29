@@ -102,7 +102,7 @@ export default async function CityPage({ params, searchParams }: Props) {
             <h2 className="h-display text-3xl mb-2">Nothing here yet</h2>
             <p className="text-buzz-mute max-w-md mx-auto">
               We're still adding {city.name} spots. Run a soft play, farm, club or activity?{" "}
-              <Link href="/signup?as=venue" className="text-buzz-accent hover:text-buzz-accent2">List your place free</Link>.
+              <Link href="/list-your-activity" className="text-buzz-accent hover:text-buzz-accent2">List your place free</Link>.
             </p>
           </div>
         ) : (

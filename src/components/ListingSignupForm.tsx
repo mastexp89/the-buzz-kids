@@ -6,8 +6,9 @@ import { createClient } from "@/lib/supabase/client";
 import {
   submitVenueClaim,
   attachClaimAfterSignup,
+  recordBusinessSignup,
   type SubmitClaimResult,
-} from "./actions";
+} from "@/lib/claim-actions";
 
 type BusinessType = "individual" | "multiple" | "agency";
 
@@ -17,26 +18,35 @@ const BUSINESS_TYPES: { value: BusinessType; label: string; hint: string }[] = [
   { value: "agency", label: "Agency", hint: "I manage on their behalf" },
 ];
 
-export default function ClaimForm({
-  venueId,
+/**
+ * Combined business signup form. Two modes:
+ *  - Claim mode (venueId set): creates the account (if logged out) and attaches
+ *    a claim on an existing place.
+ *  - List mode (venueId null): creates the account, then sends them to the
+ *    /dashboard/venue-setup wizard to add their place. Only rendered for
+ *    logged-out users — the list page redirects logged-in users straight to
+ *    the wizard.
+ */
+export default function ListingSignupForm({
+  venueId = null,
   venueName,
   loggedIn,
   defaultEmail,
   defaultName,
   loginNext,
 }: {
-  venueId: string;
-  venueName: string;
+  venueId?: string | null;
+  venueName?: string | null;
   loggedIn: boolean;
   defaultEmail: string;
   defaultName: string;
   loginNext: string;
 }) {
-  // Split a pre-filled display name into first/last for the two fields.
+  const isClaim = !!venueId;
   const [firstName, ...restName] = (defaultName || "").split(" ");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ venueName: string; checkEmail: boolean } | null>(null);
+  const [result, setResult] = useState<{ venueName?: string; checkEmail: boolean } | null>(null);
   const [businessType, setBusinessType] = useState<BusinessType | "">("");
   const [showPw, setShowPw] = useState(false);
 
@@ -62,19 +72,16 @@ export default function ClaimForm({
 
     setBusy(true);
     try {
-      if (loggedIn) {
-        // Existing account — submit the claim directly under their session.
-        fd.set("venue_id", venueId);
+      // Logged-in claim — submit directly under their session.
+      if (loggedIn && isClaim) {
+        fd.set("venue_id", venueId!);
         const r: SubmitClaimResult = await submitVenueClaim(fd);
-        if ("error" in r) {
-          setError(r.error);
-        } else {
-          setResult({ venueName: r.venueName, checkEmail: false });
-        }
+        if ("error" in r) setError(r.error);
+        else setResult({ venueName: r.venueName, checkEmail: false });
         return;
       }
 
-      // Logged-out — create the account first, then attach the claim.
+      // Logged-out — create the account first.
       const email = String(fd.get("contact_email") ?? "").trim();
       const password = String(fd.get("password") ?? "");
       const first = String(fd.get("first_name") ?? "").trim();
@@ -103,27 +110,42 @@ export default function ClaimForm({
         return;
       }
 
-      // Hand the claim details to the server, keyed to the new user id.
-      const plain: Record<string, string> = {};
-      fd.forEach((v, k) => {
-        if (k !== "password") plain[k] = String(v);
-      });
-      // Checkboxes only appear in FormData when ticked — normalise to "true".
-      plain.authorised_rep = "true";
-      plain.accepted_terms = "true";
+      if (isClaim) {
+        // Attach the claim to the new account.
+        const plain: Record<string, string> = {};
+        fd.forEach((v, k) => {
+          if (k !== "password") plain[k] = String(v);
+        });
+        plain.authorised_rep = "true";
+        plain.accepted_terms = "true";
 
-      const r = await attachClaimAfterSignup({
-        userId: data.user.id,
-        email,
-        venueId,
-        formData: plain,
-      });
-      if ("error" in r) {
-        setError(r.error);
+        const r = await attachClaimAfterSignup({
+          userId: data.user.id,
+          email,
+          venueId: venueId!,
+          formData: plain,
+        });
+        if ("error" in r) {
+          setError(r.error);
+          return;
+        }
+        setResult({ venueName: r.venueName, checkEmail: !data.session });
         return;
       }
-      // No session means Supabase sent a confirmation email.
-      setResult({ venueName: r.venueName, checkEmail: !data.session });
+
+      // List mode — flag the new profile as a venue account + notify admin.
+      await recordBusinessSignup({
+        userId: data.user.id,
+        email,
+        displayName: fullName || null,
+      });
+      if (data.session) {
+        // Email confirmation disabled — straight into the place setup wizard.
+        window.location.assign("/dashboard/venue-setup");
+        return;
+      }
+      // Confirmation email sent — they'll land in the dashboard after verifying.
+      setResult({ checkEmail: true });
     } finally {
       setBusy(false);
     }
@@ -138,12 +160,19 @@ export default function ClaimForm({
         </h2>
         <p className="text-buzz-mute mb-4 max-w-md mx-auto">
           {result.checkEmail ? (
-            <>
-              We've sent a confirmation link to your email. Click it to verify your
-              account — then your claim on{" "}
-              <strong className="text-buzz-text">{result.venueName}</strong> goes into
-              our review queue. We usually approve within 24–48 hours.
-            </>
+            isClaim ? (
+              <>
+                We've sent a confirmation link to your email. Click it to verify your
+                account — then your claim on{" "}
+                <strong className="text-buzz-text">{result.venueName}</strong> goes into
+                our review queue. We usually approve within 24–48 hours.
+              </>
+            ) : (
+              <>
+                We've sent a confirmation link to your email. Click it to verify your
+                account, then you can add your place and start listing your activities.
+              </>
+            )
           ) : (
             <>
               Thanks — your claim on{" "}
@@ -199,7 +228,7 @@ export default function ClaimForm({
               autoComplete="email"
               placeholder="you@email.com"
             />
-            <p className="help">You'll need to verify this before your claim is approved.</p>
+            <p className="help">You'll need to verify this before your listing is approved.</p>
           </div>
           <div className="sm:col-span-2">
             <label className="label">Password *</label>
@@ -263,7 +292,11 @@ export default function ClaimForm({
           name="reason"
           className="input min-h-[100px]"
           maxLength={1000}
-          placeholder="A quick line to help us verify — e.g. 'I've run this since 2018', or 'my contact details are on the place's Facebook page'."
+          placeholder={
+            isClaim
+              ? "A quick line to help us verify — e.g. 'I've run this since 2018', or 'my contact details are on the place's Facebook page'."
+              : "Tell us a little about your place — where it is, what you offer, who it's for."
+          }
         />
       </div>
 
@@ -289,10 +322,16 @@ export default function ClaimForm({
 
       <div className="sm:col-span-2 flex flex-wrap gap-3 items-center pt-1">
         <button type="submit" className="btn-primary" disabled={busy}>
-          {busy ? "Submitting…" : loggedIn ? "Submit claim" : "Create account & claim"}
+          {busy
+            ? "Submitting…"
+            : isClaim
+            ? loggedIn
+              ? "Submit claim"
+              : "Create account & claim"
+            : "Create account & continue"}
         </button>
         <span className="text-xs text-buzz-mute">
-          Free. We'll review and email you when it's approved.
+          Free. {isClaim ? "We'll review and email you when it's approved." : "Add your place next."}
         </span>
       </div>
     </form>

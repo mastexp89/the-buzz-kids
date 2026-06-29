@@ -154,7 +154,7 @@ export default async function Home() {
             Free for soft plays, farms, libraries, leisure trusts, theatres and holiday-club providers.
             Reach local families looking for things to do — this weekend, this holiday and beyond.
           </p>
-          <Link href="/signup?as=venue" className="inline-flex items-center gap-2 rounded-lg bg-white text-buzz-accent font-bold px-6 py-3 hover:bg-white/90 transition">
+          <Link href="/list-your-activity" className="inline-flex items-center gap-2 rounded-lg bg-white text-buzz-accent font-bold px-6 py-3 hover:bg-white/90 transition">
             List an activity free →
           </Link>
         </div>

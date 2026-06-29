@@ -23,7 +23,7 @@ export default async function Navbar() {
     { href: "/surprise", label: "🎲 Surprise me" },
     { href: "/about", label: "About" },
     { href: "/accessibility", label: "Sensory & Access" },
-    { href: "/signup?as=venue", label: "List an activity" },
+    { href: "/list-your-activity", label: "List an activity" },
   ];
   if (user) {
     mobileItems.push({ href: "/dashboard", label: "Dashboard" });
@@ -52,7 +52,7 @@ export default async function Navbar() {
           <Link href="/browse" className="px-3 py-2 rounded-lg hover:bg-buzz-card transition">Browse all</Link>
 <Link href="/about" className="px-3 py-2 rounded-lg hover:bg-buzz-card transition">About</Link>
           <Link href="/accessibility" className="px-3 py-2 rounded-lg hover:bg-buzz-card transition">Sensory &amp; Access</Link>
-          <Link href="/signup?as=venue" className="px-3 py-2 rounded-lg hover:bg-buzz-card transition">List an activity</Link>
+          <Link href="/list-your-activity" className="px-3 py-2 rounded-lg hover:bg-buzz-card transition">List an activity</Link>
           {user ? (
             <>
               <Link href="/dashboard" className="px-3 py-2 rounded-lg hover:bg-buzz-card transition">Dashboard</Link>
