@@ -47,19 +47,30 @@ export default async function ReviewsSection({ venueId, venueName }: { venueId: 
         )}
       </div>
 
-      {/* Leave / edit your review */}
+      {/* Leave your review — or, if you've already reviewed, a read-only
+          summary of it. One review per parent per place: no editing. */}
       {user ? (
-        <div className="mb-8">
-          {mine?.status === "pending" && (
-            <div className="card p-4 mb-3 text-sm text-buzz-mute">
-              ⏳ Thanks — your review is awaiting a quick check before it appears. You can tweak it below.
+        mine ? (
+          <div className="card p-5 mb-8">
+            <div className="flex items-center gap-2 text-sm font-medium mb-1">
+              <Stars n={mine.rating} />
+              <span className="text-buzz-mute">· Your review</span>
             </div>
-          )}
-          <ReviewForm
-            venueId={venueId}
-            existing={mine ? { rating: mine.rating, title: mine.title, body: mine.body, images: (mine.images ?? []).map((i: any) => i.image_url) } : null}
-          />
-        </div>
+            {mine.title && <div className="font-semibold text-sm mb-1">{mine.title}</div>}
+            {mine.body && <p className="text-sm text-buzz-text/90 whitespace-pre-line">{mine.body}</p>}
+            <p className="text-xs text-buzz-mute mt-3">
+              {mine.status === "pending"
+                ? "⏳ Awaiting a quick check before it appears publicly."
+                : mine.status === "hidden"
+                ? "This review is currently hidden by our team."
+                : "✅ Thanks — you've reviewed this place. One review per place."}
+            </p>
+          </div>
+        ) : (
+          <div className="mb-8">
+            <ReviewForm venueId={venueId} existing={null} />
+          </div>
+        )
       ) : (
         <div className="card p-5 mb-8 text-sm text-buzz-mute">
           Been to {venueName}?{" "}

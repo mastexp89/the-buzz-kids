@@ -103,7 +103,7 @@ export async function deleteMyAccount(formData: FormData) {
   // 6. Finally, delete the auth user. This is the irreversible bit.
   const { error: authErr } = await sb.auth.admin.deleteUser(user.id);
   if (authErr) {
-    return { error: `Account data removed but auth deletion failed: ${authErr.message}. Email admin@thebuzzguide.co.uk to finish the process.` };
+    return { error: `Account data removed but auth deletion failed: ${authErr.message}. Email hello@thebuzzkids.co.uk to finish the process.` };
   }
 
   // Sign out the local session and redirect home

@@ -5,10 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 
 type Result = { ok?: true; error?: string };
 
-// Parent leaves (or updates) a review for a place. We delete any existing
-// review by this author for this venue and insert a fresh one, so the
-// moderation guard (migration 067) always forces it back to 'pending' for
-// re-checking — an edited review must be re-approved before it shows.
+// Parent leaves a review for a place. One review per parent per place —
+// once submitted it can't be edited or replaced (a second attempt is
+// rejected). Keeps reviews honest and stops a single account flooding a
+// place with repeated ratings.
 export async function submitReview(input: {
   venueId: string;
   rating: number;
@@ -23,7 +23,16 @@ export async function submitReview(input: {
   const rating = Math.max(1, Math.min(5, Math.round(input.rating)));
   if (!rating) return { error: "Pick a star rating." };
 
-  await supabase.from("reviews").delete().eq("author_id", user.id).eq("venue_id", input.venueId);
+  // One review per parent per place — block a second one.
+  const { data: existingReview } = await supabase
+    .from("reviews")
+    .select("id")
+    .eq("author_id", user.id)
+    .eq("venue_id", input.venueId)
+    .maybeSingle();
+  if (existingReview) {
+    return { error: "You've already reviewed this place — only one review per place." };
+  }
 
   const { data: review, error } = await supabase
     .from("reviews")

@@ -147,7 +147,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Your data has been removed but the account itself failed to delete. Please email admin@thebuzzguide.co.uk and we'll finish it manually.",
+            "Your data has been removed but the account itself failed to delete. Please email hello@thebuzzkids.co.uk and we'll finish it manually.",
           partial: true,
         },
         { status: 500 },

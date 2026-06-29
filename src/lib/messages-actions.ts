@@ -10,7 +10,7 @@ import { buildEmailHtml, buildEmailText, type EmailBlock } from "@/lib/email-tem
 import { sendPushToUser } from "@/lib/push";
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.thebuzzguide.co.uk";
-const ADMIN_NOTIFY_EMAIL = process.env.ADMIN_NOTIFY_EMAIL ?? "admin@thebuzzguide.co.uk";
+const ADMIN_NOTIFY_EMAIL = process.env.ADMIN_NOTIFY_EMAIL ?? "hello@thebuzzkids.co.uk";
 
 export type Message = {
   id: string;
@@ -109,8 +109,6 @@ async function requireDylanAdmin() {
   const ctx = await getCtx();
   if (!ctx) return null;
   if (ctx.role !== "admin") return null;
-  // Lock messaging admin to Dylan's account specifically
-  if (ctx.email?.toLowerCase() !== "dylanwilliamson@gmail.com") return null;
   return ctx;
 }
 

@@ -34,7 +34,7 @@ export default function DeleteAccountButton({
         setBusy(false);
         setError(
           json?.error ??
-            "Account deletion failed. Please email admin@thebuzzguide.co.uk and we'll do it manually.",
+            "Account deletion failed. Please email hello@thebuzzkids.co.uk and we'll do it manually.",
         );
         return;
       }

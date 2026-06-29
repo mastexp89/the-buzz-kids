@@ -3,7 +3,7 @@
 //
 // Required env vars (set in Vercel Production + Preview, and in .env.local):
 //   RESEND_API_KEY            re_xxxxxxxxxxxxxxxx
-//   ADMIN_NOTIFY_EMAIL        admin@thebuzzguide.co.uk
+//   ADMIN_NOTIFY_EMAIL        hello@thebuzzkids.co.uk
 //   ADMIN_NOTIFY_FROM         "The Buzz Guide <noreply@thebuzzguide.co.uk>"
 //
 // All sends are best-effort — if Resend fails we log + return false, never throw.
@@ -20,8 +20,8 @@ type SendArgs = {
 
 export async function sendAdminEmail({ subject, text, html, to, replyTo }: SendArgs): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.ADMIN_NOTIFY_FROM ?? "The Buzz Guide <noreply@thebuzzguide.co.uk>";
-  const fallbackTo = process.env.ADMIN_NOTIFY_EMAIL ?? "admin@thebuzzguide.co.uk";
+  const from = process.env.ADMIN_NOTIFY_FROM ?? "The Buzz Kids <noreply@thebuzzkids.co.uk>";
+  const fallbackTo = process.env.ADMIN_NOTIFY_EMAIL ?? "hello@thebuzzkids.co.uk";
   const recipient = to ?? fallbackTo;
 
   if (!apiKey) {
@@ -88,7 +88,7 @@ async function sendBrandedEmail(opts: {
   });
 }
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.thebuzzguide.co.uk";
+const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.thebuzzkids.co.uk";
 
 export function notifyNewVenue(opts: {
   venueId: string;
@@ -396,7 +396,7 @@ export function notifyVenueOwnerOfPendingGig(opts: {
   startTime: string | null;
   venueId: string;
 }) {
-  const adminEmail = process.env.ADMIN_NOTIFY_EMAIL ?? "admin@thebuzzguide.co.uk";
+  const adminEmail = process.env.ADMIN_NOTIFY_EMAIL ?? "hello@thebuzzkids.co.uk";
   return sendBrandedEmail({
     to: opts.venueOwnerEmail,
     replyTo: adminEmail,

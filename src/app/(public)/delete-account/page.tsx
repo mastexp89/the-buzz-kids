@@ -95,9 +95,9 @@ export default async function DeleteAccountPage() {
             Send an email from the address you signed up with to{" "}
             <a
               className="text-buzz-accent hover:text-buzz-accent2"
-              href="mailto:admin@thebuzzguide.co.uk?subject=Delete%20my%20account"
+              href="mailto:hello@thebuzzkids.co.uk?subject=Delete%20my%20account"
             >
-              admin@thebuzzguide.co.uk
+              hello@thebuzzkids.co.uk
             </a>{" "}
             with the subject line <em>"Delete my account"</em>.
           </p>
@@ -161,9 +161,9 @@ export default async function DeleteAccountPage() {
             Email{" "}
             <a
               className="text-buzz-accent hover:text-buzz-accent2"
-              href="mailto:admin@thebuzzguide.co.uk"
+              href="mailto:hello@thebuzzkids.co.uk"
             >
-              admin@thebuzzguide.co.uk
+              hello@thebuzzkids.co.uk
             </a>{" "}
             and we will respond within 2 working days.
           </p>

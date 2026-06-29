@@ -12,7 +12,7 @@
 //   bg     #000000   honey-gold accent #fdb913   text #f5f5f0
 //   card   #161618   border           #26262a   mute #8a8a92
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.thebuzzguide.co.uk";
+const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.thebuzzkids.co.uk";
 const LOGO_URL = `${SITE}/logo.png`;
 
 export type EmailBlock =
@@ -73,8 +73,8 @@ export function buildEmailHtml(opts: {
             <tr>
               <td style="padding:18px 24px 22px 24px;background:#0e0e10;border-top:1px solid #26262a;color:#8a8a92;font-size:12px;line-height:1.5;text-align:center;">
                 You're receiving this because of activity on your account at
-                <a href="${SITE}" style="color:#fdb913;text-decoration:none;">thebuzzguide.co.uk</a>.<br />
-                <span style="color:#5a5a62;">Gigs, DJs & nights out across Scotland.</span>
+                <a href="${SITE}" style="color:#fdb913;text-decoration:none;">thebuzzkids.co.uk</a>.<br />
+                <span style="color:#5a5a62;">Things to do with the kids across Scotland.</span>
               </td>
             </tr>
           </table>

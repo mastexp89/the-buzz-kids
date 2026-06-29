@@ -167,7 +167,7 @@ export async function messageVenueOwner(
   if (!ownerEmail) return { error: "This venue has no owner email on file." };
 
   const adminReplyTo =
-    process.env.ADMIN_NOTIFY_EMAIL ?? "admin@thebuzzguide.co.uk";
+    process.env.ADMIN_NOTIFY_EMAIL ?? "hello@thebuzzkids.co.uk";
 
   const sent = await sendAdminEmail({
     to: ownerEmail,

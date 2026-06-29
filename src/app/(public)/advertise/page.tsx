@@ -86,10 +86,10 @@ export default function AdvertisePage() {
           what it'd cost.
         </p>
         <a
-          href="mailto:admin@thebuzzguide.co.uk?subject=Advertising%20on%20The%20Buzz"
+          href="mailto:hello@thebuzzkids.co.uk?subject=Advertising%20on%20The%20Buzz%20Kids"
           className="btn-primary btn-lg"
         >
-          admin@thebuzzguide.co.uk
+          hello@thebuzzkids.co.uk
         </a>
       </div>
 

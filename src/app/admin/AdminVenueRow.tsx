@@ -413,7 +413,7 @@ export default function AdminVenueRow({
           <div className="text-xs text-buzz-mute">
             Sending to <span className="text-buzz-text">{ownerEmail}</span>.
             Replies will go to{" "}
-            <span className="text-buzz-text">admin@thebuzzguide.co.uk</span>.
+            <span className="text-buzz-text">hello@thebuzzkids.co.uk</span>.
           </div>
           <input
             type="text"

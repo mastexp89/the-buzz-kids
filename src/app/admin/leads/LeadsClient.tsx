@@ -227,7 +227,7 @@ export default function LeadsClient({
                 type="email"
                 value={senderEmail}
                 onChange={(e) => setSenderEmail(e.target.value)}
-                placeholder="admin@thebuzzguide.co.uk"
+                placeholder="hello@thebuzzkids.co.uk"
                 className="input"
               />
               <span className="text-[11px] text-buzz-mute mt-1">
