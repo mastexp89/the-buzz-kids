@@ -93,6 +93,12 @@ export default function AdminToolGroups({ pendingCount }: { pendingCount: number
           description: "Browse every event — date, place, price — edit or delete",
         },
         {
+          href: "/admin/offers",
+          label: "Offers & deals",
+          emoji: "🎟️",
+          description: "Kids-eat-free & days-out deals for the Deals/Food tabs (no places added)",
+        },
+        {
           href: "/admin/venues/new",
           label: "Add venue",
           emoji: "➕",

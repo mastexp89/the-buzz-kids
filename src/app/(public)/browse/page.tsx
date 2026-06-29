@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import PlaceCard from "@/components/PlaceCard";
 import PlaceFilters from "@/components/PlaceFilters";
 import WhatsOnView from "@/components/WhatsOnView";
+import OffersView from "@/components/OffersView";
 import { AccessibilityLegend } from "@/components/AccessibilityBadges";
 import { fetchPlaces } from "@/lib/places";
 
@@ -22,7 +23,22 @@ type Props = {
 export default async function BrowsePage({ searchParams }: Props) {
   const supabase = await createClient();
   const sp = await searchParams;
-  const isEvents = sp.tab === "events";
+  const tab = sp.tab === "events" || sp.tab === "deals" || sp.tab === "food" ? sp.tab : "places";
+  const isEvents = tab === "events";
+  const isOffers = tab === "deals" || tab === "food";
+
+  // --- Offers / deals (food & days-out) ---
+  let offers: any[] = [];
+  if (isOffers) {
+    const category = tab === "food" ? "food" : "days-out";
+    const { data: offerRows } = await supabase
+      .from("offers")
+      .select("id, category, title, provider, description, terms, url, scope")
+      .eq("category", category)
+      .eq("approved", true)
+      .order("sort_order", { ascending: true });
+    offers = offerRows ?? [];
+  }
 
   const [{ data: cityRows }, { data: genres }] = await Promise.all([
     supabase.from("cities").select("id, name, slug").eq("active", true).order("name"),
@@ -93,34 +109,42 @@ export default async function BrowsePage({ searchParams }: Props) {
         <div className="container-page py-10 sm:py-14">
           <p className="eyebrow">Everywhere we cover</p>
           <h1 className="h-display text-5xl sm:text-7xl">
-            {isEvents ? <>What&apos;s on<span className="text-buzz-accent">.</span></> : <>Browse it all<span className="text-buzz-accent">.</span></>}
+            {tab === "events" ? <>What&apos;s on<span className="text-buzz-accent">.</span></>
+              : tab === "deals" ? <>Deals &amp; days out<span className="text-buzz-accent">.</span></>
+              : tab === "food" ? <>Kids eat for less<span className="text-buzz-accent">.</span></>
+              : <>Browse it all<span className="text-buzz-accent">.</span></>}
           </h1>
           <p className="text-buzz-mute mt-2">
-            {isEvents
-              ? "Galas, fayres, holiday clubs and special days out — by date."
+            {tab === "events" ? "Galas, fayres, holiday clubs and special days out — by date."
+              : tab === "deals" ? "Money-saving offers for family days out."
+              : tab === "food" ? "Where the kids can eat free or for £1."
               : "Family days out, big and small — filter to find your perfect one."}
           </p>
 
-          {/* Places / What's On tabs */}
-          <div className="mt-6 inline-flex rounded-xl border border-buzz-border bg-buzz-card p-1">
-            <Link
-              href="/browse"
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${!isEvents ? "bg-buzz-accent text-white" : "text-buzz-mute hover:text-buzz-text"}`}
-            >
-              📍 Places
-            </Link>
-            <Link
-              href="/browse?tab=events"
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${isEvents ? "bg-buzz-accent text-white" : "text-buzz-mute hover:text-buzz-text"}`}
-            >
-              📅 What&apos;s on
-            </Link>
+          {/* Tabs */}
+          <div className="mt-6 inline-flex flex-wrap gap-1 rounded-xl border border-buzz-border bg-buzz-card p-1">
+            {[
+              { href: "/browse", key: "places", label: "📍 Places" },
+              { href: "/browse?tab=events", key: "events", label: "📅 What's on" },
+              { href: "/browse?tab=deals", key: "deals", label: "🎟️ Deals" },
+              { href: "/browse?tab=food", key: "food", label: "🍽️ Food" },
+            ].map((t) => (
+              <Link
+                key={t.key}
+                href={t.href}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${tab === t.key ? "bg-buzz-accent text-white" : "text-buzz-mute hover:text-buzz-text"}`}
+              >
+                {t.label}
+              </Link>
+            ))}
           </div>
         </div>
       </section>
 
       <div className="container-page py-8">
-        {isEvents ? (
+        {isOffers ? (
+          <OffersView offers={offers} category={tab === "food" ? "food" : "days-out"} />
+        ) : isEvents ? (
           <WhatsOnView events={events} cities={cities} />
         ) : (
           <>
