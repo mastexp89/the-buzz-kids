@@ -200,33 +200,48 @@ out center tags;
 `.trim();
 
   let elements: any[] = [];
-  // Try each Overpass mirror in order — the primary sometimes gives 504 under load.
+  let gotResponse = false;
   let overpassError = "";
-  for (const endpoint of OVERPASS_MIRRORS) {
-    try {
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Accept: "application/json",
-          "User-Agent": "TheBuzzKids/1.0 (https://www.thebuzzkids.co.uk)",
-        },
-        body: `data=${encodeURIComponent(overpassQuery)}`,
-        signal: AbortSignal.timeout(28000),
-      });
-      if (res.ok) {
-        const json = await res.json();
-        elements = Array.isArray(json?.elements) ? json.elements : [];
-        overpassError = "";
-        break;
+  // Two rounds over every mirror. A round is one pass through all three;
+  // "fetch failed" / 504s are usually transient, so a second pass after a
+  // short backoff clears most blips without the admin having to retry.
+  outer: for (let round = 0; round < 2; round++) {
+    for (const endpoint of OVERPASS_MIRRORS) {
+      try {
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Accept: "application/json",
+            "User-Agent": "TheBuzzKids/1.0 (https://www.thebuzzkids.co.uk)",
+          },
+          body: `data=${encodeURIComponent(overpassQuery)}`,
+          signal: AbortSignal.timeout(28000),
+        });
+        if (res.ok) {
+          const json = await res.json();
+          elements = Array.isArray(json?.elements) ? json.elements : [];
+          gotResponse = true;
+          overpassError = "";
+          break outer;
+        }
+        const text = await res.text();
+        overpassError = `Overpass ${res.status}: ${text.slice(0, 300)}`;
+      } catch (e: any) {
+        const cause = e?.cause?.code ?? e?.cause?.message ?? "";
+        overpassError = `Overpass request failed: ${e?.message ?? e}${cause ? ` (${cause})` : ""}`;
       }
-      const text = await res.text();
-      overpassError = `Overpass ${res.status}: ${text.slice(0, 300)}`;
-    } catch (e: any) {
-      overpassError = `Overpass request failed: ${e?.message ?? e}`;
     }
+    // Short backoff before the second round so we're not hammering mirrors
+    // that just rejected us.
+    if (!gotResponse && round === 0) await new Promise((r) => setTimeout(r, 1500));
   }
-  if (overpassError) return { error: overpassError };
+  if (!gotResponse) {
+    return {
+      error:
+        `${overpassError}. All Overpass mirrors are unreachable right now — this is usually a temporary network or OSM-server blip. Wait a minute and try again; if it persists, try fewer towns at once.`,
+    };
+  }
 
   // Pull the existing venue names in this city so we can flag duplicates.
   // Normalise: lowercase, drop leading "the ", strip non-alphanumerics. So
