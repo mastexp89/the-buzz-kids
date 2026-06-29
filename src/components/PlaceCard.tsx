@@ -94,6 +94,7 @@ export default function PlaceCard({ place, citySlug }: { place: any; citySlug: s
         )}
 
         <div className="mt-auto flex flex-col gap-2 pt-1">
+          <AccessibilityBadges items={place.accessibility} size="sm" />
           <div className="flex flex-wrap items-center gap-1.5">
             {age && (
               <span className="inline-flex items-center rounded-full bg-buzz-surface border border-buzz-border px-2.5 py-1 text-[11px] font-medium">
@@ -111,7 +112,6 @@ export default function PlaceCard({ place, citySlug }: { place: any; citySlug: s
               </span>
             )}
           </div>
-          <AccessibilityBadges items={place.accessibility} size="sm" />
         </div>
       </div>
     </Link>

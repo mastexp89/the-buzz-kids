@@ -102,6 +102,13 @@ export default async function VenuePage({ params }: Props) {
   const cityName = (venue.city as any).name;
   const gallery: string[] = venue.gallery_image_urls ?? [];
 
+  // Hero photo for the top of the page. Prefer an organiser/own photo; fall
+  // back to the one pulled from Google Places (which needs an attribution).
+  const ownHeroPhoto =
+    (venue as any).cover_photo_url || venue.image_url || gallery[0] || null;
+  const heroPhoto = ownHeroPhoto || (venue as any).google_photo_url || null;
+  const heroIsGoogle = !ownHeroPhoto && !!(venue as any).google_photo_url;
+
   // Live festivals this venue is taking part in. RLS hides unpublished
   // festivals automatically (sql/036), so we only need to filter on
   // end_date to drop any festival that has finished. As soon as end_date
@@ -184,11 +191,24 @@ export default async function VenuePage({ params }: Props) {
           </div>
         )}
 
-        {(venue.logo_url || (venue as any).cover_photo_url) && (
+        {heroPhoto && (
+          <div
+            className="mt-6 relative h-56 sm:h-80 rounded-2xl overflow-hidden border border-buzz-border bg-buzz-surface"
+            style={{ backgroundImage: `url(${heroPhoto})`, backgroundSize: "cover", backgroundPosition: "center" }}
+          >
+            {heroIsGoogle && (venue as any).google_photo_attribution && (
+              <span className="absolute bottom-1.5 right-2.5 text-[11px] text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">
+                {(venue as any).google_photo_attribution} · Google
+              </span>
+            )}
+          </div>
+        )}
+
+        {venue.logo_url && (
           <div className="mt-6 -mb-2">
             <div
               className="w-20 h-20 rounded-2xl bg-buzz-surface border-2 border-buzz-bg shadow-2xl shadow-black/50"
-              style={{ backgroundImage: `url(${venue.logo_url || (venue as any).cover_photo_url})`, backgroundSize: "contain", backgroundPosition: "center", backgroundRepeat: "no-repeat" }}
+              style={{ backgroundImage: `url(${venue.logo_url})`, backgroundSize: "contain", backgroundPosition: "center", backgroundRepeat: "no-repeat" }}
               aria-label={`${venue.name} logo`}
             />
           </div>

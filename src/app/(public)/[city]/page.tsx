@@ -78,7 +78,7 @@ export default async function CityPage({ params, searchParams }: Props) {
               <p className="text-buzz-mute">
                 {places.length === 0
                   ? "Nothing listed here yet."
-                  : `${places.length} ${places.length === 1 ? "place" : "places"} to explore.`}
+                  : "Places to explore."}
               </p>
               <Link href={`/${city.slug}/map`} className="text-sm text-buzz-accent hover:text-buzz-accent2">
                 🗺️ Map view →

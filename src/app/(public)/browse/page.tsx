@@ -71,7 +71,7 @@ export default async function BrowsePage({ searchParams }: Props) {
           <p className="text-buzz-mute mt-2">
             {places.length === 0
               ? "No places match that filter yet."
-              : `${places.length} ${places.length === 1 ? "place" : "places"} across ${cities.length} ${cities.length === 1 ? "area" : "areas"}.`}
+              : "Family days out, big and small — filter to find your perfect one."}
           </p>
         </div>
       </section>
