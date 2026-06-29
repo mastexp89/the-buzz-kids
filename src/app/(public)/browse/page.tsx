@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import PlaceCard from "@/components/PlaceCard";
 import PlaceFilters from "@/components/PlaceFilters";
+import WhatsOnView from "@/components/WhatsOnView";
 import { AccessibilityLegend } from "@/components/AccessibilityBadges";
 import { fetchPlaces } from "@/lib/places";
 
@@ -14,12 +16,13 @@ export const metadata = {
 };
 
 type Props = {
-  searchParams: Promise<{ cat?: string; access?: string; toddler?: string; rain?: string; outdoor?: string; free?: string; other?: string; loc?: string }>;
+  searchParams: Promise<{ tab?: string; cat?: string; access?: string; toddler?: string; rain?: string; outdoor?: string; free?: string; other?: string; loc?: string }>;
 };
 
 export default async function BrowsePage({ searchParams }: Props) {
   const supabase = await createClient();
   const sp = await searchParams;
+  const isEvents = sp.tab === "events";
 
   const [{ data: cityRows }, { data: genres }] = await Promise.all([
     supabase.from("cities").select("id, name, slug").eq("active", true).order("name"),
@@ -27,6 +30,24 @@ export default async function BrowsePage({ searchParams }: Props) {
   ]);
   const cities = cityRows ?? [];
   const activeIds = cities.map((c) => c.id);
+
+  // --- What's On (dated events) ---
+  let events: any[] = [];
+  if (isEvents) {
+    const nowIso = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
+    const { data: eventRows } = await supabase
+      .from("events")
+      .select("*, venue:venues!inner(*, city:cities!inner(*)), event_genres(genre:genres(*))")
+      .or(`start_time.gte.${nowIso},end_time.gte.${nowIso}`)
+      .order("start_time", { ascending: true })
+      .limit(300);
+    events = (eventRows ?? [])
+      .filter((e: any) => e.venue?.approved && e.venue?.city?.active && (!e.status || e.status === "approved"))
+      .map((e: any) => ({
+        ...e,
+        genres: (e.event_genres ?? []).map((eg: any) => eg.genre).filter(Boolean),
+      }));
+  }
 
   const cats = (sp.cat || "").split(",").map((s) => s.trim()).filter(Boolean);
   const access = (sp.access || "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -66,38 +87,60 @@ export default async function BrowsePage({ searchParams }: Props) {
         <div className="container-page py-10 sm:py-14">
           <p className="eyebrow">Everywhere we cover</p>
           <h1 className="h-display text-5xl sm:text-7xl">
-            Browse it all<span className="text-buzz-accent">.</span>
+            {isEvents ? <>What&apos;s on<span className="text-buzz-accent">.</span></> : <>Browse it all<span className="text-buzz-accent">.</span></>}
           </h1>
           <p className="text-buzz-mute mt-2">
-            {places.length === 0
-              ? "No places match that filter yet."
+            {isEvents
+              ? "Galas, fayres, holiday clubs and special days out — by date."
               : "Family days out, big and small — filter to find your perfect one."}
           </p>
+
+          {/* Places / What's On tabs */}
+          <div className="mt-6 inline-flex rounded-xl border border-buzz-border bg-buzz-card p-1">
+            <Link
+              href="/browse"
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${!isEvents ? "bg-buzz-accent text-white" : "text-buzz-mute hover:text-buzz-text"}`}
+            >
+              📍 Places
+            </Link>
+            <Link
+              href="/browse?tab=events"
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${isEvents ? "bg-buzz-accent text-white" : "text-buzz-mute hover:text-buzz-text"}`}
+            >
+              📅 What&apos;s on
+            </Link>
+          </div>
         </div>
       </section>
 
       <div className="container-page py-8">
-        <div className="mb-8">
-          <PlaceFilters genres={genres ?? []} cities={cities} />
-        </div>
-        <div className="mb-8">
-          <AccessibilityLegend />
-        </div>
-
-        {places.length === 0 ? (
-          <div className="card p-12 text-center">
-            <div className="text-5xl mb-3">🐝</div>
-            <h2 className="h-display text-3xl mb-2">Nothing here yet</h2>
-            <p className="text-buzz-mute max-w-md mx-auto">
-              Try clearing a filter or picking a different area.
-            </p>
-          </div>
+        {isEvents ? (
+          <WhatsOnView events={events} cities={cities} />
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {places.map((p: any) => (
-              <PlaceCard key={p.id} place={p} citySlug={p.city?.slug ?? "dundee"} />
-            ))}
-          </div>
+          <>
+            <div className="mb-8">
+              <PlaceFilters genres={genres ?? []} cities={cities} />
+            </div>
+            <div className="mb-8">
+              <AccessibilityLegend />
+            </div>
+
+            {places.length === 0 ? (
+              <div className="card p-12 text-center">
+                <div className="text-5xl mb-3">🐝</div>
+                <h2 className="h-display text-3xl mb-2">Nothing here yet</h2>
+                <p className="text-buzz-mute max-w-md mx-auto">
+                  Try clearing a filter or picking a different area.
+                </p>
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {places.map((p: any) => (
+                  <PlaceCard key={p.id} place={p} citySlug={p.city?.slug ?? "dundee"} />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
