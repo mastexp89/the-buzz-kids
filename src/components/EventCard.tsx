@@ -30,7 +30,13 @@ export default function EventCard({ event, citySlug }: { event: EventWithVenue; 
   // image fails to load (broken FB URLs, etc.) — if we only computed
   // it for null URLs, the broken-URL fallback would render the wrong
   // emoji (was rendering "♪" for sports / karaoke / quiz nights).
-  const thumbPhoto = event.image_url ?? null;
+  // Poster if the event has one; otherwise fall back to the attached place's
+  // photo so events tied to a venue show something nicer than a bare icon.
+  const v = event.venue as any | null;
+  const venuePhoto = v
+    ? v.cover_photo_url || v.image_url || (Array.isArray(v.gallery_image_urls) ? v.gallery_image_urls[0] : null) || v.logo_url || v.google_photo_url || null
+    : null;
+  const thumbPhoto = event.image_url ?? venuePhoto;
   const icon = pickEventIcon(event.title, (event.genres ?? []).map((g) => g.slug));
 
   return (

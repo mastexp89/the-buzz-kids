@@ -82,7 +82,13 @@ export default async function EventPage({ params }: Props) {
   // Hero card image: real event poster or a category-aware icon picked
   // from the event's genre tags. Neutral 🎟️ fallback when nothing matches
   // — we never assume "music" for unknown categories.
-  const heroPhoto = event.image_url ?? null;
+  // Event poster if set; otherwise the attached place's photo so the page
+  // isn't a bare icon for venue-tied events.
+  const venueOwnPhoto = venue
+    ? (venue as any).cover_photo_url || (venue as any).image_url || ((venue as any).gallery_image_urls ?? [])[0] || (venue as any).logo_url || null
+    : null;
+  const heroPhoto = event.image_url ?? venueOwnPhoto ?? (venue as any)?.google_photo_url ?? null;
+  const heroIsVenueGoogle = !event.image_url && !venueOwnPhoto && !!(venue as any)?.google_photo_url;
   const fallbackIcon = pickEventIcon(
     event.title,
     genres.map((g: any) => g.slug),
@@ -185,6 +191,11 @@ export default async function EventPage({ params }: Props) {
               <div className="absolute inset-0 bg-black/70 grid place-items-center">
                 <span className="font-display text-5xl uppercase text-rose-500 rotate-[-8deg] tracking-wider">Cancelled</span>
               </div>
+            )}
+            {heroIsVenueGoogle && (venue as any)?.google_photo_attribution && (
+              <span className="absolute bottom-1.5 right-2.5 text-[11px] text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">
+                {(venue as any).google_photo_attribution} · Google
+              </span>
             )}
           </div>
 
