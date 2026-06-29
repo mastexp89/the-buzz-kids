@@ -5,7 +5,7 @@ import EventCard from "@/components/EventCard";
 import type { EventWithVenue } from "@/lib/types";
 
 type City = { name: string; slug: string };
-type DateFilter = "all" | "weekend" | "week" | "month" | "date";
+type DateFilter = "all" | "today" | "tomorrow" | "weekend" | "week" | "month" | "date";
 
 function startOfDay(d: Date) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
 function endOfDay(d: Date) { const x = new Date(d); x.setHours(23, 59, 59, 999); return x; }
@@ -15,6 +15,11 @@ function rangeFor(filter: DateFilter, picked: string): { start: Date; end: Date 
   const today = new Date();
   const day = today.getDay(); // 0 Sun … 6 Sat
   if (filter === "all") return null;
+  if (filter === "today") return { start: startOfDay(today), end: endOfDay(today) };
+  if (filter === "tomorrow") {
+    const tm = new Date(today); tm.setDate(today.getDate() + 1);
+    return { start: startOfDay(tm), end: endOfDay(tm) };
+  }
   if (filter === "date") {
     if (!picked) return null;
     const d = new Date(picked + "T00:00:00");
@@ -70,6 +75,8 @@ export default function WhatsOnView({ events, cities }: { events: EventWithVenue
           <div className="label mb-2">When</div>
           <div className="flex flex-wrap gap-2 items-center">
             <button onClick={() => { setFilter("all"); }} className={pill(filter === "all")}>Anytime</button>
+            <button onClick={() => { setFilter("today"); }} className={pill(filter === "today")}>Today</button>
+            <button onClick={() => { setFilter("tomorrow"); }} className={pill(filter === "tomorrow")}>Tomorrow</button>
             <button onClick={() => { setFilter("weekend"); }} className={pill(filter === "weekend")}>This weekend</button>
             <button onClick={() => { setFilter("week"); }} className={pill(filter === "week")}>This week</button>
             <button onClick={() => { setFilter("month"); }} className={pill(filter === "month")}>This month</button>
