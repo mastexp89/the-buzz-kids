@@ -33,7 +33,7 @@ export default async function BrowsePage({ searchParams }: Props) {
     const category = tab === "food" ? "food" : "days-out";
     const { data: offerRows } = await supabase
       .from("offers")
-      .select("id, category, title, provider, description, terms, url, scope")
+      .select("*")
       .eq("category", category)
       .eq("approved", true)
       .order("sort_order", { ascending: true });

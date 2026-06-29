@@ -33,6 +33,7 @@ export async function createOffer(formData: FormData): Promise<OfferResult> {
     description: String(formData.get("description") ?? "").trim() || null,
     terms: String(formData.get("terms") ?? "").trim() || null,
     url: String(formData.get("url") ?? "").trim() || null,
+    business_url: String(formData.get("business_url") ?? "").trim() || null,
     scope,
     city_id: scope === "local" ? cityId : null,
   });

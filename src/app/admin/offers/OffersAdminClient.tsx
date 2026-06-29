@@ -128,9 +128,13 @@ export default function OffersAdminClient({ offers, cities }: { offers: Offer[];
           <label className="label">Terms / small print</label>
           <textarea name="terms" className="input min-h-[80px]" maxLength={500} placeholder="Ages, days, minimum spend, branches etc." />
         </div>
-        <div className="sm:col-span-2">
-          <label className="label">Link</label>
-          <input name="url" type="url" className="input" placeholder="https://…" />
+        <div>
+          <label className="label">Offer link <span className="text-buzz-mute font-normal">(where the deal is)</span></label>
+          <input name="url" type="url" className="input" placeholder="https://…/offers" />
+        </div>
+        <div>
+          <label className="label">Business website</label>
+          <input name="business_url" type="url" className="input" placeholder="https://…" />
         </div>
         <div>
           <label className="label">Scope</label>

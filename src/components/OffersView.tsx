@@ -9,8 +9,14 @@ type Offer = {
   description: string | null;
   terms: string | null;
   url: string | null;
+  business_url?: string | null;
   scope: string;
 };
+
+// Trim to a tidy host label for the "visit website" link.
+function host(u: string): string {
+  try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return "website"; }
+}
 
 export default function OffersView({ offers, category }: { offers: Offer[]; category: "food" | "days-out" }) {
   if (offers.length === 0) {
@@ -52,12 +58,19 @@ export default function OffersView({ offers, category }: { offers: Offer[]; cate
                 ℹ️ {o.terms}
               </p>
             )}
-            <div className="mt-auto pt-2 flex items-center justify-between gap-3 flex-wrap">
-              {o.url ? (
-                <Link href={o.url} target="_blank" rel="noreferrer" className="text-sm text-buzz-accent hover:underline font-medium">
-                  View the offer →
-                </Link>
-              ) : <span />}
+            <div className="mt-auto pt-2 flex flex-col gap-2">
+              <div className="flex items-center gap-x-4 gap-y-1 flex-wrap">
+                {o.url && (
+                  <Link href={o.url} target="_blank" rel="noreferrer" className="text-sm text-buzz-accent hover:underline font-medium">
+                    View the offer →
+                  </Link>
+                )}
+                {o.business_url && o.business_url !== o.url && (
+                  <Link href={o.business_url} target="_blank" rel="noreferrer" className="text-sm text-buzz-mute hover:text-buzz-accent">
+                    🌐 {host(o.business_url)}
+                  </Link>
+                )}
+              </div>
               <OfferReportButton offerId={o.id} />
             </div>
           </div>
