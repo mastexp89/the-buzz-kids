@@ -22,6 +22,18 @@ const HOLDING_HTML = `<!doctype html>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>The Buzz Kids — Coming Soon</title>
+  <meta name="description" content="Scotland's new guide to family days out — soft play, farms, museums, holiday clubs and more. Be the first to know when we launch." />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="The Buzz Kids — Coming Soon" />
+  <meta property="og:description" content="Scotland's new guide to family days out. Sign up for early access and exclusive discounts before we launch." />
+  <meta property="og:image" content="__ORIGIN__/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:url" content="__ORIGIN__/" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="The Buzz Kids — Coming Soon" />
+  <meta name="twitter:description" content="Scotland's new guide to family days out. Sign up for early access before we launch." />
+  <meta name="twitter:image" content="__ORIGIN__/og-image.png" />
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -201,7 +213,10 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (process.env.COMING_SOON === "true" && !isBypassPath(pathname)) {
-    return new NextResponse(HOLDING_HTML, {
+    // Absolute URLs for the OG/Twitter tags — Facebook etc. require them.
+    const origin = request.nextUrl.origin;
+    const html = HOLDING_HTML.replaceAll("__ORIGIN__", origin);
+    return new NextResponse(html, {
       headers: { "Content-Type": "text/html; charset=utf-8" },
     });
   }
