@@ -380,7 +380,7 @@ out center tags;
 
 export type BulkAddResult =
   | { error: string }
-  | { ok: true; added: number; skipped: number; createdIds: string[] };
+  | { ok: true; added: number; skipped: number; createdIds: string[]; warning?: string };
 
 /**
  * Create venue rows for the candidates the admin approved. Skips any
@@ -433,6 +433,7 @@ export async function bulkAddDiscoveredVenues(
 
   let added = 0;
   let skipped = 0;
+  let firstInsertError: string | null = null;
   const createdIds: string[] = [];
 
   for (const c of candidates) {
@@ -484,7 +485,12 @@ export async function bulkAddDiscoveredVenues(
         slug = `${baseSlug}-${attempt + 2}`;
         continue;
       }
-      // Non-uniqueness error — record and move on.
+      // Non-uniqueness error — capture the reason (once) so it isn't lost.
+      // Previously this was silently counted as "skipped", which hid a
+      // schema mismatch (missing columns) behind an "added 0" result.
+      if (!firstInsertError && (error as any)?.message) {
+        firstInsertError = (error as any).message;
+      }
       skipped++;
       break;
     }
@@ -492,7 +498,18 @@ export async function bulkAddDiscoveredVenues(
 
   revalidatePath("/admin");
   revalidatePath(`/${citySlug}`);
-  return { ok: true, added, skipped, createdIds };
+
+  // Surface a hard failure loudly: nothing added AND we hit a real DB error.
+  if (added === 0 && firstInsertError) {
+    return { error: `Couldn't add any places — database error: ${firstInsertError}` };
+  }
+  return {
+    ok: true,
+    added,
+    skipped,
+    createdIds,
+    ...(firstInsertError ? { warning: `Some places failed to add: ${firstInsertError}` } : {}),
+  };
 }
 
 // ============================================================
