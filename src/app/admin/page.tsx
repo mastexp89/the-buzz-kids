@@ -40,6 +40,11 @@ export default async function AdminPage({ searchParams }: Props) {
             <span className="font-display text-2xl uppercase mt-1">Add an event</span>
             <span className="text-sm text-buzz-mute">A gala, fayre, holiday club or special day.</span>
           </Link>
+          <Link href="/admin/offers" className="card-hover p-6 lift flex flex-col gap-1">
+            <span className="text-3xl">🎟️</span>
+            <span className="font-display text-2xl uppercase mt-1">Add a deal</span>
+            <span className="text-sm text-buzz-mute">Kids eat free / for £1, or a cheap day out.</span>
+          </Link>
         </div>
       </div>
     );
@@ -331,6 +336,11 @@ export default async function AdminPage({ searchParams }: Props) {
           <div className="card p-6 text-buzz-mute">No approved venues yet.</div>
         )}
       </details>
+
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+        <h2 className="font-display text-2xl uppercase">People</h2>
+        <Link href="/admin/users/new" className="btn-primary">+ Add account</Link>
+      </div>
 
       <details className="mb-12 group">
         <summary className="cursor-pointer list-none flex items-center gap-2 mb-3 hover:text-buzz-accent transition">

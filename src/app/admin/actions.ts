@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { sendAdminEmail } from "@/lib/email";
 import { sendApprovalWelcomeMessage } from "@/lib/welcome-message";
 
@@ -250,6 +251,43 @@ export async function setUserRole(
   }
   const { error } = await supabase.from("profiles").update({ role }).eq("id", userId);
   if (error) return { error: error.message };
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
+// Super-admin: create a user account directly (e.g. to set up an editor /
+// contributor without them having to sign up first). The account is created
+// already-confirmed, so they can log in straight away with the password set.
+export async function createUserAccount(input: {
+  email: string;
+  password: string;
+  displayName?: string;
+  role: "fan" | "editor" | "admin";
+}): Promise<{ ok?: true; error?: string }> {
+  const { ok } = await requireAdmin();
+  if (!ok) return { error: "Not authorised." };
+
+  const email = (input.email ?? "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Enter a valid email address." };
+  if (!input.password || input.password.length < 8) return { error: "Password must be at least 8 characters." };
+  const role = ["fan", "editor", "admin"].includes(input.role) ? input.role : "fan";
+  const displayName = (input.displayName ?? "").trim() || null;
+
+  const svc = createServiceClient();
+  const { data, error } = await svc.auth.admin.createUser({
+    email,
+    password: input.password,
+    email_confirm: true,
+    user_metadata: { display_name: displayName ?? "", account_type: role },
+  });
+  if (error) {
+    if (/already.*registered|exists/i.test(error.message)) return { error: "An account with that email already exists." };
+    return { error: error.message };
+  }
+  // Override the profile with the chosen role + name (the signup trigger may
+  // default these from metadata; make sure they match what was picked here).
+  await svc.from("profiles").upsert({ id: data.user.id, email, display_name: displayName, role });
+
   revalidatePath("/admin");
   return { ok: true };
 }

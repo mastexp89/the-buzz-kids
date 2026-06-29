@@ -11,7 +11,7 @@ type Offer = {
 };
 type City = { id: string; name: string; slug: string };
 
-export default function OffersAdminClient({ offers, cities }: { offers: Offer[]; cities: City[] }) {
+export default function OffersAdminClient({ offers, cities, canManage = true }: { offers: Offer[]; cities: City[]; canManage?: boolean }) {
   const router = useRouter();
   const [scope, setScope] = useState("national");
   const [busy, setBusy] = useState(false);
@@ -158,7 +158,13 @@ export default function OffersAdminClient({ offers, cities }: { offers: Offer[];
         </div>
       </form>
 
-      {pending.length > 0 && (
+      {!canManage && (
+        <p className="text-sm text-buzz-mute">
+          Your deal goes live straight away. Thanks for helping families save a few quid!
+        </p>
+      )}
+
+      {canManage && pending.length > 0 && (
         <div className="mb-8">
           <div className="card p-1 border-buzz-accent/50">
             <div className="px-4 pt-3 pb-1">
@@ -172,8 +178,8 @@ export default function OffersAdminClient({ offers, cities }: { offers: Offer[];
         </div>
       )}
 
-      {list(food, "🍽️ Food deals")}
-      {list(daysOut, "🎟️ Days out")}
+      {canManage && list(food, "🍽️ Food deals")}
+      {canManage && list(daysOut, "🎟️ Days out")}
     </div>
   );
 }

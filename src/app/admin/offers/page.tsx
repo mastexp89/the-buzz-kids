@@ -11,17 +11,21 @@ export default async function OffersAdminPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/admin/offers");
   const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-  if (me?.role !== "admin") {
+  if (me?.role !== "admin" && me?.role !== "editor") {
     return (
       <div className="container-page py-16 text-center">
-        <h1 className="h-display text-3xl mb-2">Admins only</h1>
+        <h1 className="h-display text-3xl mb-2">Staff only</h1>
         <Link href="/admin" className="btn-secondary mt-6 inline-block">Back to admin</Link>
       </div>
     );
   }
+  // Editors can add deals (auto-approved) but not approve/delete others'.
+  const canManage = me?.role === "admin";
 
   const [{ data: offers }, { data: cities }] = await Promise.all([
-    supabase.from("offers").select("*").order("approved").order("category").order("sort_order"),
+    canManage
+      ? supabase.from("offers").select("*").order("approved").order("category").order("sort_order")
+      : Promise.resolve({ data: [] as any[] }),
     supabase.from("cities").select("id, name, slug").order("name"),
   ]);
 
@@ -35,7 +39,7 @@ export default async function OffersAdminPage() {
         deal info only; they don't create place listings. They appear on the
         <strong className="text-buzz-text"> Deals</strong> and <strong className="text-buzz-text">Food</strong> tabs.
       </p>
-      <OffersAdminClient offers={(offers ?? []) as any} cities={(cities ?? []) as any} />
+      <OffersAdminClient offers={(offers ?? []) as any} cities={(cities ?? []) as any} canManage={canManage} />
     </div>
   );
 }

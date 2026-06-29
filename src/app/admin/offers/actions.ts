@@ -12,10 +12,20 @@ async function requireAdmin() {
   return prof?.role === "admin" ? user : null;
 }
 
+// Editors (restricted contributors) can ADD offers (auto-approved) but not
+// approve/delete other people's — those stay super-admin only.
+async function requireContributor() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data: prof } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+  return prof?.role === "admin" || prof?.role === "editor" ? user : null;
+}
+
 export type OfferResult = { ok?: true; error?: string };
 
 export async function createOffer(formData: FormData): Promise<OfferResult> {
-  if (!(await requireAdmin())) return { error: "Admins only." };
+  if (!(await requireContributor())) return { error: "Staff only." };
 
   const category = String(formData.get("category") ?? "");
   if (!["food", "days-out"].includes(category)) return { error: "Pick a category." };
