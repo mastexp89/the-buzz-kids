@@ -6,6 +6,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { revalidatePath } from "next/cache";
 
 async function requireAdmin() {
   const supabase = await createClient();
@@ -15,6 +16,19 @@ async function requireAdmin() {
     .from("profiles").select("role").eq("id", user.id).maybeSingle();
   if (prof?.role !== "admin") return null;
   return { userId: user.id };
+}
+
+// Delete a single event (and its genre/artist join rows via cascade).
+export async function deleteEventAdmin(eventId: string): Promise<{ ok?: true; error?: string }> {
+  const ctx = await requireAdmin();
+  if (!ctx) return { error: "Admins only." };
+  const sb = createServiceClient();
+  await sb.from("event_genres").delete().eq("event_id", eventId);
+  const { error } = await sb.from("events").delete().eq("id", eventId);
+  if (error) return { error: error.message };
+  revalidatePath("/admin/events-manage");
+  revalidatePath("/browse");
+  return { ok: true };
 }
 
 export type EventSearchResult = {
