@@ -43,6 +43,16 @@ export async function createOffer(formData: FormData): Promise<OfferResult> {
   return { ok: true };
 }
 
+export async function approveOffer(id: string): Promise<OfferResult> {
+  if (!(await requireAdmin())) return { error: "Admins only." };
+  const sb = createServiceClient();
+  const { error } = await sb.from("offers").update({ approved: true }).eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/admin/offers");
+  revalidatePath("/browse");
+  return { ok: true };
+}
+
 export async function deleteOffer(id: string): Promise<OfferResult> {
   if (!(await requireAdmin())) return { error: "Admins only." };
   const sb = createServiceClient();

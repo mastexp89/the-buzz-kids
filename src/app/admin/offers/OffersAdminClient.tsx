@@ -2,12 +2,12 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createOffer, deleteOffer } from "./actions";
+import { createOffer, deleteOffer, approveOffer } from "./actions";
 
 type Offer = {
   id: string; category: string; title: string; provider: string | null;
   terms: string | null; url: string | null; scope: string; city_id: string | null; approved: boolean;
-  reports?: number;
+  reports?: number; submitted_email?: string | null;
 };
 type City = { id: string; name: string; slug: string };
 
@@ -16,7 +16,7 @@ export default function OffersAdminClient({ offers, cities }: { offers: Offer[];
   const [scope, setScope] = useState("national");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pending, start] = useTransition();
+  const [busyT, start] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -42,12 +42,25 @@ export default function OffersAdminClient({ offers, cities }: { offers: Offer[];
     });
   }
 
-  const food = offers.filter((o) => o.category === "food");
-  const daysOut = offers.filter((o) => o.category === "days-out");
+  function approve(o: Offer) {
+    setBusyId(o.id);
+    start(async () => {
+      await approveOffer(o.id);
+      setBusyId(null);
+      router.refresh();
+    });
+  }
+
+  const pending = offers.filter((o) => !o.approved);
+  const live = offers.filter((o) => o.approved);
+  const food = live.filter((o) => o.category === "food");
+  const daysOut = live.filter((o) => o.category === "days-out");
 
   const list = (items: Offer[], label: string) => (
-    <div className="mb-6">
-      <h2 className="font-display text-xl uppercase mb-2">{label} <span className="text-buzz-mute text-sm font-normal">({items.length})</span></h2>
+    <div className={label ? "mb-6" : ""}>
+      {label && (
+        <h2 className="font-display text-xl uppercase mb-2">{label} <span className="text-buzz-mute text-sm font-normal">({items.length})</span></h2>
+      )}
       {items.length === 0 ? (
         <div className="card p-5 text-buzz-mute text-sm">None yet.</div>
       ) : (
@@ -68,10 +81,18 @@ export default function OffersAdminClient({ offers, cities }: { offers: Offer[];
                   {o.provider ?? ""}{o.scope === "local" ? " · Local" : " · UK-wide"}
                 </div>
                 {o.terms && <div className="text-xs text-buzz-mute/80 mt-0.5 line-clamp-1">{o.terms}</div>}
+                {o.submitted_email && <div className="text-xs text-buzz-mute/80 mt-0.5">✉️ {o.submitted_email}</div>}
               </div>
-              <button onClick={() => destroy(o)} disabled={pending && busyId === o.id} className="btn-danger text-sm shrink-0">
-                {pending && busyId === o.id ? "…" : "Delete"}
-              </button>
+              <div className="flex gap-2 shrink-0">
+                {!o.approved && (
+                  <button onClick={() => approve(o)} disabled={busyT && busyId === o.id} className="btn-primary text-sm">
+                    {busyT && busyId === o.id ? "…" : "Approve"}
+                  </button>
+                )}
+                <button onClick={() => destroy(o)} disabled={busyT && busyId === o.id} className="btn-danger text-sm">
+                  {busyT && busyId === o.id ? "…" : "Delete"}
+                </button>
+              </div>
             </li>
           ))}
         </ul>
@@ -132,6 +153,20 @@ export default function OffersAdminClient({ offers, cities }: { offers: Offer[];
           <button type="submit" className="btn-primary" disabled={busy}>{busy ? "Adding…" : "Add offer"}</button>
         </div>
       </form>
+
+      {pending.length > 0 && (
+        <div className="mb-8">
+          <div className="card p-1 border-buzz-accent/50">
+            <div className="px-4 pt-3 pb-1">
+              <h2 className="font-display text-xl uppercase text-buzz-accent">
+                🙌 Suggested by visitors <span className="text-buzz-mute text-sm font-normal">({pending.length})</span>
+              </h2>
+              <p className="text-xs text-buzz-mute">Approve to publish, or delete if it's not right.</p>
+            </div>
+            {list(pending, "")}
+          </div>
+        </div>
+      )}
 
       {list(food, "🍽️ Food deals")}
       {list(daysOut, "🎟️ Days out")}

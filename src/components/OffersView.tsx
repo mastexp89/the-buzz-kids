@@ -18,7 +18,8 @@ export default function OffersView({ offers, category }: { offers: Offer[]; cate
       <div className="card p-12 text-center">
         <div className="text-5xl mb-3">{category === "food" ? "🍽️" : "🎟️"}</div>
         <h2 className="h-display text-3xl mb-2">No deals here yet</h2>
-        <p className="text-buzz-mute max-w-md mx-auto">Check back soon — we'll add money-saving deals for families here.</p>
+        <p className="text-buzz-mute max-w-md mx-auto mb-5">Check back soon — we'll add money-saving deals for families here.</p>
+        <Link href="/submit-offer" className="btn-secondary">Know a deal? Tell us →</Link>
       </div>
     );
   }
@@ -61,6 +62,11 @@ export default function OffersView({ offers, category }: { offers: Offer[]; cate
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="mt-8 card p-5 text-center bg-buzz-accent/5 border-buzz-accent/30">
+        <p className="text-sm text-buzz-mute mb-3">Know a deal we've missed? Help other parents out.</p>
+        <Link href="/submit-offer" className="btn-secondary">🙌 Suggest a deal →</Link>
       </div>
     </div>
   );
