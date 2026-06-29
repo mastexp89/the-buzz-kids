@@ -64,6 +64,12 @@ export default function AdminToolGroups({ pendingCount }: { pendingCount: number
           description: "A gala, fayre or special day — attach a place or leave standalone",
         },
         {
+          href: "/admin/paste-event",
+          label: "Paste from Facebook",
+          emoji: "📋",
+          description: "Paste a group post → AI pulls out the event to check & publish",
+        },
+        {
           href: "/admin/quick-import",
           label: "Quick import",
           emoji: "⚡",

@@ -45,6 +45,11 @@ export default async function AdminPage({ searchParams }: Props) {
             <span className="font-display text-2xl uppercase mt-1">Add a deal</span>
             <span className="text-sm text-buzz-mute">Kids eat free / for £1, or a cheap day out.</span>
           </Link>
+          <Link href="/admin/paste-event" className="card-hover p-6 lift flex flex-col gap-1">
+            <span className="text-3xl">📋</span>
+            <span className="font-display text-2xl uppercase mt-1">Paste from Facebook</span>
+            <span className="text-sm text-buzz-mute">Paste a post → we pull out the event for you.</span>
+          </Link>
         </div>
       </div>
     );
