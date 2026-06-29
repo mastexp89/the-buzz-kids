@@ -49,7 +49,8 @@ export default function WhatsOnView({ events, cities }: { events: EventWithVenue
         const end = e.end_time ? new Date(e.end_time) : endOfDay(start);
         // Only upcoming / still-running events.
         if (end < todayStart) return false;
-        if (area && (e.venue as any)?.city?.slug !== area) return false;
+        const evCitySlug = (e.venue as any)?.city?.slug ?? (e as any).city?.slug;
+        if (area && evCitySlug !== area) return false;
         if (range) {
           // Overlap test between the event and the chosen window.
           if (start > range.end || end < range.start) return false;
@@ -112,7 +113,7 @@ export default function WhatsOnView({ events, cities }: { events: EventWithVenue
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {filtered.map((e) => (
-            <EventCard key={e.id} event={e} citySlug={(e.venue as any)?.city?.slug ?? "dundee"} />
+            <EventCard key={e.id} event={e} citySlug={(e.venue as any)?.city?.slug ?? (e as any).city?.slug ?? "dundee"} />
           ))}
         </div>
       )}

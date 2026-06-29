@@ -64,13 +64,17 @@ export default function EventCard({ event, citySlug }: { event: EventWithVenue; 
             </h3>
             <div className="text-sm text-buzz-mute mt-1 flex items-center gap-2 flex-wrap">
               <span>
-                at <span className="text-buzz-text font-medium">{event.venue.name}</span>
+                at <span className="text-buzz-text font-medium">{event.venue?.name ?? (event as any).location_name ?? (event as any).city?.name ?? "TBC"}</span>
                 {(() => {
-                  const town = extractTownFromAddress((event.venue as any).address);
+                  const town = event.venue
+                    ? extractTownFromAddress((event.venue as any).address)
+                    : (event as any).city?.name ?? null;
                   return town ? <span className="text-buzz-mute">, {town}</span> : null;
                 })()}
               </span>
-              <DistancePill lat={(event.venue as any).latitude} lng={(event.venue as any).longitude} />
+              {event.venue && (
+                <DistancePill lat={(event.venue as any).latitude} lng={(event.venue as any).longitude} />
+              )}
             </div>
           </div>
         </div>

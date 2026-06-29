@@ -37,12 +37,18 @@ export default async function BrowsePage({ searchParams }: Props) {
     const nowIso = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
     const { data: eventRows } = await supabase
       .from("events")
-      .select("*, venue:venues!inner(*, city:cities!inner(*)), event_genres(genre:genres(*))")
+      .select("*, venue:venues(*, city:cities(*)), city:cities(*), event_genres(genre:genres(*))")
       .or(`start_time.gte.${nowIso},end_time.gte.${nowIso}`)
       .order("start_time", { ascending: true })
       .limit(300);
     events = (eventRows ?? [])
-      .filter((e: any) => e.venue?.approved && e.venue?.city?.active && (!e.status || e.status === "approved"))
+      .filter((e: any) => {
+        if (e.status && e.status !== "approved") return false;
+        // Attached to a place → that place must be approved + its area live.
+        // Standalone → the event's own area must be live.
+        if (e.venue) return e.venue.approved && e.venue.city?.active;
+        return e.city?.active;
+      })
       .map((e: any) => ({
         ...e,
         genres: (e.event_genres ?? []).map((eg: any) => eg.genre).filter(Boolean),

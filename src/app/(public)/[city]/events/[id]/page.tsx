@@ -17,18 +17,16 @@ type Props = { params: Promise<{ city: string; id: string }> };
 export async function generateMetadata({ params }: Props) {
   const supabase = await createClient();
   const { id, city } = await params;
-  const { data: e } = await supabase.from("events").select("title, venue:venues(name), image_url").eq("id", id).single();
+  const { data: e } = await supabase.from("events").select("title, venue:venues(name), location_name, image_url").eq("id", id).single();
   if (!e) return {};
+  const where = (e.venue as any)?.name ?? (e as any).location_name ?? "near you";
   return {
-    title: `${e.title} — The Buzz Guide`,
-    description: `${e.title} at ${(e.venue as any)?.name}.`,
-    // Canonical: tells Google THIS URL is the authoritative one. Stops
-    // "Duplicate without user-selected canonical" warnings when other
-    // surfaces (referrer-tagged URLs, social share params, etc.) end up
-    // crawled with extra query strings.
+    title: `${e.title} — The Buzz Kids`,
+    description: `${e.title} at ${where}.`,
+    // Canonical: tells Google THIS URL is the authoritative one.
     alternates: { canonical: `/${city}/events/${id}` },
     openGraph: {
-      title: `${e.title} — ${(e.venue as any)?.name}`,
+      title: `${e.title} — ${where}`,
       images: e.image_url ? [e.image_url] : [],
     },
   };
@@ -41,7 +39,8 @@ export default async function EventPage({ params }: Props) {
     .from("events")
     .select(`
       *,
-      venue:venues!inner ( *, city:cities!inner (*) ),
+      venue:venues ( *, city:cities (*) ),
+      city:cities ( * ),
       event_genres ( genre:genres ( * ) ),
       event_artists ( artist:artists ( id, name, slug ) ),
       event_organisers ( organiser:organisers ( id, name, slug, approved ) ),
@@ -51,10 +50,16 @@ export default async function EventPage({ params }: Props) {
     .single();
 
   if (!event) notFound();
-  if ((event.venue as any).city.slug !== citySlug) notFound();
-  if (!(event.venue as any).approved) notFound();
-  // Hide pending/rejected gigs from the public event detail page
+  // Venue is optional — a town-wide event can stand alone with just a
+  // location_name + city. Fall back to the event's own city when unattached.
+  const venue = (event.venue as any) || null;
+  const eventCity = venue?.city ?? (event as any).city ?? null;
+  if (!eventCity || eventCity.slug !== citySlug) notFound();
+  if (venue && !venue.approved) notFound();
+  // Hide pending/rejected events from the public detail page
   if (event.status && event.status !== "approved") notFound();
+  // Human label for the location, whether attached to a venue or not.
+  const placeName: string = venue?.name ?? (event as any).location_name ?? eventCity.name;
 
   trackPageView({ eventId: event.id, venueId: (event.venue as any)?.id, source: "event_page" });
 
@@ -63,7 +68,6 @@ export default async function EventPage({ params }: Props) {
   const { data: { user: viewer } } = await supabase.auth.getUser();
   const eventFavourited = viewer ? await isFavourited("event", event.id) : false;
 
-  const venue = event.venue as any;
   const genres = (event.event_genres ?? []).map((eg: any) => eg.genre).filter(Boolean);
   const artists = (event.event_artists ?? []).map((ea: any) => ea.artist).filter(Boolean);
   // Only show organisers whose page has been approved by admin (otherwise we'd
@@ -91,21 +95,21 @@ export default async function EventPage({ params }: Props) {
   // venue logo → site logo.
   const schemaImage =
     event.image_url ||
-    (venue as any).cover_photo_url ||
-    (venue as any).logo_url ||
+    venue?.cover_photo_url ||
+    venue?.logo_url ||
     `${siteUrl}/logo.png`;
   // Performer always populated. Tagged artists if any, otherwise the
-  // venue itself as a PerformingGroup — better than omitting for events
-  // without specific acts (residencies, drinks nights, comedy).
+  // place itself as a PerformingGroup — better than omitting for events
+  // without specific acts.
   const schemaPerformer =
     artists.length > 0
       ? artists.map((a: any) => ({ "@type": "MusicGroup", name: a.name }))
-      : [{ "@type": "PerformingGroup", name: venue.name }];
+      : [{ "@type": "PerformingGroup", name: placeName }];
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "ChildrensEvent",
     name: event.title,
-    description: event.description ?? `${event.title} at ${venue.name}`,
+    description: event.description ?? `${event.title} at ${placeName}`,
     startDate: event.start_time,
     endDate: event.end_time ?? endDateFallback,
     eventStatus: event.cancelled ? "https://schema.org/EventCancelled" : "https://schema.org/EventScheduled",
@@ -115,8 +119,8 @@ export default async function EventPage({ params }: Props) {
     performer: schemaPerformer,
     organizer: {
       "@type": "Organization",
-      name: venue.name,
-      url: venue.slug ? `${siteUrl}/${citySlug}/venues/${venue.slug}` : siteUrl,
+      name: placeName,
+      url: venue?.slug ? `${siteUrl}/${citySlug}/venues/${venue.slug}` : siteUrl,
     },
     offers: {
       "@type": "Offer",
@@ -128,12 +132,12 @@ export default async function EventPage({ params }: Props) {
     },
     location: {
       "@type": "Place",
-      name: venue.name,
+      name: placeName,
       address: {
         "@type": "PostalAddress",
-        streetAddress: venue.address ?? undefined,
-        postalCode: venue.postcode ?? undefined,
-        addressLocality: venue.city?.name ?? undefined,
+        streetAddress: venue?.address ?? undefined,
+        postalCode: venue?.postcode ?? undefined,
+        addressLocality: eventCity?.name ?? undefined,
         addressCountry: "GB",
       },
     },
@@ -142,10 +146,10 @@ export default async function EventPage({ params }: Props) {
   return (
     <div>
       <AdminEditBar
-        editHref={`/dashboard/venues/${(event.venue as any).id}/events/${event.id}/edit`}
-        label="Edit gig"
+        editHref={`/dashboard/events/${event.id}/edit`}
+        label="Edit event"
         extraLinks={[
-          { href: `/dashboard/venues/${(event.venue as any).id}`, label: "Venue dashboard" },
+          ...(venue ? [{ href: `/dashboard/venues/${venue.id}`, label: "Place dashboard" }] : []),
           { href: `/admin/events?q=${encodeURIComponent(event.title.slice(0, 30))}`, label: "🔎 All events" },
         ]}
       />
@@ -161,7 +165,7 @@ export default async function EventPage({ params }: Props) {
 
       <div className="container-page py-8 sm:py-12 max-w-5xl">
         <Link href={`/${citySlug}`} className="inline-flex items-center gap-1 text-sm text-buzz-mute hover:text-buzz-accent transition mb-6">
-          ← Back to {venue.city.name}
+          ← Back to {eventCity.name}
         </Link>
 
         {/* Festival affiliation banner — only renders when this event is
@@ -174,7 +178,7 @@ export default async function EventPage({ params }: Props) {
             <EventHeroImage
               imageUrl={heroPhoto}
               title={event.title}
-              venueName={venue.name}
+              venueName={placeName}
               fallbackIcon={fallbackIcon}
             />
             {event.cancelled && (
@@ -207,14 +211,18 @@ export default async function EventPage({ params }: Props) {
 
             <div className="text-lg">
               <span className="text-buzz-mute">at </span>
-              <Link href={`/${citySlug}/venues/${venue.slug}`} className="text-buzz-accent hover:text-buzz-accent2 font-semibold">
-                {venue.name}
-              </Link>
+              {venue ? (
+                <Link href={`/${citySlug}/venues/${venue.slug}`} className="text-buzz-accent hover:text-buzz-accent2 font-semibold">
+                  {venue.name}
+                </Link>
+              ) : (
+                <span className="font-semibold text-buzz-text">{placeName}</span>
+              )}
             </div>
 
-            {venue.address && (
+            {(venue?.address || (event as any).location_name) && (
               <div className="text-sm text-buzz-mute">
-                📍 {venue.address}{venue.postcode ? `, ${venue.postcode}` : ""}
+                📍 {venue?.address ? `${venue.address}${venue.postcode ? `, ${venue.postcode}` : ""}` : (event as any).location_name}
               </div>
             )}
 
@@ -273,7 +281,9 @@ export default async function EventPage({ params }: Props) {
                 <a href={event.ticket_url} target="_blank" rel="noreferrer" className="btn-primary btn-lg">Get tickets →</a>
               )}
               <a href={`/api/calendar/${event.id}`} className="btn-secondary btn-lg">📅 Add to calendar</a>
-              <Link href={`/${citySlug}/venues/${venue.slug}`} className="btn-secondary btn-lg">Venue info</Link>
+              {venue && (
+                <Link href={`/${citySlug}/venues/${venue.slug}`} className="btn-secondary btn-lg">Place info</Link>
+              )}
               <FavouriteButton
                 targetType="event"
                 targetId={event.id}
@@ -283,7 +293,7 @@ export default async function EventPage({ params }: Props) {
             </div>
 
             <div className="pt-3 border-t border-buzz-border/50">
-              <ShareButtons url={`${siteUrl}/${citySlug}/events/${event.id}`} title={`${event.title} at ${venue.name}`} />
+              <ShareButtons url={`${siteUrl}/${citySlug}/events/${event.id}`} title={`${event.title} at ${placeName}`} />
             </div>
 
             {/* Admin-only widget — renders nothing for non-admins. */}
