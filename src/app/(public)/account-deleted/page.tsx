@@ -11,8 +11,8 @@ export default function AccountDeletedPage() {
       <div className="text-6xl mb-4">🗑️</div>
       <h1 className="h-display text-4xl sm:text-5xl mb-3">Account deleted</h1>
       <p className="text-buzz-mute mb-8">
-        Your account, profile, venues, gigs and uploaded media have been permanently
-        removed from The Buzz Guide. Stripe transaction records (if any) are retained for
+        Your account, profile, places, events and uploaded media have been permanently
+        removed from The Buzz Kids. Stripe transaction records (if any) are retained for
         legal compliance — see our{" "}
         <Link href="/delete-account" className="text-buzz-accent hover:text-buzz-accent2">
           deletion policy
@@ -20,7 +20,7 @@ export default function AccountDeletedPage() {
         for details.
       </p>
       <p className="text-buzz-mute mb-8">
-        Thank you for using The Buzz Guide.
+        Thank you for using The Buzz Kids.
       </p>
       <div className="flex gap-3 justify-center flex-wrap">
         <Link href="/" className="btn-primary">Back to home</Link>

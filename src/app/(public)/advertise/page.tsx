@@ -44,27 +44,27 @@ export default function AdvertisePage() {
       {/* Options */}
       <div className="grid sm:grid-cols-2 gap-5 mb-8">
         <div className="card p-6">
-          <p className="eyebrow mb-2">Sponsored gigs</p>
-          <h3 className="h-display text-2xl mb-2">Pin a venue's gig.</h3>
+          <p className="eyebrow mb-2">Spotlighted places</p>
+          <h3 className="h-display text-2xl mb-2">Pin your place.</h3>
           <p className="text-sm text-buzz-mute">
-            Lock a featured spot at the top of `/dundee` for a week. Best for promoters with a big
-            night to push.
+            Lock a featured spot at the top of your area for a week. Best for an attraction or
+            activity with something to push.
           </p>
         </div>
         <div className="card p-6">
           <p className="eyebrow mb-2">Banner placements</p>
           <h3 className="h-display text-2xl mb-2">Across the site.</h3>
           <p className="text-sm text-buzz-mute">
-            Tasteful native ads on the home page, city pages and event pages. Targeted by genre
-            or by venue if you want.
+            Tasteful native ads on the home page, area pages and place pages. Targeted by activity
+            type or by area if you want.
           </p>
         </div>
         <div className="card p-6">
           <p className="eyebrow mb-2">Sponsored content</p>
           <h3 className="h-display text-2xl mb-2">Branded picks.</h3>
           <p className="text-sm text-buzz-mute">
-            "Brewery X presents — three gigs to try this weekend." Editorial feel, clearly marked
-            as sponsored.
+            "Brand X presents — three family days out to try this weekend." Editorial feel, clearly
+            marked as sponsored.
           </p>
         </div>
         <div className="card p-6">

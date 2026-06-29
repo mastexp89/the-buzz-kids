@@ -71,7 +71,7 @@ function Bubble({ message }: { message: Message }) {
       >
         <div className="whitespace-pre-line text-sm leading-relaxed">{message.body}</div>
         <div className={`text-[10px] mt-1 ${fromThem ? "text-buzz-mute" : "text-black/60"}`}>
-          {fromThem ? "The Buzz Guide" : "You"} ·{" "}
+          {fromThem ? "The Buzz Kids" : "You"} ·{" "}
           {new Date(message.created_at).toLocaleString("en-GB", {
             day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
           })}

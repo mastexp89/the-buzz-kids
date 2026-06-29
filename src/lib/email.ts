@@ -186,15 +186,15 @@ export function notifyVenueSuggestion(opts: {
   submitterContact: string | null;
 }) {
   return sendBrandedEmail({
-    subject: `Venue suggestion: ${opts.venueName}`,
-    preheader: `An artist submitted a gig at ${opts.venueName}.`,
+    subject: `Place suggestion: ${opts.venueName}`,
+    preheader: `Someone submitted an event at ${opts.venueName}.`,
     blocks: [
-      { kind: "h", text: "Venue suggestion" },
-      { kind: "p", text: "An artist submitted a gig at a venue that isn't on The Buzz Guide yet." },
+      { kind: "h", text: "Place suggestion" },
+      { kind: "p", text: "Someone submitted an event at a place that isn't on The Buzz Kids yet." },
       { kind: "kv", pairs: [
-        ["Venue", opts.venueName],
-        ["City", opts.cityName ?? "—"],
-        ["Gig", opts.gigTitle ?? "—"],
+        ["Place", opts.venueName],
+        ["Area", opts.cityName ?? "—"],
+        ["Event", opts.gigTitle ?? "—"],
         ["Submitted by", opts.submitterEmail ?? "—"],
         ["Their contact", opts.submitterContact ?? "—"],
       ]},
@@ -212,19 +212,19 @@ export function notifyPendingGig(opts: {
   venueId: string;
 }) {
   return sendBrandedEmail({
-    subject: `Pending gig at ${opts.venueName}`,
-    preheader: `${opts.gigTitle} needs the venue owner's approval.`,
+    subject: `Pending event at ${opts.venueName}`,
+    preheader: `${opts.gigTitle} needs the place owner's approval.`,
     blocks: [
-      { kind: "h", text: "New pending gig" },
-      { kind: "p", text: "An artist submitted a gig that needs the venue owner's approval." },
+      { kind: "h", text: "New pending event" },
+      { kind: "p", text: "Someone submitted an event that needs the place owner's approval." },
       { kind: "kv", pairs: [
-        ["Venue", opts.venueName],
-        ["Venue owner", opts.venueOwnerEmail ?? "—"],
-        ["Gig", opts.gigTitle],
+        ["Place", opts.venueName],
+        ["Place owner", opts.venueOwnerEmail ?? "—"],
+        ["Event", opts.gigTitle],
         ["When", opts.startTime ?? "—"],
         ["Submitted by", opts.submitterEmail ?? "—"],
       ]},
-      { kind: "button", href: `${SITE}/dashboard/venues/${opts.venueId}`, text: "Open venue dashboard" },
+      { kind: "button", href: `${SITE}/dashboard/venues/${opts.venueId}`, text: "Open place dashboard" },
     ],
   });
 }
@@ -289,7 +289,7 @@ export function notifyClaimApproved(opts: {
     blocks: [
       { kind: "h", text: "Claim approved" },
       { kind: "p", text: `Good news — your claim on ${opts.venueName} has been approved.` },
-      { kind: "p", text: "You can now manage gigs, photos and venue details from your dashboard." },
+      { kind: "p", text: "You can now manage events, photos and place details from your dashboard." },
       { kind: "button", href: `${SITE}/dashboard/venues/${opts.venueId}`, text: "Open my dashboard" },
       { kind: "small", text: `Public page: ${SITE}/${opts.citySlug}/venues/${opts.venueSlug}` },
       { kind: "small", text: "Any questions? Just reply to this email." },
@@ -400,13 +400,13 @@ export function notifyVenueOwnerOfPendingGig(opts: {
   return sendBrandedEmail({
     to: opts.venueOwnerEmail,
     replyTo: adminEmail,
-    subject: `Approve a gig at ${opts.venueName}`,
+    subject: `Approve an event at ${opts.venueName}`,
     preheader: `${opts.gigTitle} is waiting for your approval.`,
     blocks: [
-      { kind: "h", text: "Gig waiting for approval" },
-      { kind: "p", text: `An artist has submitted a gig at ${opts.venueName} for your approval.` },
+      { kind: "h", text: "Event waiting for approval" },
+      { kind: "p", text: `Someone has submitted an event at ${opts.venueName} for your approval.` },
       { kind: "kv", pairs: [
-        ["Gig", opts.gigTitle],
+        ["Event", opts.gigTitle],
         ["When", opts.startTime ?? "—"],
       ]},
       { kind: "button", href: `${SITE}/dashboard/venues/${opts.venueId}`, text: "Approve in dashboard" },

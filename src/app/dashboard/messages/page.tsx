@@ -18,7 +18,7 @@ export default async function DashboardMessagesPage() {
   return (
     <div className="max-w-3xl">
       <p className="eyebrow mb-1">Your messages</p>
-      <h1 className="h-display text-4xl mb-2">📬 Talk to The Buzz Guide</h1>
+      <h1 className="h-display text-4xl mb-2">📬 Talk to The Buzz Kids</h1>
       <p className="text-buzz-mute mb-6 max-w-xl">
         Need help, want to claim something, or got feedback? Drop us a message — we usually reply within a day.
       </p>

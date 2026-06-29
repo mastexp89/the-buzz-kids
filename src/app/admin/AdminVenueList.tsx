@@ -59,7 +59,7 @@ export default function AdminVenueList({
 
     if (action === "delete") {
       const ok = confirm(
-        `Permanently delete ${ids.length} venue${ids.length === 1 ? "" : "s"} and all of their gigs?\n\n` +
+        `Permanently delete ${ids.length} place${ids.length === 1 ? "" : "s"} and all of their events?\n\n` +
           `This cannot be undone.`,
       );
       if (!ok) return;

@@ -118,7 +118,7 @@ export default async function CityMapPage({ params, searchParams }: Props) {
               </>
             ) : (
               <>
-                {withCoords.length} venue{withCoords.length === 1 ? "" : "s"} with gigs in {activeLabel.toLowerCase()}
+                {withCoords.length} place{withCoords.length === 1 ? "" : "s"} with events in {activeLabel.toLowerCase()}
                 {totalCity > totalWithGigs && (
                   <> · {totalCity - totalWithGigs} quiet today</>
                 )}

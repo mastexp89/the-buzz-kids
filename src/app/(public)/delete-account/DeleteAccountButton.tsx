@@ -69,7 +69,7 @@ export default function DeleteAccountButton({
         <p className="text-rose-300 font-semibold mb-1">Delete this account</p>
         <p className="text-sm text-buzz-text/80 mb-3">
           Signed in as <strong>{userEmail}</strong>. Deleting your account will
-          permanently remove your profile, venues, gigs and uploads. This
+          permanently remove your profile, places, events and uploads. This
           cannot be undone.
         </p>
         <button

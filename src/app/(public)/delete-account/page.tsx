@@ -81,8 +81,8 @@ export default async function DeleteAccountPage() {
               </li>
             </ol>
             <p className="mt-3">
-              Your account is deactivated immediately and your profile, venues,
-              gigs and uploads are removed from our database within 30 days.
+              Your account is deactivated immediately and your profile, places,
+              events and uploads are removed from our database within 30 days.
             </p>
           </section>
         )}
@@ -114,13 +114,13 @@ export default async function DeleteAccountPage() {
           <ul className="list-disc pl-6 space-y-2 mt-2">
             <li>Your profile (email, display name, role).</li>
             <li>
-              Any venues you own, plus their address, opening hours, social
+              Any places you own, plus their address, opening hours, social
               links and uploaded photos.
             </li>
             <li>
-              All gigs you have created, including posters and tagged artists.
+              All events you have created, including posters.
             </li>
-            <li>Any artist page automatically created for you.</li>
+            <li>Any listings automatically created for you.</li>
             <li>Your authentication record with our auth provider, Supabase.</li>
           </ul>
         </section>
@@ -132,18 +132,17 @@ export default async function DeleteAccountPage() {
           <ul className="list-disc pl-6 space-y-2 mt-2">
             <li>
               <strong>Stripe transaction records</strong> — payment records for
-              any venue subscription or promotion you purchased are retained by
+              any place subscription or promotion you purchased are retained by
               Stripe for the period required by UK financial regulations
               (typically 6 years). We retain only the Stripe transaction
               reference, the amount and the subscription status — not your card
               details.
             </li>
             <li>
-              <strong>Anonymised event data</strong> — past gigs that took place
+              <strong>Anonymised listings</strong> — places and events created
               before your account was deleted may remain visible as historical
-              listings, with your venue or artist name replaced by "Removed
-              venue" / "Removed artist". This is so historical search results
-              and bookmarks do not break.
+              listings, with your name replaced by "Removed". This is so
+              historical search results and bookmarks do not break.
             </li>
             <li>
               <strong>Server logs</strong> — generic web server logs (IP
