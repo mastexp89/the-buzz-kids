@@ -7,12 +7,21 @@ import { createEvent, updateEvent, deleteEvent, duplicateEvent, repeatEvent } fr
 import ImageUploader from "@/components/ImageUploader";
 import ArtistTagger, { type ArtistTag } from "@/components/ArtistTagger";
 
+// Pre-fill the <datetime-local> with the UK (Europe/London) wall-clock,
+// explicitly — not the machine timezone — so the value is identical whether
+// this renders on the server (UTC) or the client, and matches what the
+// server action parses back. (Stops 1pm showing as 12pm and round-tripping wrong.)
 function toLocalInput(iso: string | null | undefined): string {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London", hour12: false,
+    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
+  }).formatToParts(d);
+  const g = (t: string) => parts.find((p) => p.type === t)!.value;
+  const hour = g("hour") === "24" ? "00" : g("hour");
+  return `${g("year")}-${g("month")}-${g("day")}T${hour}:${g("minute")}`;
 }
 
 export default function EventForm({

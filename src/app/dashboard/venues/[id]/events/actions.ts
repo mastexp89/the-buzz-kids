@@ -37,11 +37,32 @@ async function resolveArtistNames(
   return ids;
 }
 
+// A <input type="datetime-local"> value ("2026-07-05T13:00") is a UK wall-clock
+// time. Plain `new Date(s)` parses it in the SERVER's timezone (UTC on Vercel),
+// so 1pm got stored as 1pm UTC and then displayed as 2pm BST. Convert it as
+// Europe/London → correct UTC instant, DST-exact (no offset guessing).
 function parseDateTimeLocal(s: string): string | null {
   if (!s) return null;
-  const d = new Date(s);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toISOString();
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(s);
+  if (!m) {
+    const d = new Date(s);
+    return Number.isNaN(d.getTime()) ? null : d.toISOString();
+  }
+  const [, y, mo, d, h, mi] = m.map(Number) as unknown as number[];
+  const wantUtc = Date.UTC(y, mo - 1, d, h, mi);
+  let utcMs = wantUtc;
+  for (let i = 0; i < 3; i++) {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/London", hour12: false,
+      year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
+    }).formatToParts(new Date(utcMs));
+    const g = (t: string) => Number(parts.find((p) => p.type === t)!.value);
+    const londonAsUtc = Date.UTC(g("year"), g("month") - 1, g("day"), g("hour") === 24 ? 0 : g("hour"), g("minute"));
+    const diff = wantUtc - londonAsUtc;
+    if (diff === 0) break;
+    utcMs += diff;
+  }
+  return new Date(utcMs).toISOString();
 }
 
 async function isAdmin(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {

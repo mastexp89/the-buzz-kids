@@ -130,6 +130,21 @@ function londonYmdOffset(days: number): string {
 
 export function formatEventTime(iso: string, endIso?: string | null): string {
   const p = londonParts(iso);
+
+  // Multi-day event (ends on a different day) → show a date range like
+  // "Sun 5th – Sun 12th Jul", not a single day's start/end times.
+  if (endIso) {
+    const pe = londonParts(endIso);
+    if (pe.ymd !== p.ymd && pe.ymd > p.ymd) {
+      const shortMonth = (i: string) =>
+        new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", month: "short" }).format(parseISO(i));
+      const sm = shortMonth(iso), em = shortMonth(endIso);
+      const left = `${p.weekday.slice(0, 3)} ${p.day}${ordinal(p.day)}${sm !== em ? ` ${sm}` : ""}`;
+      const right = `${pe.weekday.slice(0, 3)} ${pe.day}${ordinal(pe.day)} ${em}`;
+      return `${left} – ${right}`;
+    }
+  }
+
   const startTime = formatLondonTime(iso);
   const endTime = endIso ? formatLondonTime(endIso) : null;
   const timeRange = endTime ? `${startTime} – ${endTime}` : startTime;
