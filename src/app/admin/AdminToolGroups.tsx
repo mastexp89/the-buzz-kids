@@ -58,6 +58,12 @@ export default function AdminToolGroups({ pendingCount }: { pendingCount: number
       title: "Add sessions",
       tools: [
         {
+          href: "/admin/events/new",
+          label: "Add event",
+          emoji: "🎉",
+          description: "A gala, fayre or special day — attach a place or leave standalone",
+        },
+        {
           href: "/admin/quick-import",
           label: "Quick import",
           emoji: "⚡",
