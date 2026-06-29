@@ -192,10 +192,18 @@ export default async function VenuePage({ params }: Props) {
         )}
 
         {heroPhoto && (
-          <div
-            className="mt-6 relative h-56 sm:h-80 rounded-2xl overflow-hidden border border-buzz-border bg-buzz-surface"
-            style={{ backgroundImage: `url(${heroPhoto})`, backgroundSize: "cover", backgroundPosition: "center" }}
-          >
+          <div className="mt-6 relative h-56 sm:h-80 rounded-2xl overflow-hidden border border-buzz-border bg-buzz-surface">
+            {/* Blurred fill so any photo shape sits nicely… */}
+            <div
+              className="absolute inset-0 scale-110"
+              style={{ backgroundImage: `url(${heroPhoto})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(20px)", opacity: 0.55 }}
+            />
+            {/* …with the whole photo shown sharp on top (no cropping). */}
+            <img
+              src={heroPhoto}
+              alt={venue.name}
+              className="relative h-full w-full object-contain"
+            />
             {heroIsGoogle && (venue as any).google_photo_attribution && (
               <span className="absolute bottom-1.5 right-2.5 text-[11px] text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">
                 {(venue as any).google_photo_attribution} · Google

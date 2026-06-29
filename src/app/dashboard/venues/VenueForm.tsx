@@ -274,9 +274,9 @@ export default function VenueForm({
       </div>
 
       <div className="sm:col-span-2 border-t border-buzz-border/60 pt-5 mt-2">
-        <label className="label">Photos of the venue</label>
+        <label className="label">Photos of your place</label>
         <p className="help mb-3">
-          Show off the inside, the stage, the bar, the layout. Up to 10 photos.
+          Show off the play areas, the activities and what families can expect. Up to 10 photos.
         </p>
         <GalleryUploader initial={gallery} onChange={setGallery} folder="venues" max={10} />
       </div>
