@@ -12,7 +12,7 @@ create table if not exists public.offers (
   id          uuid primary key default gen_random_uuid(),
   category    text not null check (category in ('food', 'days-out')),
   title       text not null,
-  provider    text,                 -- the business / chain (e.g. "Asda Café")
+  provider    text,                 -- the business / chain (e.g. "Asda Cafe")
   description text,
   terms       text,                 -- the small print, in plain English
   url         text,                 -- where to find / claim it
@@ -39,10 +39,10 @@ create policy offers_admin_write on public.offers for all
 
 -- ---------- Seed: reliable, year-round national deals ----------
 insert into public.offers (category, title, provider, description, terms, url, scope, sort_order) values
-  ('food', 'Kids eat for £1 at Asda Café', 'Asda Café', 'A hot kids'' meal for £1 when you dine in.', '16 and under. Dine in only, all day, every day. No minimum spend and no adult meal required.', 'https://www.asda.com/george/asda-cafe', 'national', 10),
-  ('food', 'Kids'' meal free at Morrisons Café', 'Morrisons Café', 'A free kids'' meal with every adult main meal.', 'One free kids'' meal with each adult main meal costing £5 or more. Available all day, every day.', 'https://my.morrisons.com/cafe/', 'national', 20),
-  ('food', 'Kids eat for £1 at Sainsbury''s Café', 'Sainsbury''s Café', 'A kids'' hot meal or lunch bag for £1 with an adult main.', 'One £1 kids'' hot meal or lunch bag with each adult hot main meal purchased.', 'https://www.sainsburys.co.uk/cafe', 'national', 30),
-  ('food', 'Kids eat free at Tesco Café', 'Tesco Café', 'A free kids'' meal with any adult café purchase.', 'Clubcard members. One free kids'' meal with any adult item bought in café, Monday to Friday.', 'https://www.tesco.com/zones/cafe', 'national', 40),
+  ('food', 'Kids eat for £1 at Asda Cafe', 'Asda Cafe', 'A hot kids'' meal for £1 when you dine in.', '16 and under. Dine in only, all day, every day. No minimum spend and no adult meal required.', 'https://www.asda.com/george/asda-cafe', 'national', 10),
+  ('food', 'Kids'' meal free at Morrisons Cafe', 'Morrisons Cafe', 'A free kids'' meal with every adult main meal.', 'One free kids'' meal with each adult main meal costing £5 or more. Available all day, every day.', 'https://my.morrisons.com/cafe/', 'national', 20),
+  ('food', 'Kids eat for £1 at Sainsbury''s Cafe', 'Sainsbury''s Cafe', 'A kids'' hot meal or lunch bag for £1 with an adult main.', 'One £1 kids'' hot meal or lunch bag with each adult hot main meal purchased.', 'https://www.sainsburys.co.uk/cafe', 'national', 30),
+  ('food', 'Kids eat free at Tesco Cafe', 'Tesco Cafe', 'A free kids'' meal with any adult cafe purchase.', 'Clubcard members. One free kids'' meal with any adult item bought in cafe, Monday to Friday.', 'https://www.tesco.com/zones/cafe', 'national', 40),
   ('food', 'Kids'' main for £1 at Sizzling Pubs', 'Sizzling Pubs', 'A kids'' main meal for £1 with an adult meal.', 'One £1 kids'' main with each adult meal, Monday to Friday from 12pm.', 'https://www.sizzlingpubs.co.uk/', 'national', 50),
   ('food', 'Kids eat for £1 at Marston''s', 'Marston''s', 'Kids'' meals for £1 during the school holidays.', 'One £1 kids'' meal with an adult main meal during Scottish school holidays. Selected pubs.', 'https://www.marstons.co.uk/', 'national', 60),
   ('food', 'Kids eat free at Pizza Hut', 'Pizza Hut Restaurants', 'A free kids'' meal when you spend on other food.', 'One free kids'' meal when you spend £9.99 or more on other food, all day, every day.', 'https://www.pizzahut.co.uk/restaurants/', 'national', 70),
