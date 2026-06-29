@@ -7,8 +7,9 @@ import { setUserRole } from "./actions";
 
 function roleLabel(role: string): string {
   switch (role) {
-    case "admin": return "admin";
-    case "venue_owner": return "venue";
+    case "admin": return "super admin";
+    case "editor": return "editor";
+    case "venue_owner": return "place owner";
     case "artist": return "artist";
     case "event_organiser": return "organiser";
     case "user": return "user";
@@ -29,15 +30,23 @@ export default function AdminUserRow({
   const [busy, start] = useTransition();
 
   function promote() {
-    if (!confirm(`Make ${user.email} an admin? They'll be able to approve venues and manage other admins.`)) return;
+    if (!confirm(`Make ${user.email} a SUPER ADMIN? They'll be able to do everything — approvals, users, deletes, settings.`)) return;
     start(async () => {
       await setUserRole(user.id, "admin");
       router.refresh();
     });
   }
 
+  function makeEditor() {
+    if (!confirm(`Make ${user.email} an EDITOR? They can add places and events (auto-approved) and nothing else.`)) return;
+    start(async () => {
+      await setUserRole(user.id, "editor");
+      router.refresh();
+    });
+  }
+
   function demote() {
-    if (!confirm(`Remove admin from ${user.email}?`)) return;
+    if (!confirm(`Remove staff role from ${user.email}?`)) return;
     start(async () => {
       await setUserRole(user.id, "venue_owner");
       router.refresh();
@@ -77,10 +86,16 @@ export default function AdminUserRow({
           <button onClick={demote} disabled={busy || isCurrentUser} className="btn-secondary">
             {busy ? "…" : "Remove admin"}
           </button>
+        ) : user.role === "editor" ? (
+          <>
+            <button onClick={promote} disabled={busy} className="btn-secondary">{busy ? "…" : "Make super admin"}</button>
+            <button onClick={demote} disabled={busy} className="btn-secondary">{busy ? "…" : "Remove editor"}</button>
+          </>
         ) : (
-          <button onClick={promote} disabled={busy} className="btn-primary">
-            {busy ? "…" : "Make admin"}
-          </button>
+          <>
+            <button onClick={makeEditor} disabled={busy} className="btn-secondary">{busy ? "…" : "Make editor"}</button>
+            <button onClick={promote} disabled={busy} className="btn-primary">{busy ? "…" : "Make super admin"}</button>
+          </>
         )}
       </div>
     </li>

@@ -39,12 +39,13 @@ async function requireAdmin() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
   const { data: prof } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-  return prof?.role === "admin" ? user : null;
+  // Editors (restricted contributors) can add events too — auto-approved.
+  return prof?.role === "admin" || prof?.role === "editor" ? user : null;
 }
 
 export async function createEvent(formData: FormData): Promise<CreateEventResult> {
   const admin = await requireAdmin();
-  if (!admin) return { error: "Admins only." };
+  if (!admin) return { error: "Staff only." };
 
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return { error: "Give the event a title." };

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { canContribute } from "@/lib/roles";
 import NewVenueForm from "./NewVenueForm";
 
 export const dynamic = "force-dynamic";
@@ -12,10 +13,10 @@ export default async function NewVenuePage() {
   if (!user) redirect("/login");
   const { data: me } = await supabase
     .from("profiles").select("role").eq("id", user.id).maybeSingle();
-  if (me?.role !== "admin") {
+  if (!canContribute(me?.role)) {
     return (
       <div className="container-page py-16 text-center">
-        <h1 className="h-display text-3xl mb-2">Admins only</h1>
+        <h1 className="h-display text-3xl mb-2">Staff only</h1>
         <Link href="/dashboard" className="btn-secondary mt-6 inline-block">Back to dashboard</Link>
       </div>
     );

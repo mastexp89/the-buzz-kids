@@ -22,7 +22,8 @@ async function requireAdmin() {
   if (!user) return null;
   const { data: prof } = await supabase
     .from("profiles").select("role").eq("id", user.id).maybeSingle();
-  if (prof?.role !== "admin") return null;
+  // Editors (restricted contributors) can add places too — auto-approved.
+  if (prof?.role !== "admin" && prof?.role !== "editor") return null;
   return { userId: user.id };
 }
 

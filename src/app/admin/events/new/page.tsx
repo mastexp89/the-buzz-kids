@@ -11,11 +11,11 @@ export default async function AddEventPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/admin/events/new");
   const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-  if (me?.role !== "admin") {
+  if (me?.role !== "admin" && me?.role !== "editor") {
     return (
       <div className="container-page py-16 text-center">
-        <h1 className="h-display text-3xl mb-2">Admins only</h1>
-        <Link href="/admin" className="btn-secondary mt-6 inline-block">Back to admin</Link>
+        <h1 className="h-display text-3xl mb-2">Staff only</h1>
+        <Link href="/dashboard" className="btn-secondary mt-6 inline-block">Back to dashboard</Link>
       </div>
     );
   }

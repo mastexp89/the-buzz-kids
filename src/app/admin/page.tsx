@@ -17,6 +17,33 @@ export default async function AdminPage({ searchParams }: Props) {
   if (!user) redirect("/login");
 
   const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  // Editors are restricted contributors: they can only add places and events
+  // (auto-approved). Show them a simple home with just those two actions —
+  // not the full Control Room.
+  if (me?.role === "editor") {
+    return (
+      <div className="container-page py-12 max-w-3xl">
+        <p className="eyebrow mb-1">Contributor</p>
+        <h1 className="h-display text-4xl sm:text-5xl mb-2">Add to The Buzz Kids</h1>
+        <p className="text-buzz-mute mb-8 max-w-xl">
+          Thanks for helping build the directory! You can add places and events — they go
+          live straight away, no approval needed.
+        </p>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <Link href="/admin/venues/new" className="card-hover p-6 lift flex flex-col gap-1">
+            <span className="text-3xl">➕</span>
+            <span className="font-display text-2xl uppercase mt-1">Add a place</span>
+            <span className="text-sm text-buzz-mute">A soft play, museum, park, leisure centre…</span>
+          </Link>
+          <Link href="/admin/events/new" className="card-hover p-6 lift flex flex-col gap-1">
+            <span className="text-3xl">🎉</span>
+            <span className="font-display text-2xl uppercase mt-1">Add an event</span>
+            <span className="text-sm text-buzz-mute">A gala, fayre, holiday club or special day.</span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
   if (me?.role !== "admin") {
     return (
       <div className="container-page py-16 text-center">

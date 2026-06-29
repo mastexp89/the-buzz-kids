@@ -238,14 +238,14 @@ export async function bulkDeleteVenues(ids: string[]) {
 
 export async function setUserRole(
   userId: string,
-  role: "venue_owner" | "artist" | "event_organiser" | "admin",
+  role: "venue_owner" | "artist" | "event_organiser" | "admin" | "editor",
 ) {
   const { supabase, ok, currentUserId } = await requireAdmin();
   if (!ok) return { error: "Not authorised." };
   if (userId === currentUserId && role !== "admin") {
     return { error: "You can't demote yourself. Ask another admin to do it." };
   }
-  if (!["venue_owner", "artist", "event_organiser", "admin"].includes(role)) {
+  if (!["venue_owner", "artist", "event_organiser", "admin", "editor"].includes(role)) {
     return { error: "Invalid role." };
   }
   const { error } = await supabase.from("profiles").update({ role }).eq("id", userId);

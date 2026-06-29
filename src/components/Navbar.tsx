@@ -28,6 +28,7 @@ export default async function Navbar() {
   if (user) {
     mobileItems.push({ href: "/dashboard", label: "Dashboard" });
     if (role === "admin") mobileItems.push({ href: "/admin", label: "Admin", accent: true });
+    if (role === "editor") mobileItems.push({ href: "/admin", label: "Add a place / event", accent: true });
     mobileItems.push({ href: "/dashboard/account", label: "Account settings" });
   } else {
     mobileItems.push({ href: "/login", label: "Sign in" });
@@ -58,6 +59,9 @@ export default async function Navbar() {
               <Link href="/dashboard" className="px-3 py-2 rounded-lg hover:bg-buzz-card transition">Dashboard</Link>
               {role === "admin" && (
                 <Link href="/admin" className="px-3 py-2 rounded-lg hover:bg-buzz-card transition text-buzz-accent">Admin</Link>
+              )}
+              {role === "editor" && (
+                <Link href="/admin" className="px-3 py-2 rounded-lg hover:bg-buzz-card transition text-buzz-accent">+ Add</Link>
               )}
               <form action="/auth/signout" method="post">
                 <button className="btn-ghost">Sign out</button>
