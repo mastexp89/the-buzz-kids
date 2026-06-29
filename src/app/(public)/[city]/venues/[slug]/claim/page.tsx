@@ -10,7 +10,7 @@ type Props = { params: Promise<{ city: string; slug: string }> };
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params;
   return {
-    title: `Claim ${slug.replace(/-/g, " ")} — The Buzz Guide`,
+    title: `Claim ${slug.replace(/-/g, " ")} — The Buzz Kids`,
     robots: { index: false, follow: false },
   };
 }
@@ -20,9 +20,6 @@ export default async function ClaimVenuePage({ params }: Props) {
   const { city: citySlug, slug } = await params;
 
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    redirect(`/login?next=/${citySlug}/venues/${slug}/claim`);
-  }
 
   const { data: venue } = await supabase
     .from("venues")
@@ -38,14 +35,23 @@ export default async function ClaimVenuePage({ params }: Props) {
     redirect(`/${citySlug}/venues/${slug}`);
   }
 
-  // Check if user already has a pending claim on this venue
-  const { data: existingClaim } = await supabase
-    .from("venue_claims")
-    .select("id, status")
-    .eq("venue_id", venue.id)
-    .eq("claimant_user_id", user.id)
-    .eq("status", "pending")
-    .maybeSingle();
+  // Pre-fill the name field for logged-in users; check for an existing claim.
+  let existingClaim: { id: string; status: string } | null = null;
+  let defaultName = "";
+  if (user) {
+    const [{ data: claim }, { data: profile }] = await Promise.all([
+      supabase
+        .from("venue_claims")
+        .select("id, status")
+        .eq("venue_id", venue.id)
+        .eq("claimant_user_id", user.id)
+        .eq("status", "pending")
+        .maybeSingle(),
+      supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle(),
+    ]);
+    existingClaim = claim;
+    defaultName = profile?.display_name ?? "";
+  }
 
   return (
     <div className="container-page py-12 max-w-2xl">
@@ -58,12 +64,13 @@ export default async function ClaimVenuePage({ params }: Props) {
 
       <p className="eyebrow mt-4 mb-1">Claim ownership</p>
       <h1 className="h-display text-4xl sm:text-5xl mb-3">
-        Take ownership of {venue.name}
+        Claim {venue.name}
       </h1>
       <p className="text-buzz-mute mb-6 max-w-xl">
-        This venue page hasn't been claimed yet. If you own, manage or book for{" "}
-        {venue.name}, send us a quick claim and we'll set you as the owner so you can
-        manage gigs, photos and venue details directly.
+        This page hasn't been claimed yet. If you own, run or manage{" "}
+        {venue.name}, set up your account below and we'll review your claim — once
+        approved you can manage your sessions, photos, opening times and details
+        directly.
       </p>
 
       {existingClaim ? (
@@ -79,7 +86,10 @@ export default async function ClaimVenuePage({ params }: Props) {
         <ClaimForm
           venueId={venue.id}
           venueName={venue.name}
-          defaultEmail={user.email ?? ""}
+          loggedIn={!!user}
+          defaultEmail={user?.email ?? ""}
+          defaultName={defaultName}
+          loginNext={`/${citySlug}/venues/${slug}/claim`}
         />
       )}
     </div>

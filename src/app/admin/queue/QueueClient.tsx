@@ -16,6 +16,12 @@ import {
   unapproveOrganiser,
 } from "../actions";
 
+const BUSINESS_TYPE_LABEL: Record<string, string> = {
+  individual: "Individual",
+  multiple: "Multiple places",
+  agency: "Agency",
+};
+
 type PendingEvent = {
   id: string;
   title: string;
@@ -46,6 +52,8 @@ type PendingClaim = {
   venue_id: string;
   claimant_user_id: string;
   role: string | null;
+  business_name: string | null;
+  business_type: string | null;
   contact_phone: string | null;
   contact_email: string | null;
   reason: string | null;
@@ -338,9 +346,14 @@ function ClaimRow({ claim }: { claim: PendingClaim }) {
           </div>
           <div className="text-xs text-buzz-mute mt-0.5">
             {claimantLabel} ({claim.claimant?.email ?? claim.contact_email ?? "no email"})
-            {claim.role ? ` · ${claim.role}` : ""}
             {claim.contact_phone ? ` · ${claim.contact_phone}` : ""}
           </div>
+          {(claim.business_name || claim.business_type) && (
+            <div className="text-xs text-buzz-mute mt-0.5">
+              {claim.business_name ? `🏢 ${claim.business_name}` : ""}
+              {claim.business_type ? ` · ${BUSINESS_TYPE_LABEL[claim.business_type] ?? claim.business_type}` : ""}
+            </div>
+          )}
           {claim.reason && (
             <p className="text-sm text-buzz-text/90 mt-2 whitespace-pre-line">
               {claim.reason}

@@ -229,6 +229,12 @@ export function notifyPendingGig(opts: {
   });
 }
 
+const BUSINESS_TYPE_LABELS: Record<string, string> = {
+  individual: "Individual (one place)",
+  multiple: "Multiple attractions",
+  agency: "Agency",
+};
+
 export function notifyVenueClaim(opts: {
   venueName: string;
   venueId: string;
@@ -237,24 +243,30 @@ export function notifyVenueClaim(opts: {
   claimantEmail: string | null;
   claimantName: string | null;
   role: string | null;
+  businessName?: string | null;
+  businessType?: string | null;
   contactPhone: string | null;
   reason: string | null;
 }) {
   const venueLink = opts.citySlug && opts.venueSlug
     ? `${SITE}/${opts.citySlug}/venues/${opts.venueSlug}`
     : `${SITE}/admin`;
+  const typeLabel = opts.businessType
+    ? BUSINESS_TYPE_LABELS[opts.businessType] ?? opts.businessType
+    : "—";
   return sendBrandedEmail({
     subject: `Ownership claim: ${opts.venueName}`,
     preheader: `${opts.claimantName ?? "Someone"} wants to claim ${opts.venueName}.`,
     replyTo: opts.claimantEmail ?? undefined,
     blocks: [
-      { kind: "h", text: "New venue ownership claim" },
-      { kind: "p", text: "Someone wants to claim ownership of a venue page on The Buzz Guide." },
+      { kind: "h", text: "New place ownership claim" },
+      { kind: "p", text: "Someone wants to claim ownership of a place on The Buzz Kids." },
       { kind: "kv", pairs: [
-        ["Venue", opts.venueName],
+        ["Place", opts.venueName],
         ["Page", venueLink],
         ["Claimant", `${opts.claimantName ?? "—"} (${opts.claimantEmail ?? "—"})`],
-        ["Role", opts.role ?? "—"],
+        ["Business", opts.businessName ?? "—"],
+        ["Operator type", typeLabel],
         ["Phone", opts.contactPhone ?? "—"],
         ["Reason", opts.reason ?? "—"],
       ]},

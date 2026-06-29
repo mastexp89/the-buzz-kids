@@ -52,7 +52,7 @@ export default async function AdminQueuePage() {
       .from("venue_claims")
       .select(`
         id, venue_id, claimant_user_id, role, contact_phone, contact_email,
-        reason, created_at,
+        reason, created_at, business_name, business_type,
         venue:venues(id, name, slug, owner_id, city:cities(name, slug))
       `)
       .eq("status", "pending")
