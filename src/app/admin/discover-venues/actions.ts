@@ -31,6 +31,11 @@ const OVERPASS_MIRRORS = [
 const APIFY_API = "https://api.apify.com/v2";
 const APIFY_GMAPS_ACTOR = "compass~crawler-google-places";
 
+// UK bounding box (south,west,north,east) — generous enough to cover
+// Shetland and the Outer Hebrides, tight enough to exclude every foreign
+// place that shares a Scottish town name (Perth AU, Richmond VA, etc.).
+const UK_BBOX = "49.8,-8.7,61.1,2.0";
+
 // Single source of truth for venue-name normalisation. Lowercase, drop a
 // leading "the ", strip non-alphanumerics. So "Central Bar", "the Central
 // Bar", "Central Bar!" all collapse to the same key. Used everywhere
@@ -164,8 +169,11 @@ export async function discoverVenuesForCity(
   const areaClauses = escapedNames
     .map((t) => `area["name"="${t}"]["admin_level"];`)
     .join("\n  ");
+  // Clip place-node lookups to the UK bbox so "Perth" doesn't also match
+  // Perth, Australia / Perth, Ontario etc. (the area lookups above can't be
+  // bbox-filtered, so we additionally clip the venue results below).
   const placeClauses = escapedNames
-    .map((t) => `node["place"~"^(city|town|village|hamlet|suburb|locality)$"]["name"="${t}"];`)
+    .map((t) => `node["place"~"^(city|town|village|hamlet|suburb|locality)$"]["name"="${t}"](${UK_BBOX});`)
     .join("\n  ");
 
   // Kids/family venue types in OSM. Three separate tag keys to union:
@@ -177,6 +185,11 @@ export async function discoverVenuesForCity(
   const leisureF = `["leisure"~"^(playground|sports_centre|swimming_pool|water_park|ice_rink|climbing|miniature_golf|fitness_centre|trampoline_park)$"]`;
   const tourismF = `["tourism"~"^(zoo|museum|theme_park|attraction|aquarium|gallery)$"]`;
 
+  // Every venue clause is also clipped to the UK bbox. This is the real
+  // safety net: an admin area named "Perth" in Australia still matches the
+  // areaClauses above, but its venues fall outside the UK bbox and get
+  // dropped — so no more foreign places leaking into the results.
+  //
   // Use `nwr` (node+way+relation) to halve the number of query statements
   // vs separate node/way lines — keeps the query small enough that Overpass
   // handles it well within the timeout.
@@ -189,12 +202,12 @@ export async function discoverVenuesForCity(
   ${placeClauses}
 )->.centers;
 (
-  nwr(area.areas)${amenityF};
-  nwr(area.areas)${leisureF};
-  nwr(area.areas)${tourismF};
-  nwr(around.centers:3000)${amenityF};
-  nwr(around.centers:3000)${leisureF};
-  nwr(around.centers:3000)${tourismF};
+  nwr(area.areas)${amenityF}(${UK_BBOX});
+  nwr(area.areas)${leisureF}(${UK_BBOX});
+  nwr(area.areas)${tourismF}(${UK_BBOX});
+  nwr(around.centers:3000)${amenityF}(${UK_BBOX});
+  nwr(around.centers:3000)${leisureF}(${UK_BBOX});
+  nwr(around.centers:3000)${tourismF}(${UK_BBOX});
 );
 out center tags;
 `.trim();
@@ -327,6 +340,15 @@ out center tags;
       for (let i = 0; i < needsLookup.length; i++) {
         const d = details[i];
         if (!d) continue;
+        // Reject any Google match whose coordinates fall outside the UK —
+        // Places can return a same-named venue abroad when the local one
+        // isn't on Google. Keep it out of the candidate's data.
+        if (
+          d.latitude != null && d.longitude != null &&
+          (d.latitude < 49.8 || d.latitude > 61.1 || d.longitude < -8.7 || d.longitude > 2.0)
+        ) {
+          continue;
+        }
         const idx = candidates.findIndex((c) => c.name === needsLookup[i].name);
         if (idx === -1) continue;
         const c = candidates[idx];
