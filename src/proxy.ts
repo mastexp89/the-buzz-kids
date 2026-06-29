@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 import { updateSession } from "@/lib/supabase/middleware";
 
 // Paths that bypass the coming-soon gate entirely.
@@ -14,6 +15,41 @@ function isBypassPath(pathname: string): boolean {
     pathname.startsWith("/api") ||
     /\.[a-z0-9]+$/i.test(pathname)
   );
+}
+
+// While COMING_SOON is on, signed-in admins still get the full site so they
+// can preview it. We only pay for the auth + role lookup when the request
+// actually carries a Supabase auth cookie — anonymous visitors short-circuit
+// straight to the holding page.
+async function isAdminRequest(request: NextRequest): Promise<boolean> {
+  const hasAuthCookie = request.cookies
+    .getAll()
+    .some((c) => c.name.startsWith("sb-") && c.name.includes("auth-token"));
+  if (!hasAuthCookie) return false;
+
+  try {
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get: (name: string) => request.cookies.get(name)?.value,
+          set: () => {},
+          remove: () => {},
+        },
+      },
+    );
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+    return profile?.role === "admin";
+  } catch {
+    return false;
+  }
 }
 
 const HOLDING_HTML = `<!doctype html>
@@ -212,7 +248,11 @@ const HOLDING_HTML = `<!doctype html>
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (process.env.COMING_SOON === "true" && !isBypassPath(pathname)) {
+  if (
+    process.env.COMING_SOON === "true" &&
+    !isBypassPath(pathname) &&
+    !(await isAdminRequest(request))
+  ) {
     // Absolute URLs for the OG/Twitter tags — Facebook etc. require them.
     const origin = request.nextUrl.origin;
     const html = HOLDING_HTML.replaceAll("__ORIGIN__", origin);
