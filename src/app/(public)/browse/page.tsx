@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import PlaceCard from "@/components/PlaceCard";
+import PlacesGrid from "@/components/PlacesGrid";
 import PlaceFilters from "@/components/PlaceFilters";
 import WhatsOnView from "@/components/WhatsOnView";
 import OffersView from "@/components/OffersView";
@@ -164,11 +164,7 @@ export default async function BrowsePage({ searchParams }: Props) {
                 </p>
               </div>
             ) : (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {places.map((p: any) => (
-                  <PlaceCard key={p.id} place={p} citySlug={p.city?.slug ?? "dundee"} />
-                ))}
-              </div>
+              <PlacesGrid places={places} />
             )}
           </>
         )}
