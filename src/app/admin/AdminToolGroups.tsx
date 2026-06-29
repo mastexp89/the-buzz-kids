@@ -75,6 +75,12 @@ export default function AdminToolGroups({ pendingCount }: { pendingCount: number
       title: "Directory",
       tools: [
         {
+          href: "/admin/venues-manage",
+          label: "Manage places",
+          emoji: "🗂️",
+          description: "Browse every place — photo, info, phone, website — edit or delete",
+        },
+        {
           href: "/admin/venues/new",
           label: "Add venue",
           emoji: "➕",
