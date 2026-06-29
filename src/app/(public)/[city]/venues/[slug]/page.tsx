@@ -359,6 +359,7 @@ export default async function VenuePage({ params }: Props) {
                           const d = json[k];
                           if (!d) return null;
                           if (d.closed) return `${label}: Closed`;
+                          if (d.open === "00:00" && d.close === "23:59") return `${label}: Open 24 hrs`;
                           if (d.open && d.close) return `${label}: ${fmt(d.open)} – ${fmt(d.close)}`;
                           return null;
                         })
