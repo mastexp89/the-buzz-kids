@@ -262,7 +262,7 @@ export async function createUserAccount(input: {
   email: string;
   password: string;
   displayName?: string;
-  role: "fan" | "editor" | "admin";
+  role: "parent" | "editor" | "admin";
 }): Promise<{ ok?: true; error?: string }> {
   const { ok } = await requireAdmin();
   if (!ok) return { error: "Not authorised." };
@@ -270,15 +270,21 @@ export async function createUserAccount(input: {
   const email = (input.email ?? "").trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Enter a valid email address." };
   if (!input.password || input.password.length < 8) return { error: "Password must be at least 8 characters." };
-  const role = ["fan", "editor", "admin"].includes(input.role) ? input.role : "fan";
   const displayName = (input.displayName ?? "").trim() || null;
+
+  // The chosen account maps to a profile role + a signup account_type.
+  // Parents are plain 'user' accounts (account_type 'fan'); 'fan' is not a
+  // valid profile role, so don't write it as one.
+  const choice = ["parent", "editor", "admin"].includes(input.role) ? input.role : "parent";
+  const role = choice === "parent" ? "user" : choice; // 'user' | 'editor' | 'admin'
+  const accountType = choice === "parent" ? "fan" : choice;
 
   const svc = createServiceClient();
   const { data, error } = await svc.auth.admin.createUser({
     email,
     password: input.password,
     email_confirm: true,
-    user_metadata: { display_name: displayName ?? "", account_type: role },
+    user_metadata: { display_name: displayName ?? "", account_type: accountType },
   });
   if (error) {
     if (/already.*registered|exists/i.test(error.message)) return { error: "An account with that email already exists." };
@@ -286,7 +292,12 @@ export async function createUserAccount(input: {
   }
   // Override the profile with the chosen role + name (the signup trigger may
   // default these from metadata; make sure they match what was picked here).
-  await svc.from("profiles").upsert({ id: data.user.id, email, display_name: displayName, role });
+  const { error: profErr } = await svc
+    .from("profiles")
+    .upsert({ id: data.user.id, email, display_name: displayName, role });
+  if (profErr) {
+    return { error: `Account created, but setting the role failed: ${profErr.message}. Set it from the user list.` };
+  }
 
   revalidatePath("/admin");
   return { ok: true };

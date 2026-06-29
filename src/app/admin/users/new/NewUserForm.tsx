@@ -21,7 +21,7 @@ export default function NewUserForm() {
       email,
       password: String(fd.get("password") ?? ""),
       displayName: String(fd.get("display_name") ?? ""),
-      role: String(fd.get("role") ?? "fan") as any,
+      role: String(fd.get("role") ?? "parent") as any,
     });
     setBusy(false);
     if (r.error) { setError(r.error); return; }
@@ -60,7 +60,7 @@ export default function NewUserForm() {
         <select name="role" className="input" defaultValue="editor">
           <option value="editor">Editor — can add places, events &amp; deals (auto-approved)</option>
           <option value="admin">Super admin — full access to everything</option>
-          <option value="fan">Parent — a normal user account</option>
+          <option value="parent">Parent — a normal user account</option>
         </select>
       </div>
       {error && <div className="text-sm text-rose-400">{error}</div>}
