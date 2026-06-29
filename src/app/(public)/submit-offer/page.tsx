@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Suggest a deal — The Buzz Kids",
-  description: "Know a kids-eat-free or cheap-days-out deal in Tayside or Fife? Tell us and we'll add it.",
+  description: "Know a kids-eat-free or cheap-days-out deal anywhere in Scotland? Tell us and we'll add it.",
   alternates: { canonical: "/submit-offer" },
 };
 

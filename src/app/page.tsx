@@ -56,7 +56,7 @@ export default async function Home() {
             </p>
             {activeCities.length > 0 && (
               <p className="mt-5 text-xs text-buzz-mute">
-                Covering {activeCities.map((c) => c.name).join(", ")} — more areas added regularly.
+                Covering all of Scotland — {activeCities.length} areas and counting.
               </p>
             )}
           </div>
