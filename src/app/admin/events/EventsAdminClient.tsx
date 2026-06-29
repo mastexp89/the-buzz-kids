@@ -151,7 +151,7 @@ function VenuePicker({
     <div className="relative sm:w-[280px]">
       <input
         type="text"
-        placeholder="Filter by venue…"
+        placeholder="Filter by place…"
         value={query}
         onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}

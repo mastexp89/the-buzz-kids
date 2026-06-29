@@ -114,7 +114,7 @@ export default function SearchBox() {
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search venues, artists or gigs…"
+                  placeholder="Search places or events…"
                   className="flex-1 bg-transparent outline-none text-lg placeholder-buzz-mute"
                 />
                 <button
@@ -240,7 +240,7 @@ export default function SearchBox() {
 
               {!query.trim() && (
                 <div className="text-xs text-buzz-mute mt-3 px-2">
-                  Try a venue name, band name or gig title.
+                  Try a place name or an event title.
                 </div>
               )}
             </div>
