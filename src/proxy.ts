@@ -17,10 +17,10 @@ function isBypassPath(pathname: string): boolean {
   );
 }
 
-// While COMING_SOON is on, signed-in admins still get the full site so they
-// can preview it. We only pay for the auth + role lookup when the request
-// actually carries a Supabase auth cookie — anonymous visitors short-circuit
-// straight to the holding page.
+// While COMING_SOON is on, signed-in staff (super admins + editors) still
+// get the full site so they can preview it and add content. We only pay for
+// the auth + role lookup when the request actually carries a Supabase auth
+// cookie — anonymous visitors short-circuit straight to the holding page.
 async function isAdminRequest(request: NextRequest): Promise<boolean> {
   const hasAuthCookie = request.cookies
     .getAll()
@@ -46,7 +46,7 @@ async function isAdminRequest(request: NextRequest): Promise<boolean> {
       .select("role")
       .eq("id", user.id)
       .maybeSingle();
-    return profile?.role === "admin";
+    return profile?.role === "admin" || profile?.role === "editor";
   } catch {
     return false;
   }
