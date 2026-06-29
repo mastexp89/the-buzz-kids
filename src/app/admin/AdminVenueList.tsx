@@ -26,8 +26,19 @@ export default function AdminVenueList({
   const [busy, start] = useTransition();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
 
-  const allIds = useMemo(() => venues.map((v) => v.id), [venues]);
+  // Client-side search across name, town and address.
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return venues;
+    return venues.filter((v) => {
+      const hay = `${v.name ?? ""} ${v.city?.name ?? ""} ${v.address ?? ""} ${v.postcode ?? ""}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [venues, query]);
+
+  const allIds = useMemo(() => filtered.map((v) => v.id), [filtered]);
   const allSelected = selected.size > 0 && selected.size === allIds.length;
   const someSelected = selected.size > 0 && !allSelected;
 
@@ -84,6 +95,16 @@ export default function AdminVenueList({
 
   return (
     <div className="card overflow-hidden">
+      {/* Search */}
+      <div className="px-4 pt-3">
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search by name, town or postcode…"
+          className="input w-full"
+        />
+      </div>
       {/* Toolbar — sticky at the top of the list when scrolling a long list */}
       <div className="px-4 py-3 border-b border-buzz-border/60 bg-buzz-surface/40 flex flex-wrap items-center gap-3">
         <label className="flex items-center gap-2 cursor-pointer text-sm select-none">
@@ -98,8 +119,8 @@ export default function AdminVenueList({
           />
           <span className="text-buzz-mute">
             {selected.size === 0
-              ? `Select all (${venues.length})`
-              : `${selected.size} of ${venues.length} selected`}
+              ? (query ? `${filtered.length} of ${venues.length}` : `Select all (${venues.length})`)
+              : `${selected.size} of ${filtered.length} selected`}
           </span>
         </label>
 
@@ -150,17 +171,21 @@ export default function AdminVenueList({
         </div>
       )}
 
-      <ul className="divide-y divide-buzz-border/60">
-        {venues.map((v) => (
-          <AdminVenueRow
-            key={v.id}
-            venue={v}
-            pending={pending}
-            selected={selected.has(v.id)}
-            onToggleSelect={() => toggleOne(v.id)}
-          />
-        ))}
-      </ul>
+      {filtered.length === 0 ? (
+        <div className="px-4 py-8 text-center text-sm text-buzz-mute">No places match “{query}”.</div>
+      ) : (
+        <ul className="divide-y divide-buzz-border/60">
+          {filtered.map((v) => (
+            <AdminVenueRow
+              key={v.id}
+              venue={v}
+              pending={pending}
+              selected={selected.has(v.id)}
+              onToggleSelect={() => toggleOne(v.id)}
+            />
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

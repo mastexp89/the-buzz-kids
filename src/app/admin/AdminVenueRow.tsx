@@ -172,11 +172,11 @@ export default function AdminVenueRow({
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-wrap sm:justify-end shrink-0">
           {venue.approved && (
             <Link
               href={`/${venue.city?.slug ?? "dundee"}/venues/${venue.slug}`}
-              className="btn-ghost"
+              className="btn-ghost btn-sm"
               target="_blank"
             >
               View
@@ -184,19 +184,19 @@ export default function AdminVenueRow({
           )}
           <Link
             href={`/dashboard/venues/${venue.id}/events/new`}
-            className="btn-secondary"
+            className="btn-secondary btn-sm"
           >
             + Add event
           </Link>
           <Link
             href={`/dashboard/venues/${venue.id}/edit`}
-            className="btn-secondary"
+            className="btn-secondary btn-sm"
           >
             Edit
           </Link>
           <Link
             href={`/admin/venues/${venue.id}/promote`}
-            className="btn-secondary"
+            className="btn-secondary btn-sm"
             title="Comp a promotion for this venue"
           >
             Promote
@@ -208,7 +208,7 @@ export default function AdminVenueRow({
               setError(null);
               setSentOk(false);
             }}
-            className="btn-secondary"
+            className="btn-secondary btn-sm"
             disabled={!ownerEmail}
             title={
               ownerEmail
@@ -222,7 +222,7 @@ export default function AdminVenueRow({
             <button
               onClick={approve}
               disabled={busy}
-              className="btn-primary"
+              className="btn-primary btn-sm"
             >
               {busy ? "…" : "Approve"}
             </button>
@@ -230,7 +230,7 @@ export default function AdminVenueRow({
             <button
               onClick={unapprove}
               disabled={busy}
-              className="btn-secondary"
+              className="btn-secondary btn-sm"
             >
               {busy ? "…" : "Unapprove"}
             </button>
@@ -238,8 +238,8 @@ export default function AdminVenueRow({
           <button
             onClick={destroy}
             disabled={busy}
-            className="btn-danger"
-            title="Permanently delete venue and all its gigs"
+            className="btn-danger btn-sm"
+            title="Permanently delete this place and all its events"
           >
             {busy ? "…" : "Delete"}
           </button>

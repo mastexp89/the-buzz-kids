@@ -315,14 +315,14 @@ export default async function AdminPage({ searchParams }: Props) {
 
       <section className="mb-12">
         <h2 className="font-display text-2xl uppercase mb-3">
-          Pending venues
+          Pending places
           {cityFilterSlug && <span className="text-buzz-mute text-sm font-normal"> in {allCities?.find((c) => c.slug === cityFilterSlug)?.name ?? cityFilterSlug}</span>}
           <span className="text-buzz-mute text-sm font-normal"> ({pending?.length ?? 0})</span>
         </h2>
         {pending && pending.length > 0 ? (
           <AdminVenueList venues={pending as any} pending />
         ) : (
-          <div className="card p-6 text-buzz-mute">No pending venues. ✨</div>
+          <div className="card p-6 text-buzz-mute">No pending places. ✨</div>
         )}
       </section>
 
@@ -330,7 +330,7 @@ export default async function AdminPage({ searchParams }: Props) {
         <summary className="cursor-pointer list-none flex items-center gap-2 mb-3 hover:text-buzz-accent transition">
           <span className="inline-block transition-transform group-open:rotate-90 text-buzz-mute">▶</span>
           <h2 className="font-display text-2xl uppercase inline">
-            Approved venues
+            Approved places
             {cityFilterSlug && <span className="text-buzz-mute text-sm font-normal"> in {allCities?.find((c) => c.slug === cityFilterSlug)?.name ?? cityFilterSlug}</span>}
             <span className="text-buzz-mute text-sm font-normal"> ({approved?.length ?? 0})</span>
           </h2>
@@ -338,7 +338,7 @@ export default async function AdminPage({ searchParams }: Props) {
         {approved && approved.length > 0 ? (
           <AdminVenueList venues={approved as any} />
         ) : (
-          <div className="card p-6 text-buzz-mute">No approved venues yet.</div>
+          <div className="card p-6 text-buzz-mute">No approved places yet.</div>
         )}
       </details>
 
