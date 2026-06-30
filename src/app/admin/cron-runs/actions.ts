@@ -397,3 +397,78 @@ export async function getFacebookCronProgress(opts: { citySlug?: string } = {}):
     return { error: `Couldn't reach progress route: ${e?.message ?? e}` };
   }
 }
+
+export type WebsiteCronProgress = {
+  ok: true;
+  done: number;               // venues scraped ever (coverage)
+  total: number;              // eligible venues (approved, non-FB website)
+  pct: number;
+  eventsCreatedToday: number; // events queued from websites today
+  venuesScannedToday: number;
+  errorsToday: number;
+  lastFive: Array<{ name: string; events: number; error: boolean }>;
+};
+
+/**
+ * Live progress for the website scrape, computed straight from the DB (the run
+ * log + venues) — no /progress endpoint needed. `done` is overall coverage
+ * (venues ever scraped) so the bar fills as the self-chaining sweep works
+ * through the country; the today-counts show what the current sweep is pulling.
+ */
+export async function getWebsiteCronProgress(): Promise<{ error: string } | WebsiteCronProgress> {
+  if (!(await requireAdmin())) return { error: "Admins only." };
+  const sb = createServiceClient();
+  const startOfToday = new Date();
+  startOfToday.setUTCHours(0, 0, 0, 0);
+  const todayIso = startOfToday.toISOString();
+
+  const { count: total } = await sb
+    .from("venues")
+    .select("id", { count: "exact", head: true })
+    .eq("approved", true)
+    .not("website", "is", null)
+    .not("website", "ilike", "*facebook.com*");
+  const { count: done } = await sb
+    .from("venues")
+    .select("id", { count: "exact", head: true })
+    .not("last_website_scrape", "is", null);
+  const { count: eventsToday } = await sb
+    .from("events")
+    .select("id", { count: "exact", head: true })
+    .eq("auto_imported_from", "website")
+    .gte("created_at", todayIso);
+
+  let venuesScannedToday = 0;
+  let errorsToday = 0;
+  let lastFive: WebsiteCronProgress["lastFive"] = [];
+  try {
+    const { data: runs } = await sb
+      .from("website_scrape_venue_runs")
+      .select("venue_name, events_created, error, ran_at")
+      .gte("ran_at", todayIso)
+      .order("ran_at", { ascending: false })
+      .limit(500);
+    venuesScannedToday = runs?.length ?? 0;
+    errorsToday = (runs ?? []).filter((r: any) => r.error).length;
+    lastFive = (runs ?? []).slice(0, 5).map((r: any) => ({
+      name: r.venue_name as string,
+      events: (r.events_created as number) ?? 0,
+      error: !!r.error,
+    }));
+  } catch {
+    // run-log table missing pre-migration — counts stay 0.
+  }
+
+  const T = total ?? 0;
+  const D = done ?? 0;
+  return {
+    ok: true,
+    done: D,
+    total: T,
+    pct: T ? Math.round((D / T) * 100) : 0,
+    eventsCreatedToday: eventsToday ?? 0,
+    venuesScannedToday,
+    errorsToday,
+    lastFive,
+  };
+}
