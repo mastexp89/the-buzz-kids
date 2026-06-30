@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   runDedupeNow,
   runFacebookScrapeNow,
+  runWebsiteScrapeNow,
   getFacebookCronProgress,
   type FacebookCronProgress,
 } from "./actions";
@@ -16,10 +18,13 @@ type CityOption = { slug: string; name: string; active: boolean };
 export default function CronRunButtons({ cities }: { cities: CityOption[] }) {
   const router = useRouter();
   const [busy, startTransition] = useTransition();
-  const [running, setRunning] = useState<"dedupe" | "dedupe-dry" | "facebook" | null>(null);
+  const [running, setRunning] = useState<"dedupe" | "dedupe-dry" | "facebook" | "website" | "website-dry" | null>(null);
   const [result, setResult] = useState<RunResult>(null);
   // FB scrape city scope: "all" or a city slug. Default to all.
   const [fbScope, setFbScope] = useState<string>("all");
+  // Website scrape scope + cooldown bypass (mirrors the FB controls).
+  const [webScope, setWebScope] = useState<string>("all");
+  const [webForce, setWebForce] = useState(false);
   // Bypass the 12h re-scrape cooldown — useful when admin wants to
   // re-run a sweep that already happened earlier today, e.g. to pick up
   // posts that landed since.
@@ -110,7 +115,7 @@ export default function CronRunButtons({ cities }: { cities: CityOption[] }) {
   // Cleanup poll on unmount.
   useEffect(() => () => stopPolling(), []);
 
-  function fire(label: "dedupe" | "dedupe-dry" | "facebook") {
+  function fire(label: "dedupe" | "dedupe-dry" | "facebook" | "website" | "website-dry") {
     setResult(null);
     setRunning(label);
     if (label === "facebook") {
@@ -122,6 +127,12 @@ export default function CronRunButtons({ cities }: { cities: CityOption[] }) {
       let res: RunResult;
       if (label === "dedupe") res = await runDedupeNow({});
       else if (label === "dedupe-dry") res = await runDedupeNow({ dry: true });
+      else if (label === "website" || label === "website-dry")
+        res = await runWebsiteScrapeNow({
+          ...(webScope === "all" ? {} : { citySlug: webScope }),
+          ...(webForce ? { force: true } : {}),
+          ...(label === "website-dry" ? { dry: true } : {}),
+        });
       else
         res = await runFacebookScrapeNow({
           ...(fbScope === "all" ? {} : { citySlug: fbScope }),
@@ -207,6 +218,60 @@ export default function CronRunButtons({ cities }: { cities: CityOption[] }) {
           region's venues get hit, you don't waste Apify credit re-scraping
           venues that were just done. Force is for when you want to re-run a
           sweep that already happened today (e.g. to pick up posts that landed since).
+        </p>
+      </div>
+
+      {/* Website scrape — checks venues' own sites, queues events for review */}
+      <div className="border-t border-buzz-border/60 pt-3 mt-3">
+        <label className="label">Website scrape — scope</label>
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            className="input flex-1 min-w-[180px] py-1.5"
+            value={webScope}
+            onChange={(e) => setWebScope(e.target.value)}
+            disabled={busy}
+          >
+            <option value="all">All active cities</option>
+            {cities.filter((c) => c.active).map((c) => (
+              <option key={c.slug} value={c.slug}>{c.name}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => fire("website-dry")}
+            disabled={busy}
+            className="btn-secondary"
+          >
+            {running === "website-dry" ? "Running…" : "🔍 Preview"}
+          </button>
+          <button
+            type="button"
+            onClick={() => fire("website")}
+            disabled={busy}
+            className="btn-secondary"
+          >
+            {running === "website"
+              ? "Running…"
+              : webScope === "all"
+              ? "🌐 Scrape sites (all active)"
+              : `🌐 Scrape sites (${cities.find((c) => c.slug === webScope)?.name ?? webScope})`}
+          </button>
+        </div>
+        <label className="flex items-center gap-2 mt-2 text-xs text-buzz-mute cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={webForce}
+            onChange={(e) => setWebForce(e.target.checked)}
+            disabled={busy}
+            className="accent-buzz-accent"
+          />
+          Force re-scrape (ignore 30-day cooldown)
+        </label>
+        <p className="help mt-2">
+          Fetches each venue&apos;s own website, pulls out any kids&apos; events with AI, and
+          drops them in the <Link href="/admin/queue" className="text-buzz-accent hover:underline">approval queue</Link> for you to vet.
+          One click = one batch of {`~6`} venues (it doesn&apos;t self-chain), so the queue fills gently — click again for more.
+          Runs automatically Tue + Sat evenings.
         </p>
       </div>
 
