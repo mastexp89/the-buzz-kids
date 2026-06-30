@@ -38,7 +38,7 @@ export default async function AdminQueuePage() {
       `)
       .eq("status", "pending")
       .order("created_at", { ascending: false })
-      .limit(100),
+      .limit(200),
     supabase
       .from("venue_suggestions")
       .select(`
@@ -78,6 +78,14 @@ export default async function AdminQueuePage() {
       .order("created_at", { ascending: false })
       .limit(100),
   ]);
+
+  // True pending-events total — the list above is capped (display page size),
+  // so the tab count must come from a separate exact count or it sticks at the
+  // cap (was showing "100" once the scrape pushed past it).
+  const { count: pendingEventsTotal } = await supabase
+    .from("events")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "pending");
 
   // Look up submitter / claimant profiles separately — events/suggestions/claims reference auth.users,
   // not profiles, so PostgREST can't auto-resolve the relationship.
@@ -133,6 +141,7 @@ export default async function AdminQueuePage() {
 
       <QueueClient
         events={(pendingEvents ?? []) as any}
+        eventsTotal={pendingEventsTotal ?? (pendingEvents ?? []).length}
         suggestions={(pendingSuggestions ?? []) as any}
         claims={(pendingClaims ?? []) as any}
         venues={(pendingVenues ?? []) as any}

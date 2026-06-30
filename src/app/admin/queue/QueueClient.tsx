@@ -127,12 +127,14 @@ type Tab = "events" | "suggestions" | "claims" | "venues" | "organisers";
 
 export default function QueueClient({
   events,
+  eventsTotal,
   suggestions,
   claims,
   venues,
   organisers,
 }: {
   events: PendingEvent[];
+  eventsTotal?: number;
   suggestions: PendingSuggestion[];
   claims: PendingClaim[];
   venues: PendingVenue[];
@@ -151,7 +153,7 @@ export default function QueueClient({
       <div className="flex gap-2 mb-6 flex-wrap">
         <TabPill active={tab === "venues"} onClick={() => setTab("venues")} label="New places" count={venues.length} />
         <TabPill active={tab === "organisers"} onClick={() => setTab("organisers")} label="New organisers" count={organisers.length} />
-        <TabPill active={tab === "events"} onClick={() => setTab("events")} label="Pending sessions" count={events.length} />
+        <TabPill active={tab === "events"} onClick={() => setTab("events")} label="Pending sessions" count={eventsTotal ?? events.length} />
         <TabPill active={tab === "claims"} onClick={() => setTab("claims")} label="Place claims" count={claims.length} />
         <TabPill active={tab === "suggestions"} onClick={() => setTab("suggestions")} label="Place suggestions" count={suggestions.length} />
       </div>
