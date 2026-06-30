@@ -5,14 +5,14 @@ import { AccessibilityLegend } from "@/components/AccessibilityBadges";
 import PlacesGrid from "@/components/PlacesGrid";
 import PlaceFilters from "@/components/PlaceFilters";
 import CitySwitcher from "@/components/CitySwitcher";
-import { fetchPlaces } from "@/lib/places";
+import { fetchPlaces, openDayKeysFor } from "@/lib/places";
 import { trackPageView } from "@/lib/track";
 
 export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ city: string }>;
-  searchParams: Promise<{ cat?: string; access?: string; toddler?: string; rain?: string; outdoor?: string; free?: string; other?: string }>;
+  searchParams: Promise<{ cat?: string; access?: string; toddler?: string; rain?: string; outdoor?: string; free?: string; other?: string; open?: string }>;
 };
 
 export async function generateMetadata({ params }: Props) {
@@ -39,6 +39,14 @@ export default async function CityPage({ params, searchParams }: Props) {
   // and we don't want the URL to leak that the region is being prepped.
   if (!city || !city.active) notFound();
 
+  // Admins get inline delete controls on the live places grid.
+  const { data: { user } } = await supabase.auth.getUser();
+  let isAdmin = false;
+  if (user) {
+    const { data: prof } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    isAdmin = prof?.role === "admin";
+  }
+
   // Track city-listing views — significant share of traffic lands here
   // ("What's on in Dundee tonight?") before drilling into a venue or
   // event. Source field lets analytics distinguish from detail views.
@@ -57,6 +65,7 @@ export default async function CityPage({ params, searchParams }: Props) {
     outdoorOnly: sp.outdoor === "1",
     freeOnly: sp.free === "1",
     accessKeys: placeAccess,
+    openOnDays: openDayKeysFor(sp.open || "today"),
   });
 
   return (
@@ -106,7 +115,7 @@ export default async function CityPage({ params, searchParams }: Props) {
             </p>
           </div>
         ) : (
-          <PlacesGrid places={places.map((p: any) => ({ ...p, city: { slug: city.slug } }))} />
+          <PlacesGrid places={places.map((p: any) => ({ ...p, city: { slug: city.slug } }))} isAdmin={isAdmin} />
         )}
       </div>
     </div>

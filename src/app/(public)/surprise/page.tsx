@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { fetchPlaces } from "@/lib/places";
+import { fetchPlaces, openDayKeysFor } from "@/lib/places";
 import SurpriseMe, { type SurprisePlace } from "@/components/SurpriseMe";
 import PlaceFilters from "@/components/PlaceFilters";
 
@@ -12,7 +12,7 @@ export const metadata = {
 };
 
 type Props = {
-  searchParams: Promise<{ cat?: string; access?: string; toddler?: string; rain?: string; loc?: string }>;
+  searchParams: Promise<{ cat?: string; access?: string; toddler?: string; rain?: string; outdoor?: string; free?: string; other?: string; loc?: string; open?: string }>;
 };
 
 function ageLabel(min: number | null, max: number | null): string | null {
@@ -39,25 +39,22 @@ export default async function SurprisePage({ searchParams }: Props) {
 
   const cats = (sp.cat || "").split(",").map((s) => s.trim()).filter(Boolean);
   const access = (sp.access || "").split(",").map((s) => s.trim()).filter(Boolean);
-  const loc = sp.loc || "";
-
-  let cityId: string | undefined;
-  let cityIds: string[] | undefined;
-  if (loc) {
-    const c = cities.find((x) => x.slug === loc);
-    cityId = c?.id;
-    if (!cityId) cityIds = [];
-  } else {
-    cityIds = cities.map((c) => c.id);
-  }
+  // Location filter is multi-select: comma-separated slugs, or all active towns.
+  const locs = (sp.loc || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const cityIds = locs.length
+    ? cities.filter((c) => locs.includes(c.slug)).map((c) => c.id)
+    : cities.map((c) => c.id);
 
   const raw = await fetchPlaces(supabase, {
-    cityId,
     cityIds,
     catSlugs: cats,
+    uncategorised: sp.other === "1",
     accessKeys: access,
     toddler: sp.toddler === "1",
     indoorOnly: sp.rain === "1",
+    outdoorOnly: sp.outdoor === "1",
+    freeOnly: sp.free === "1",
+    openOnDays: openDayKeysFor(sp.open || "today"),
   });
 
   const places: SurprisePlace[] = raw.map((p: any) => ({
