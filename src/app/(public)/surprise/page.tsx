@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { fetchPlaces, openDayKeysFor } from "@/lib/places";
 import SurpriseMe, { type SurprisePlace } from "@/components/SurpriseMe";
-import PlaceFilters from "@/components/PlaceFilters";
+import PlaceFilterBar from "@/components/PlaceFilterBar";
 
 export const dynamic = "force-dynamic";
 
@@ -87,7 +87,7 @@ export default async function SurprisePage({ searchParams }: Props) {
       </div>
 
       <div className="mb-6">
-        <PlaceFilters genres={genres ?? []} cities={cities} />
+        <PlaceFilterBar genres={genres ?? []} cities={cities} />
       </div>
 
       {/* Remount when the filtered pool changes so the reel resets. */}

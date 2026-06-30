@@ -3,7 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { AccessibilityLegend } from "@/components/AccessibilityBadges";
 import PlacesGrid from "@/components/PlacesGrid";
-import PlaceFilters from "@/components/PlaceFilters";
+import PlaceFilterBar from "@/components/PlaceFilterBar";
 import CitySwitcher from "@/components/CitySwitcher";
 import { fetchPlaces, openDayKeysFor } from "@/lib/places";
 import { trackPageView } from "@/lib/track";
@@ -100,7 +100,7 @@ export default async function CityPage({ params, searchParams }: Props) {
       {/* One combined directory — places + activities, narrow with the filters. */}
       <div className="container-page py-8">
         <div className="mb-8">
-          <PlaceFilters genres={genres ?? []} />
+          <PlaceFilterBar genres={genres ?? []} />
         </div>
         <div className="mb-8">
           <AccessibilityLegend />
