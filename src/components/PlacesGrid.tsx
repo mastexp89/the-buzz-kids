@@ -42,7 +42,12 @@ export default function PlacesGrid({ places, isAdmin }: { places: any[]; isAdmin
     <>
       <div className="mb-6 flex flex-wrap items-center gap-2">
         {!here ? (
-          <button onClick={request} disabled={loading} className="chip" title="Find places near you">
+          <button
+            onClick={request}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-full border-2 border-buzz-accent text-buzz-accent font-bold px-5 py-2.5 hover:bg-buzz-accent hover:text-white transition disabled:opacity-60"
+            title="Find places near you"
+          >
             {loading ? "📍 Locating…" : "📍 Places near me"}
           </button>
         ) : (
