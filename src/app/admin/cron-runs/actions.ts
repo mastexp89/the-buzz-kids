@@ -9,6 +9,7 @@
 // Date range: last 30 days by default. Days with zero activity still appear
 // so it's obvious if a cron didn't run.
 
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -246,16 +247,32 @@ async function triggerCronRoute(path: string): Promise<{ ok: true; body: string 
   const secret = process.env.CRON_SECRET;
   if (!secret) return { error: "CRON_SECRET env var isn't set on the server." };
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.thebuzzguide.co.uk";
-  const url = `${siteUrl}${path}`;
+  // Call the cron route on the SAME origin this admin request came in on, so
+  // the self-call can't cross a redirect (apex↔www, http→https, etc.). That
+  // matters because fetch drops the Authorization header on a cross-origin
+  // redirect — which surfaced as a spurious 401 ("Unauthorised") from the
+  // cron route. Fall back to NEXT_PUBLIC_SITE_URL only if the host header is
+  // somehow missing.
+  const h = await headers();
+  const host = h.get("host");
+  const proto = h.get("x-forwarded-proto") || "https";
+  const origin = host
+    ? `${proto}://${host}`
+    : (process.env.NEXT_PUBLIC_SITE_URL || "https://thebuzzkids.co.uk");
+  const url = `${origin}${path}`;
 
   try {
     const res = await fetch(url, {
       method: "GET",
       headers: { Authorization: `Bearer ${secret}` },
-      // Don't cache — every click is a fresh trigger.
+      // Same-origin call shouldn't redirect; if it does, treat it as an error
+      // rather than silently following it and losing the auth header.
+      redirect: "manual",
       cache: "no-store",
     });
+    if (res.status >= 300 && res.status < 400) {
+      return { error: `Cron route redirected (${res.status}) to ${res.headers.get("location") ?? "?"} — set NEXT_PUBLIC_SITE_URL to the exact non-redirecting domain.` };
+    }
     const body = await res.text();
     if (!res.ok) {
       return { error: `Cron route returned ${res.status}: ${body.slice(0, 400)}` };
@@ -341,7 +358,14 @@ export async function getFacebookCronProgress(opts: { citySlug?: string } = {}):
   const secret = process.env.CRON_SECRET;
   if (!secret) return { error: "CRON_SECRET env var isn't set on the server." };
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.thebuzzguide.co.uk";
+  // Same-origin as the incoming request (see triggerCronRoute) so the
+  // self-call can't redirect and drop the Authorization header.
+  const h = await headers();
+  const host = h.get("host");
+  const proto = h.get("x-forwarded-proto") || "https";
+  const siteUrl = host
+    ? `${proto}://${host}`
+    : (process.env.NEXT_PUBLIC_SITE_URL || "https://thebuzzkids.co.uk");
   const path = opts.citySlug
     ? `/api/cron/scrape-facebook/progress?city=${encodeURIComponent(opts.citySlug)}`
     : "/api/cron/scrape-facebook/progress";
@@ -350,6 +374,7 @@ export async function getFacebookCronProgress(opts: { citySlug?: string } = {}):
     const res = await fetch(`${siteUrl}${path}`, {
       method: "GET",
       headers: { Authorization: `Bearer ${secret}` },
+      redirect: "manual",
       cache: "no-store",
     });
     if (!res.ok) {
