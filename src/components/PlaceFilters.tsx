@@ -22,6 +22,8 @@ const CHIP_COLOURS = [
 ];
 
 const INITIAL_VISIBLE = 4;
+// How many areas to show before the "+N more" expander (32 council areas).
+const INITIAL_AREAS = 8;
 
 export default function PlaceFilters({
   genres,
@@ -36,6 +38,7 @@ export default function PlaceFilters({
 
   const [showAllCats, setShowAllCats] = useState(false);
   const [showAllAccess, setShowAllAccess] = useState(false);
+  const [showAllAreas, setShowAllAreas] = useState(false);
 
   const cats = (params.get("cat") || "").split(",").map((s) => s.trim()).filter(Boolean);
   const access = (params.get("access") || "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -76,6 +79,15 @@ export default function PlaceFilters({
   const shownAccess = showAllAccess ? ACCESS_FACETS : ACCESS_FACETS.slice(0, INITIAL_VISIBLE);
   const hiddenAccessCount = ACCESS_FACETS.length - INITIAL_VISIBLE;
 
+  // Show a handful of areas by default (32 council areas is a wall of pills);
+  // the rest sit behind "+N more". Always keep any selected area visible even
+  // when collapsed so a chosen-then-collapsed pill doesn't disappear.
+  const allCities = cities ?? [];
+  const shownCities = showAllAreas
+    ? allCities
+    : allCities.filter((c, i) => i < INITIAL_AREAS || locs.includes(c.slug));
+  const hiddenAreaCount = allCities.length - shownCities.length;
+
   return (
     <div className="card p-4 flex flex-col gap-5">
       <div className="flex items-center justify-between gap-3">
@@ -87,14 +99,14 @@ export default function PlaceFilters({
         )}
       </div>
 
-      {cities && cities.length > 0 && (
+      {allCities.length > 0 && (
         <div>
           <div className="label mb-2">Area{locs.length > 1 ? ` · ${locs.length} selected` : ""}</div>
           <div className="flex flex-wrap gap-2">
             <button onClick={() => update({ loc: null })} className={`filter-pill ${locs.length === 0 ? "filter-pill-active" : ""}`}>
               Everywhere
             </button>
-            {cities.map((c) => (
+            {shownCities.map((c) => (
               <button
                 key={c.slug}
                 onClick={() => update({ loc: toggleIn(locs, c.slug).join(",") || null })}
@@ -103,6 +115,16 @@ export default function PlaceFilters({
                 {c.name}
               </button>
             ))}
+            {!showAllAreas && hiddenAreaCount > 0 && (
+              <button onClick={() => setShowAllAreas(true)} className="filter-pill text-buzz-mute">
+                +{hiddenAreaCount} more
+              </button>
+            )}
+            {showAllAreas && allCities.length > INITIAL_AREAS && (
+              <button onClick={() => setShowAllAreas(false)} className="filter-pill text-buzz-mute">
+                Show less
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -112,9 +134,6 @@ export default function PlaceFilters({
         <div className="flex flex-wrap gap-2">
           <button onClick={() => update({ open: null })} className={`filter-pill ${open === "today" ? "filter-pill-active" : ""}`}>
             Today
-          </button>
-          <button onClick={() => update({ open: "any" })} className={`filter-pill ${open === "any" ? "filter-pill-active" : ""}`}>
-            Any day
           </button>
           <button onClick={() => update({ open: "tomorrow" })} className={`filter-pill ${open === "tomorrow" ? "filter-pill-active" : ""}`}>
             Tomorrow

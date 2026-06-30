@@ -47,7 +47,16 @@ export default function WhatsOnView({ events, cities, isAdmin }: { events: Event
     return events
       .filter((e) => {
         const start = new Date(e.start_time);
-        const end = e.end_time ? new Date(e.end_time) : endOfDay(start);
+        // Effective end: a multi-day run (end_date) wins, then an explicit
+        // end_time, else the event lasts its start day. This is what makes an
+        // ongoing exhibition (e.g. 16 May → 2 Aug) show on EVERY day of its
+        // run instead of being treated as a one-day event back on its start.
+        const endDate = (e as any).end_date as string | null | undefined;
+        const end = endDate
+          ? endOfDay(new Date(`${endDate}T00:00:00`))
+          : e.end_time
+          ? new Date(e.end_time)
+          : endOfDay(start);
         // Only upcoming / still-running events.
         if (end < todayStart) return false;
         const evCitySlug = (e.venue as any)?.city?.slug ?? (e as any).city?.slug;
