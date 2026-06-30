@@ -32,7 +32,8 @@ export default async function AdminQueuePage() {
     supabase
       .from("events")
       .select(`
-        id, title, start_time, description, image_url, submitted_by,
+        id, title, start_time, end_time, end_date, recurrence_pattern, recurrence_until,
+        description, image_url, submitted_by,
         venue:venues(id, name, slug, city:cities(name, slug))
       `)
       .eq("status", "pending")
