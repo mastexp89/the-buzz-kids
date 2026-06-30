@@ -44,7 +44,12 @@ export default function PlaceFilters({
   const outdoor = params.get("outdoor") === "1";
   const free = params.get("free") === "1";
   const other = params.get("other") === "1";
-  const loc = params.get("loc") || "";
+  // Location is multi-select: a comma-separated list of city slugs. Empty = everywhere.
+  const locs = (params.get("loc") || "").split(",").map((s) => s.trim()).filter(Boolean);
+  // "Open on" day filter. Defaults to "today" (absent param = today); "any"
+  // means no day filter. Values: any | today | tomorrow | weekend | YYYY-MM-DD.
+  const open = params.get("open") || "today";
+  const openIsDate = /^\d{4}-\d{2}-\d{2}$/.test(open);
 
   function update(next: Record<string, string | null>) {
     const sp = new URLSearchParams(params);
@@ -57,8 +62,8 @@ export default function PlaceFilters({
   const toggleIn = (list: string[], v: string) =>
     list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
 
-  const hasFilters = cats.length > 0 || access.length > 0 || toddler || rain || outdoor || free || other || loc;
-  const clearAll = () => update({ cat: null, access: null, toddler: null, rain: null, outdoor: null, free: null, other: null, loc: null });
+  const hasFilters = cats.length > 0 || access.length > 0 || toddler || rain || outdoor || free || other || locs.length > 0 || open !== "today";
+  const clearAll = () => update({ cat: null, access: null, toddler: null, rain: null, outdoor: null, free: null, other: null, loc: null, open: null });
 
   // Filter out excluded categories, keeping any that are currently active so
   // a URL-shared filter still shows the active pill even if it's "hidden".
@@ -84,16 +89,16 @@ export default function PlaceFilters({
 
       {cities && cities.length > 0 && (
         <div>
-          <div className="label mb-2">Area</div>
+          <div className="label mb-2">Area{locs.length > 1 ? ` · ${locs.length} selected` : ""}</div>
           <div className="flex flex-wrap gap-2">
-            <button onClick={() => update({ loc: null })} className={`filter-pill ${loc === "" ? "filter-pill-active" : ""}`}>
+            <button onClick={() => update({ loc: null })} className={`filter-pill ${locs.length === 0 ? "filter-pill-active" : ""}`}>
               Everywhere
             </button>
             {cities.map((c) => (
               <button
                 key={c.slug}
-                onClick={() => update({ loc: loc === c.slug ? null : c.slug })}
-                className={`filter-pill ${loc === c.slug ? "filter-pill-active" : ""}`}
+                onClick={() => update({ loc: toggleIn(locs, c.slug).join(",") || null })}
+                className={`filter-pill ${locs.includes(c.slug) ? "filter-pill-active" : ""}`}
               >
                 {c.name}
               </button>
@@ -101,6 +106,33 @@ export default function PlaceFilters({
           </div>
         </div>
       )}
+
+      <div>
+        <div className="label mb-2">Open</div>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => update({ open: null })} className={`filter-pill ${open === "today" ? "filter-pill-active" : ""}`}>
+            Today
+          </button>
+          <button onClick={() => update({ open: "any" })} className={`filter-pill ${open === "any" ? "filter-pill-active" : ""}`}>
+            Any day
+          </button>
+          <button onClick={() => update({ open: "tomorrow" })} className={`filter-pill ${open === "tomorrow" ? "filter-pill-active" : ""}`}>
+            Tomorrow
+          </button>
+          <button onClick={() => update({ open: "weekend" })} className={`filter-pill ${open === "weekend" ? "filter-pill-active" : ""}`}>
+            This weekend
+          </button>
+          <label className={`filter-pill cursor-pointer ${openIsDate ? "filter-pill-active" : ""}`}>
+            📅 {openIsDate ? open : "Pick a date"}
+            <input
+              type="date"
+              value={openIsDate ? open : ""}
+              onChange={(e) => update({ open: e.target.value || null })}
+              className="ml-2 bg-transparent outline-none text-xs"
+            />
+          </label>
+        </div>
+      </div>
 
       <div>
         <div className="label mb-2">Activity</div>

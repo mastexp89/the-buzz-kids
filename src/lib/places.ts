@@ -17,7 +17,34 @@ export type PlaceQuery = {
   freeOnly?: boolean;            // planner: free places only
   maxPrice?: number;             // planner: free, unknown, or price_from <= maxPrice
   suitableForAge?: number;       // planner: place admits a child of this age
+  openOnDays?: string[];         // only places open on ANY of these day keys ("sat","sun"…)
 };
+
+// Day-of-week keys matching opening_hours_json's per-day shape.
+const DOW = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+
+// Map the "open" filter value to the day key(s) a place must be open on.
+//   "today" / "tomorrow" — resolved against the server's current date
+//   "weekend"            — Saturday OR Sunday
+//   "YYYY-MM-DD"         — that specific date's weekday
+//   anything else / ""   — undefined (no open-day filter)
+// Note: computed in the server's timezone (UTC on Vercel). The weekday only
+// shifts around local midnight, which is fine for a "what's open" filter.
+export function openDayKeysFor(open?: string | null): string[] | undefined {
+  if (!open) return undefined;
+  if (open === "today") return [DOW[new Date().getDay()]];
+  if (open === "tomorrow") {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return [DOW[d.getDay()]];
+  }
+  if (open === "weekend") return ["sat", "sun"];
+  if (/^\d{4}-\d{2}-\d{2}$/.test(open)) {
+    const d = new Date(open + "T12:00:00");
+    if (!Number.isNaN(d.getTime())) return [DOW[d.getDay()]];
+  }
+  return undefined;
+}
 
 export async function fetchPlaces(supabase: SupabaseClient, opts: PlaceQuery): Promise<any[]> {
   // Resolve the category filter to a venue-id allow/deny list via venue_genres.
@@ -40,9 +67,19 @@ export async function fetchPlaces(supabase: SupabaseClient, opts: PlaceQuery): P
     }
   }
 
+  // Select ONLY the columns the place cards + distance sort actually use.
+  // Was `select("*")`, which shipped every heavy unused column on all ~1,000+
+  // rows — most notably opening_hours_json and photo_refs — bloating the page
+  // payload badly. The directory grid never renders those, so we leave them
+  // out. (Filters below still run on columns whether or not they're selected.)
+  const CARD_COLUMNS =
+    "id, name, slug, description, " +
+    "cover_photo_url, image_url, gallery_image_urls, logo_url, google_photo_url, google_photo_attribution, " +
+    "accessibility, age_min, age_max, setting, is_free, price_from, price_note, latitude, longitude";
+
   let q = supabase
     .from("venues")
-    .select("*, venue_genres ( genre:genres ( name, slug ) ), city:cities ( name, slug )")
+    .select(`${CARD_COLUMNS}, venue_genres ( genre:genres ( name, slug ) ), city:cities ( name, slug )`)
     .eq("approved", true)
     .in("venue_type", ["attraction", "both"])
     .order("name");
@@ -54,6 +91,18 @@ export async function fetchPlaces(supabase: SupabaseClient, opts: PlaceQuery): P
     q = q.in("id", venueIdInclude.length ? venueIdInclude : [NO_MATCH]);
   } else if (venueIdExclude.length > 0) {
     q = q.not("id", "in", `(${venueIdExclude.join(",")})`);
+  }
+
+  // "Open on this day" — a place passes if it's open on ANY of the requested
+  // days OR has no opening hours on file at all (parks, beaches, playgrounds
+  // and the ~140 venues we lack hours for shouldn't vanish — only places we
+  // KNOW are closed that day get filtered out).
+  if (opts.openOnDays && opts.openOnDays.length > 0) {
+    const clause = [
+      "opening_hours_json.is.null",
+      ...opts.openOnDays.map((d) => `opening_hours_json->${d}.not.is.null`),
+    ].join(",");
+    q = q.or(clause);
   }
 
   if (opts.toddler) q = q.lte("age_min", 3); // suitable from toddler age (0–3)

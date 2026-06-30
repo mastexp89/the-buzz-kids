@@ -292,6 +292,28 @@ export async function runFacebookScrapeNow(opts: { citySlug?: string; force?: bo
   return triggerCronRoute(path);
 }
 
+/**
+ * Manually trigger the website event scraper cron. Unlike the FB scrape it
+ * does NOT self-chain — one call processes one batch (default 6 venues) and
+ * returns, so the review queue fills at a bounded rate. Click again (or pass
+ * a bigger `batch`) to process more.
+ *
+ * Pass `citySlug` to scope to one region, `force` to ignore the 30-day
+ * cooldown, `dry` to preview without writing.
+ */
+export async function runWebsiteScrapeNow(
+  opts: { citySlug?: string; force?: boolean; dry?: boolean; batch?: number } = {},
+) {
+  const params = new URLSearchParams();
+  if (opts.citySlug) params.set("city", opts.citySlug);
+  if (opts.force) params.set("force", "1");
+  if (opts.dry) params.set("dry", "1");
+  if (opts.batch) params.set("batch", String(opts.batch));
+  const qs = params.toString();
+  const path = `/api/cron/scrape-websites${qs ? `?${qs}` : ""}`;
+  return triggerCronRoute(path);
+}
+
 export type FacebookCronProgress = {
   ok: true;
   done: number;

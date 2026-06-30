@@ -5,7 +5,7 @@ import PlaceFilters from "@/components/PlaceFilters";
 import WhatsOnView from "@/components/WhatsOnView";
 import OffersView from "@/components/OffersView";
 import { AccessibilityLegend } from "@/components/AccessibilityBadges";
-import { fetchPlaces } from "@/lib/places";
+import { fetchPlaces, openDayKeysFor } from "@/lib/places";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +17,7 @@ export const metadata = {
 };
 
 type Props = {
-  searchParams: Promise<{ tab?: string; cat?: string; access?: string; toddler?: string; rain?: string; outdoor?: string; free?: string; other?: string; loc?: string }>;
+  searchParams: Promise<{ tab?: string; cat?: string; access?: string; toddler?: string; rain?: string; outdoor?: string; free?: string; other?: string; loc?: string; open?: string }>;
 };
 
 export default async function BrowsePage({ searchParams }: Props) {
@@ -40,12 +40,20 @@ export default async function BrowsePage({ searchParams }: Props) {
     offers = offerRows ?? [];
   }
 
-  const [{ data: cityRows }, { data: genres }] = await Promise.all([
+  const [{ data: cityRows }, { data: genres }, { data: { user } }] = await Promise.all([
     supabase.from("cities").select("id, name, slug").eq("active", true).order("name"),
     supabase.from("genres").select("*").order("name"),
+    supabase.auth.getUser(),
   ]);
   const cities = cityRows ?? [];
   const activeIds = cities.map((c) => c.id);
+
+  // Admins get inline delete controls on the live browse views.
+  let isAdmin = false;
+  if (user) {
+    const { data: prof } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    isAdmin = prof?.role === "admin";
+  }
 
   // --- What's On (dated events) ---
   let events: any[] = [];
@@ -78,21 +86,27 @@ export default async function BrowsePage({ searchParams }: Props) {
   const outdoor = sp.outdoor === "1";
   const free = sp.free === "1";
   const other = sp.other === "1";
-  const loc = sp.loc || "";
+  // Location filter is multi-select: comma-separated slugs, or all active towns.
+  const locs = (sp.loc || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const cityIds = locs.length
+    ? cities.filter((c) => locs.includes(c.slug)).map((c) => c.id)
+    : activeIds;
 
-  // Location filter: a single chosen town, or all active towns.
-  let cityId: string | undefined;
-  let cityIds: string[] | undefined;
-  if (loc) {
-    const c = cities.find((x) => x.slug === loc);
-    cityId = c?.id;
-    if (!cityId) cityIds = []; // unknown slug → no results
-  } else {
-    cityIds = activeIds;
-  }
+  // Carry the active place filters through to /surprise so a spin respects
+  // whatever the parent has narrowed to. Only the params /surprise reads.
+  const surpriseParams = new URLSearchParams();
+  if (sp.cat) surpriseParams.set("cat", sp.cat);
+  if (sp.access) surpriseParams.set("access", sp.access);
+  if (sp.toddler === "1") surpriseParams.set("toddler", "1");
+  if (sp.rain === "1") surpriseParams.set("rain", "1");
+  if (sp.outdoor === "1") surpriseParams.set("outdoor", "1");
+  if (sp.free === "1") surpriseParams.set("free", "1");
+  if (sp.other === "1") surpriseParams.set("other", "1");
+  if (sp.loc) surpriseParams.set("loc", sp.loc);
+  if (sp.open) surpriseParams.set("open", sp.open);
+  const surpriseQuery = surpriseParams.toString();
 
   const places = await fetchPlaces(supabase, {
-    cityId,
     cityIds,
     catSlugs: cats,
     uncategorised: other,
@@ -101,6 +115,7 @@ export default async function BrowsePage({ searchParams }: Props) {
     outdoorOnly: outdoor,
     freeOnly: free,
     accessKeys: access,
+    openOnDays: openDayKeysFor(sp.open || "today"),
   });
 
   return (
@@ -143,16 +158,25 @@ export default async function BrowsePage({ searchParams }: Props) {
 
       <div className="container-page py-8">
         {isOffers ? (
-          <OffersView offers={offers} category={tab === "food" ? "food" : "days-out"} />
+          <OffersView offers={offers} category={tab === "food" ? "food" : "days-out"} isAdmin={isAdmin} />
         ) : isEvents ? (
-          <WhatsOnView events={events} cities={cities} />
+          <WhatsOnView events={events} cities={cities} isAdmin={isAdmin} />
         ) : (
           <>
             <div className="mb-8">
               <PlaceFilters genres={genres ?? []} cities={cities} />
             </div>
-            <div className="mb-8">
+            <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
               <AccessibilityLegend />
+              {places.length > 1 && (
+                <Link
+                  href={`/surprise${surpriseQuery ? `?${surpriseQuery}` : ""}`}
+                  className="btn-secondary btn-sm shrink-0"
+                  title="Can't choose? Spin for a random place from this list"
+                >
+                  🎲 Surprise me
+                </Link>
+              )}
             </div>
 
             {places.length === 0 ? (
@@ -164,7 +188,7 @@ export default async function BrowsePage({ searchParams }: Props) {
                 </p>
               </div>
             ) : (
-              <PlacesGrid places={places} />
+              <PlacesGrid places={places} isAdmin={isAdmin} />
             )}
           </>
         )}

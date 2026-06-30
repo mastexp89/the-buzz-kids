@@ -1,5 +1,13 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import OfferReportButton from "@/components/OfferReportButton";
+import AdminDeleteButton from "@/components/AdminDeleteButton";
+
+// Show this many offers first; the rest sit behind a "show more" button so the
+// Deals / Food tabs load light and don't dump everything at once.
+const INITIAL_CAP = 12;
 
 type Offer = {
   id: string;
@@ -18,7 +26,10 @@ function host(u: string): string {
   try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return "website"; }
 }
 
-export default function OffersView({ offers, category }: { offers: Offer[]; category: "food" | "days-out" }) {
+export default function OffersView({ offers, category, isAdmin }: { offers: Offer[]; category: "food" | "days-out"; isAdmin?: boolean }) {
+  const [expanded, setExpanded] = useState(false);
+  const shown = expanded ? offers : offers.slice(0, INITIAL_CAP);
+
   if (offers.length === 0) {
     return (
       <div className="card p-12 text-center">
@@ -38,7 +49,7 @@ export default function OffersView({ offers, category }: { offers: Offer[]; cate
           : "Ways to do family days out for less. Most are national schemes that work across Scotland — check the details before you book."}
       </p>
       <div className="grid sm:grid-cols-2 gap-4">
-        {offers.map((o) => (
+        {shown.map((o) => (
           <div key={o.id} className="card p-5 flex flex-col gap-2">
             <div className="flex items-start gap-2 flex-wrap">
               <span className="inline-flex items-center rounded-full bg-buzz-accent/15 text-buzz-accent text-[11px] font-bold uppercase tracking-wider px-2.5 py-1">
@@ -72,10 +83,19 @@ export default function OffersView({ offers, category }: { offers: Offer[]; cate
                 )}
               </div>
               <OfferReportButton offerId={o.id} />
+              {isAdmin && <AdminDeleteButton kind="offer" id={o.id} name={o.title} className="mt-1" />}
             </div>
           </div>
         ))}
       </div>
+
+      {offers.length > INITIAL_CAP && (
+        <div className="mt-6 text-center">
+          <button onClick={() => setExpanded((v) => !v)} className="btn-secondary">
+            {expanded ? "Show fewer" : `Show all ${offers.length} →`}
+          </button>
+        </div>
+      )}
 
       <div className="mt-8 card p-5 text-center bg-buzz-accent/5 border-buzz-accent/30">
         <p className="text-sm text-buzz-mute mb-3">Know a deal we've missed? Help other parents out.</p>

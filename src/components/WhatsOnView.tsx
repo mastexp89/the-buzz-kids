@@ -2,19 +2,23 @@
 
 import { useMemo, useState } from "react";
 import EventCard from "@/components/EventCard";
+import AdminDeleteButton from "@/components/AdminDeleteButton";
 import type { EventWithVenue } from "@/lib/types";
 
 type City = { name: string; slug: string };
-type DateFilter = "all" | "today" | "tomorrow" | "weekend" | "week" | "month" | "date";
+// Pared back to four windows so the page never renders every upcoming event
+// at once (which was slow + overwhelming): Today, Tomorrow, This weekend, or a
+// specific picked date. There's deliberately no "show everything" option.
+type DateFilter = "today" | "tomorrow" | "weekend" | "date";
 
 function startOfDay(d: Date) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
 function endOfDay(d: Date) { const x = new Date(d); x.setHours(23, 59, 59, 999); return x; }
 
 // Range [start, end] for the chosen quick filter, computed in local time.
+// Only returns null for the date picker before a date has been chosen.
 function rangeFor(filter: DateFilter, picked: string): { start: Date; end: Date } | null {
   const today = new Date();
   const day = today.getDay(); // 0 Sun … 6 Sat
-  if (filter === "all") return null;
   if (filter === "today") return { start: startOfDay(today), end: endOfDay(today) };
   if (filter === "tomorrow") {
     const tm = new Date(today); tm.setDate(today.getDate() + 1);
@@ -25,23 +29,15 @@ function rangeFor(filter: DateFilter, picked: string): { start: Date; end: Date 
     const d = new Date(picked + "T00:00:00");
     return { start: startOfDay(d), end: endOfDay(d) };
   }
-  if (filter === "weekend") {
-    if (day === 0) return { start: startOfDay(today), end: endOfDay(today) }; // Sunday → just today
-    const sat = new Date(today); sat.setDate(today.getDate() + (6 - day));
-    const sun = new Date(sat); sun.setDate(sat.getDate() + 1);
-    return { start: startOfDay(day === 6 ? today : sat), end: endOfDay(sun) };
-  }
-  if (filter === "week") {
-    const sun = new Date(today); sun.setDate(today.getDate() + ((7 - day) % 7));
-    return { start: startOfDay(today), end: endOfDay(sun) };
-  }
-  // month
-  const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-  return { start: startOfDay(today), end: endOfDay(end) };
+  // weekend
+  if (day === 0) return { start: startOfDay(today), end: endOfDay(today) }; // Sunday → just today
+  const sat = new Date(today); sat.setDate(today.getDate() + (6 - day));
+  const sun = new Date(sat); sun.setDate(sat.getDate() + 1);
+  return { start: startOfDay(day === 6 ? today : sat), end: endOfDay(sun) };
 }
 
-export default function WhatsOnView({ events, cities }: { events: EventWithVenue[]; cities: City[] }) {
-  const [filter, setFilter] = useState<DateFilter>("all");
+export default function WhatsOnView({ events, cities, isAdmin }: { events: EventWithVenue[]; cities: City[]; isAdmin?: boolean }) {
+  const [filter, setFilter] = useState<DateFilter>("today");
   const [picked, setPicked] = useState("");
   const [area, setArea] = useState("");
 
@@ -74,12 +70,9 @@ export default function WhatsOnView({ events, cities }: { events: EventWithVenue
         <div>
           <div className="label mb-2">When</div>
           <div className="flex flex-wrap gap-2 items-center">
-            <button onClick={() => { setFilter("all"); }} className={pill(filter === "all")}>Anytime</button>
             <button onClick={() => { setFilter("today"); }} className={pill(filter === "today")}>Today</button>
             <button onClick={() => { setFilter("tomorrow"); }} className={pill(filter === "tomorrow")}>Tomorrow</button>
             <button onClick={() => { setFilter("weekend"); }} className={pill(filter === "weekend")}>This weekend</button>
-            <button onClick={() => { setFilter("week"); }} className={pill(filter === "week")}>This week</button>
-            <button onClick={() => { setFilter("month"); }} className={pill(filter === "month")}>This month</button>
             <label className={pill(filter === "date") + " cursor-pointer"}>
               📅 Pick a date
               <input
@@ -114,13 +107,16 @@ export default function WhatsOnView({ events, cities }: { events: EventWithVenue
           <p className="text-buzz-mute max-w-md mx-auto">
             {events.length === 0
               ? "We're just getting started — events, fayres and holiday fun will appear here soon."
-              : "No events match that filter. Try 'Anytime' or a different area."}
+              : "Nothing on for that day. Try tomorrow, this weekend, or pick another date."}
           </p>
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {filtered.map((e) => (
-            <EventCard key={e.id} event={e} citySlug={(e.venue as any)?.city?.slug ?? (e as any).city?.slug ?? "dundee"} />
+            <div key={e.id} className="flex flex-col gap-1.5">
+              <EventCard event={e} citySlug={(e.venue as any)?.city?.slug ?? (e as any).city?.slug ?? "dundee"} />
+              {isAdmin && <AdminDeleteButton kind="event" id={e.id} name={e.title} />}
+            </div>
           ))}
         </div>
       )}

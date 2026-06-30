@@ -25,6 +25,7 @@ export default function AdminVenueRow({
   const [busy, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [messageOpen, setMessageOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
@@ -183,41 +184,11 @@ export default function AdminVenueRow({
             </Link>
           )}
           <Link
-            href={`/dashboard/venues/${venue.id}/events/new`}
-            className="btn-secondary btn-sm"
-          >
-            + Add event
-          </Link>
-          <Link
             href={`/dashboard/venues/${venue.id}/edit`}
             className="btn-secondary btn-sm"
           >
             Edit
           </Link>
-          <Link
-            href={`/admin/venues/${venue.id}/promote`}
-            className="btn-secondary btn-sm"
-            title="Comp a promotion for this venue"
-          >
-            Promote
-          </Link>
-          <button
-            type="button"
-            onClick={() => {
-              setMessageOpen((o) => !o);
-              setError(null);
-              setSentOk(false);
-            }}
-            className="btn-secondary btn-sm"
-            disabled={!ownerEmail}
-            title={
-              ownerEmail
-                ? `Email the venue owner at ${ownerEmail}`
-                : "No owner email on file"
-            }
-          >
-            {messageOpen ? "Close" : "Message"}
-          </button>
           {pending ? (
             <button
               onClick={approve}
@@ -243,6 +214,64 @@ export default function AdminVenueRow({
           >
             {busy ? "…" : "Delete"}
           </button>
+
+          {/* Secondary actions tucked into a small menu so the row never wraps */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setMoreOpen((o) => !o)}
+              className="btn-secondary btn-sm"
+              aria-haspopup="menu"
+              aria-expanded={moreOpen}
+              title="More actions"
+            >
+              ⋯
+            </button>
+            {moreOpen && (
+              <>
+                {/* click-away backdrop */}
+                <div className="fixed inset-0 z-20" onClick={() => setMoreOpen(false)} />
+                <div
+                  role="menu"
+                  className="absolute right-0 mt-1 z-30 w-44 rounded-lg border border-buzz-border bg-buzz-card shadow-lg py-1 flex flex-col"
+                >
+                  <Link
+                    href={`/dashboard/venues/${venue.id}/events/new`}
+                    className="px-3 py-2 text-sm text-left hover:bg-buzz-surface"
+                    onClick={() => setMoreOpen(false)}
+                  >
+                    🎉 Add event
+                  </Link>
+                  <Link
+                    href={`/admin/venues/${venue.id}/promote`}
+                    className="px-3 py-2 text-sm text-left hover:bg-buzz-surface"
+                    onClick={() => setMoreOpen(false)}
+                    title="Comp a promotion for this venue"
+                  >
+                    🚀 Promote
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMoreOpen(false);
+                      setMessageOpen((o) => !o);
+                      setError(null);
+                      setSentOk(false);
+                    }}
+                    disabled={!ownerEmail}
+                    className="px-3 py-2 text-sm text-left hover:bg-buzz-surface disabled:opacity-40 disabled:cursor-not-allowed"
+                    title={
+                      ownerEmail
+                        ? `Email the venue owner at ${ownerEmail}`
+                        : "No owner email on file"
+                    }
+                  >
+                    ✉️ {messageOpen ? "Close message" : "Message owner"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
