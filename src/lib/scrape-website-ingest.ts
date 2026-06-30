@@ -143,6 +143,13 @@ export async function scrapeAndIngestVenueWebsite(opts: WebsiteIngestOptions): P
       return !Number.isNaN(end.getTime()) && end < todayStart;
     };
 
+    // Skip permanently-open attractions. A "daily" run with no end date and no
+    // recurrence-until isn't an event — it's just a venue that's open every day
+    // (go-karting, laser tag, soft play). Those belong in the places directory,
+    // not the What's On queue, so don't queue them at all.
+    const isPermanentAttraction = (e: ExtractedEvent): boolean =>
+      (e.recurring?.pattern || "").toLowerCase() === "daily" && !e.end_date && !e.recurring?.until;
+
     for (const page of toExtract) {
       try {
         const extraction = await extractEvents({
@@ -159,6 +166,7 @@ export async function scrapeAndIngestVenueWebsite(opts: WebsiteIngestOptions): P
           if (!e.starts_at) return false;
           if (Number.isNaN(new Date(e.starts_at).getTime())) return false;
           if (hasFinished(e)) { skipped++; return false; }
+          if (isPermanentAttraction(e)) { skipped++; return false; }
           return true;
         });
         if (valid.length === 0) continue;
