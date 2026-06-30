@@ -4,6 +4,7 @@ import type { EventWithVenue } from "@/lib/types";
 import { DistancePill } from "@/components/NearMeButton";
 import EventThumb from "@/components/EventThumb";
 import { AccessibilityBadges } from "@/components/AccessibilityBadges";
+import { recurrenceLabel } from "@/lib/recurrence";
 
 function isActive(iso: string | null | undefined) {
   return !!iso && new Date(iso).getTime() > Date.now();
@@ -14,6 +15,10 @@ function isActive(iso: string | null | undefined) {
 // falls inside it — so an ongoing exhibition doesn't read as a past one-day
 // event sitting on its start date.
 function dateBadgeLabel(event: EventWithVenue): string {
+  // A weekly/daily series reads as its cadence ("Every Friday"), not the start
+  // date — otherwise an ongoing club looks like a past one-off.
+  const rec = recurrenceLabel((event as any).recurrence_pattern, event.start_time);
+  if (rec) return rec;
   const start = new Date(event.start_time);
   const endStr = (event as any).end_date as string | null | undefined;
   if (endStr) {
