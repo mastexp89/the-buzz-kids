@@ -99,13 +99,27 @@ export default async function AdminPage({ searchParams }: Props) {
   if (searchOr) pendingBase = pendingBase.or(searchOr);
   const pendingQuery = pendingBase.order("created_at", { ascending: false });
 
-  let approvedBase = supabase
-    .from("venues")
-    .select("*, city:cities(*), owner:profiles!owner_id(email, display_name)")
-    .eq("approved", true);
-  if (filterCityId) approvedBase = approvedBase.eq("city_id", filterCityId);
-  if (searchOr) approvedBase = approvedBase.or(searchOr);
-  const approvedQuery = approvedBase.order("name");
+  // Approved places now exceed Supabase's hard 1000-row-per-request cap
+  // (1,089+), so a single query silently stops at 1000 — which is why the
+  // count read "(1000)". Page through to load them all. When a search is
+  // active (searchOr) the result is small, so the loop runs just once.
+  const approvedAll = (async () => {
+    const PAGE = 1000;
+    const all: any[] = [];
+    for (let from = 0; ; from += PAGE) {
+      let q = supabase
+        .from("venues")
+        .select("*, city:cities(*), owner:profiles!owner_id(email, display_name)")
+        .eq("approved", true);
+      if (filterCityId) q = q.eq("city_id", filterCityId);
+      if (searchOr) q = q.or(searchOr);
+      const { data, error } = await q.order("name").range(from, from + PAGE - 1);
+      if (error || !data || data.length === 0) break;
+      all.push(...data);
+      if (data.length < PAGE) break;
+    }
+    return { data: all };
+  })();
 
   const [
     { data: pending },
@@ -116,7 +130,7 @@ export default async function AdminPage({ searchParams }: Props) {
     { data: expiringPromoEvents },
   ] = await Promise.all([
     pendingQuery,
-    approvedQuery,
+    approvedAll,
     supabase
       .from("profiles")
       .select("id, email, display_name, role, created_at")
