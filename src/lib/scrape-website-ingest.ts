@@ -127,6 +127,22 @@ export async function scrapeAndIngestVenueWebsite(opts: WebsiteIngestOptions): P
       titlesByHour.set(hk, list);
     }
 
+    // Drop events that have already finished — venue sites list archives /
+    // past exhibitions and the extractor happily pulls them, which just
+    // clutters the review queue. An event survives if its END is today or
+    // later, so a still-running exhibition (past start, future end_date)
+    // is kept; only genuinely-over events are dropped.
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+    const hasFinished = (e: ExtractedEvent): boolean => {
+      const end = e.end_date
+        ? new Date(`${e.end_date}T23:59:59Z`)
+        : e.ends_at
+        ? new Date(e.ends_at)
+        : new Date(e.starts_at);
+      return !Number.isNaN(end.getTime()) && end < todayStart;
+    };
+
     for (const page of toExtract) {
       try {
         const extraction = await extractEvents({
@@ -141,7 +157,9 @@ export async function scrapeAndIngestVenueWebsite(opts: WebsiteIngestOptions): P
         const valid = (extraction.events ?? []).filter((e) => {
           if (!e.title || !e.title.trim()) return false;
           if (!e.starts_at) return false;
-          return !Number.isNaN(new Date(e.starts_at).getTime());
+          if (Number.isNaN(new Date(e.starts_at).getTime())) return false;
+          if (hasFinished(e)) { skipped++; return false; }
+          return true;
         });
         if (valid.length === 0) continue;
 
