@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/cron/scrape-websites",
-      "schedule": "*/15 20-21 * * 2,6"
+      "schedule": "0 20 * * 2,6"
     },
     {
       "path": "/api/cron/dedupe-events",

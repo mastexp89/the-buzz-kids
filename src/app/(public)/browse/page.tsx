@@ -171,7 +171,7 @@ export default async function BrowsePage({ searchParams }: Props) {
               {places.length > 1 && (
                 <Link
                   href={`/surprise${surpriseQuery ? `?${surpriseQuery}` : ""}`}
-                  className="btn-secondary btn-sm shrink-0"
+                  className="btn-primary btn-lg shrink-0 shadow-md"
                   title="Can't choose? Spin for a random place from this list"
                 >
                   🎲 Surprise me

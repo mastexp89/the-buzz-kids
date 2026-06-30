@@ -24,13 +24,13 @@
 //   ?maxPages=N  AI-extract at most N pages per venue (default 3)
 //   ?dry=1       skip all writes; just report what would happen
 
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { scrapeAndIngestVenueWebsite } from "@/lib/scrape-website-ingest";
 
 export const maxDuration = 300;
 
-const DEFAULT_BATCH = 6;
+const DEFAULT_BATCH = 10;
 // Websites change slowly and this also bounds the review-queue fill rate:
 // a long cooldown means each run-day only ever touches fresh venues.
 const RESCRAPE_COOLDOWN_DAYS = 30;
@@ -52,6 +52,11 @@ export async function GET(req: Request) {
   const dry = url.searchParams.get("dry") === "1";
   const force = url.searchParams.get("force") === "1";
   const cityFilterSlug = url.searchParams.get("city");
+  // Self-chain so one trigger sweeps every eligible venue instead of a single
+  // batch. Processed venues get last_website_scrape=now and fall out of the
+  // cooldown query, so each chained call naturally picks up the next batch.
+  // Default ON; pass chain=0 for a single gentle batch.
+  const chain = url.searchParams.get("chain") !== "0";
 
   const sb = createServiceClient();
 
@@ -178,12 +183,34 @@ export async function GET(req: Request) {
     return rest;
   });
 
+  // Fire the next chain link if we got a full batch (i.e. more venues likely
+  // remain). Uses Next's after() so the fetch survives past this response —
+  // without it Vercel kills the function and the chained call never goes out.
+  // The 30-day cooldown excludes the venues we just stamped, so the next link
+  // advances naturally with no offset/cursor needed.
+  let chained = false;
+  if (chain && !dry && venues.length === batch) {
+    const nextUrl = new URL(req.url);
+    nextUrl.searchParams.set("chain", "1");
+    const chainedUrl = nextUrl.toString();
+    const authHeader = `Bearer ${process.env.CRON_SECRET ?? ""}`;
+    after(async () => {
+      try {
+        await fetch(chainedUrl, { method: "GET", headers: { Authorization: authHeader } });
+      } catch (e) {
+        console.error("[scrape-websites] chain fetch failed:", e);
+      }
+    });
+    chained = true;
+  }
+
   return NextResponse.json({
     ok: true,
     scraped: venues.length,
     eventsCreated: totalEvents,
     queuedForReview: totalEvents,
     city: cityFilterSlug ?? "(all active)",
+    chained,
     dry,
     perVenue: perVenuePublic,
   });
