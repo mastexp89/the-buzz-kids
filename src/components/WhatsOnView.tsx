@@ -122,8 +122,10 @@ export default function WhatsOnView({ events, cities, isAdmin }: { events: Event
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {filtered.map((e) => (
-            <div key={e.id} className="flex flex-col gap-1.5">
-              <EventCard event={e} citySlug={(e.venue as any)?.city?.slug ?? (e as any).city?.slug ?? "dundee"} />
+            <div key={e.id} className="flex flex-col gap-1.5 h-full">
+              <div className="flex-1">
+                <EventCard event={e} citySlug={(e.venue as any)?.city?.slug ?? (e as any).city?.slug ?? "dundee"} />
+              </div>
               {isAdmin && <AdminDeleteButton kind="event" id={e.id} name={e.title} />}
             </div>
           ))}

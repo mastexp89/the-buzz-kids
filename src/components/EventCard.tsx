@@ -9,6 +9,26 @@ function isActive(iso: string | null | undefined) {
   return !!iso && new Date(iso).getTime() > Date.now();
 }
 
+// What the time/date badge says. For a multi-day run (end_date on a different
+// day) we show the span instead of just the start — and "On now" when today
+// falls inside it — so an ongoing exhibition doesn't read as a past one-day
+// event sitting on its start date.
+function dateBadgeLabel(event: EventWithVenue): string {
+  const start = new Date(event.start_time);
+  const endStr = (event as any).end_date as string | null | undefined;
+  if (endStr) {
+    const end = new Date(`${endStr}T00:00:00`);
+    if (!Number.isNaN(end.getTime()) && end.toDateString() !== start.toDateString()) {
+      const fmt = (d: Date) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const startDay = new Date(start); startDay.setHours(0, 0, 0, 0);
+      if (startDay <= today && end >= today) return `On now · until ${fmt(end)}`;
+      return `${fmt(start)} → ${fmt(end)}`;
+    }
+  }
+  return formatEventTime(event.start_time, event.end_time);
+}
+
 // "Ages 3–8" / "Ages 5+" / "Up to 4s" / null when unspecified.
 function ageLabel(min: number | null | undefined, max: number | null | undefined): string | null {
   if (min == null && max == null) return null;
@@ -42,7 +62,7 @@ export default function EventCard({ event, citySlug }: { event: EventWithVenue; 
   return (
     <Link
       href={`/${citySlug}/events/${event.id}`}
-      className={`card-hover group flex flex-col lift p-5 gap-3 ${
+      className={`card-hover group flex flex-col lift p-5 gap-3 h-full ${
         highlighted ? "border-buzz-accent shadow-[0_0_30px_rgba(253,185,19,0.25)]" : ""
       } ${event.cancelled ? "opacity-70" : ""}`}
     >
@@ -50,7 +70,7 @@ export default function EventCard({ event, citySlug }: { event: EventWithVenue; 
         <div className="flex-1 min-w-0 flex flex-col gap-2">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="inline-flex items-center rounded-full bg-buzz-accent text-white text-[11px] font-bold uppercase tracking-wider px-2.5 py-1">
-              {formatEventTime(event.start_time, event.end_time)}
+              {dateBadgeLabel(event)}
             </span>
             {weekendBoost && (
               <span className="inline-flex items-center rounded-full bg-rose-500 text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
