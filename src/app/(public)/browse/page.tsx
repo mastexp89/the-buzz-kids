@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import PlacesGrid from "@/components/PlacesGrid";
-import PlaceFilters from "@/components/PlaceFilters";
+import PlaceFilterBar from "@/components/PlaceFilterBar";
 import WhatsOnView from "@/components/WhatsOnView";
 import OffersView from "@/components/OffersView";
 import { AccessibilityLegend } from "@/components/AccessibilityBadges";
@@ -164,7 +164,7 @@ export default async function BrowsePage({ searchParams }: Props) {
         ) : (
           <>
             <div className="mb-8">
-              <PlaceFilters genres={genres ?? []} cities={cities} />
+              <PlaceFilterBar genres={genres ?? []} cities={cities} />
             </div>
             <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
               <AccessibilityLegend />
