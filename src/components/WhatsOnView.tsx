@@ -40,6 +40,7 @@ export default function WhatsOnView({ events, cities, isAdmin }: { events: Event
   const [filter, setFilter] = useState<DateFilter>("today");
   const [picked, setPicked] = useState("");
   const [area, setArea] = useState("");
+  const [openPanel, setOpenPanel] = useState<"when" | "area" | null>(null);
 
   const filtered = useMemo(() => {
     const todayStart = startOfDay(new Date());
@@ -72,40 +73,78 @@ export default function WhatsOnView({ events, cities, isAdmin }: { events: Event
 
   const pill = (active: boolean) => `filter-pill ${active ? "filter-pill-active" : ""}`;
 
+  const PINK = "#EC1E8C";
+  const whenLabel =
+    filter === "tomorrow" ? "Tomorrow"
+    : filter === "weekend" ? "This weekend"
+    : filter === "date" && picked ? new Date(`${picked}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+    : "Today";
+  const areaLabel = area ? (cities.find((c) => c.slug === area)?.name ?? "Area") : "Area";
+
   return (
     <div>
-      {/* Date filters */}
-      <div className="card p-4 flex flex-col gap-4 mb-8">
-        <div>
-          <div className="label mb-2">When</div>
-          <div className="flex flex-wrap gap-2 items-center">
-            <button onClick={() => { setFilter("today"); }} className={pill(filter === "today")}>Today</button>
-            <button onClick={() => { setFilter("tomorrow"); }} className={pill(filter === "tomorrow")}>Tomorrow</button>
-            <button onClick={() => { setFilter("weekend"); }} className={pill(filter === "weekend")}>This weekend</button>
-            <label className={pill(filter === "date") + " cursor-pointer"}>
-              📅 Pick a date
-              <input
-                type="date"
-                value={picked}
-                onChange={(e) => { setPicked(e.target.value); setFilter("date"); }}
-                className="ml-2 bg-transparent outline-none text-xs"
-              />
-            </label>
-          </div>
+      {/* Filter chips — same compact pattern as the Places tab */}
+      <div className="relative mb-8">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <button
+            onClick={() => setOpenPanel(openPanel === "when" ? null : "when")}
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium border whitespace-nowrap"
+            style={{ backgroundColor: PINK, color: "#fff", borderColor: PINK }}
+          >
+            {whenLabel} <span className="text-xs opacity-80">▾</span>
+          </button>
+          {cities.length > 1 && (
+            <button
+              onClick={() => setOpenPanel(openPanel === "area" ? null : "area")}
+              className={"shrink-0 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium border whitespace-nowrap " +
+                (area ? "" : "bg-transparent border-buzz-border text-buzz-text hover:border-buzz-accent")}
+              style={area ? { backgroundColor: PINK, color: "#fff", borderColor: PINK } : undefined}
+            >
+              {area ? areaLabel : "Area"} <span className={`text-xs ${area ? "opacity-80" : "text-buzz-mute"}`}>▾</span>
+            </button>
+          )}
         </div>
 
-        {cities.length > 1 && (
-          <div>
-            <div className="label mb-2">Area</div>
-            <div className="flex flex-wrap gap-2">
-              <button onClick={() => setArea("")} className={pill(area === "")}>Everywhere</button>
-              {cities.map((c) => (
-                <button key={c.slug} onClick={() => setArea(area === c.slug ? "" : c.slug)} className={pill(area === c.slug)}>
-                  {c.name}
-                </button>
-              ))}
+        {openPanel && (
+          <>
+            <div className="fixed inset-0 z-40 bg-black/40 sm:bg-transparent" onClick={() => setOpenPanel(null)} aria-hidden />
+            <div className="z-50 fixed inset-x-0 bottom-0 max-h-[80vh] rounded-t-2xl border-t sm:absolute sm:inset-x-auto sm:bottom-auto sm:top-full sm:left-0 sm:mt-2 sm:w-[30rem] sm:max-w-[90vw] sm:max-h-[26rem] sm:rounded-2xl sm:border bg-buzz-card border-buzz-border overflow-y-auto shadow-xl">
+              <div className="sticky top-0 bg-buzz-card flex items-center justify-between px-4 py-3 border-b border-buzz-border/60">
+                <span className="font-display text-lg uppercase">{openPanel === "when" ? "When" : "Area"}</span>
+                <button onClick={() => setOpenPanel(null)} aria-label="Close" className="text-buzz-mute hover:text-buzz-text text-xl leading-none">✕</button>
+              </div>
+              <div className="p-4 flex flex-wrap gap-2">
+                {openPanel === "when" ? (
+                  <>
+                    <button onClick={() => setFilter("today")} className={pill(filter === "today")}>Today</button>
+                    <button onClick={() => setFilter("tomorrow")} className={pill(filter === "tomorrow")}>Tomorrow</button>
+                    <button onClick={() => setFilter("weekend")} className={pill(filter === "weekend")}>This weekend</button>
+                    <label className={pill(filter === "date") + " cursor-pointer"}>
+                      📅 {filter === "date" && picked ? whenLabel : "Pick a date"}
+                      <input
+                        type="date"
+                        value={picked}
+                        onChange={(e) => { setPicked(e.target.value); setFilter("date"); }}
+                        className="ml-2 bg-transparent outline-none text-xs"
+                      />
+                    </label>
+                  </>
+                ) : (
+                  <>
+                    <button onClick={() => setArea("")} className={pill(area === "")}>Everywhere</button>
+                    {cities.map((c) => (
+                      <button key={c.slug} onClick={() => setArea(area === c.slug ? "" : c.slug)} className={pill(area === c.slug)}>
+                        {c.name}
+                      </button>
+                    ))}
+                  </>
+                )}
+              </div>
+              <div className="sticky bottom-0 bg-buzz-card border-t border-buzz-border/60 px-4 py-3 flex justify-end">
+                <button onClick={() => setOpenPanel(null)} className="btn-primary">Done</button>
+              </div>
             </div>
-          </div>
+          </>
         )}
       </div>
 

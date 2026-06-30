@@ -136,8 +136,8 @@ export default async function BrowsePage({ searchParams }: Props) {
               : "Family days out, big and small — filter to find your perfect one."}
           </p>
 
-          {/* Tabs */}
-          <div className="mt-6 inline-flex flex-wrap gap-1 rounded-xl border border-buzz-border bg-buzz-card p-1">
+          {/* Tabs — 2×2 grid on mobile, single row from sm up */}
+          <div className="mt-6 grid grid-cols-2 sm:inline-flex sm:flex-row gap-1 rounded-xl border border-buzz-border bg-buzz-card p-1">
             {[
               { href: "/browse", key: "places", label: "📍 Places" },
               { href: "/browse?tab=events", key: "events", label: "📅 What's on" },
@@ -147,7 +147,7 @@ export default async function BrowsePage({ searchParams }: Props) {
               <Link
                 key={t.key}
                 href={t.href}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${tab === t.key ? "bg-buzz-accent text-white" : "text-buzz-mute hover:text-buzz-text"}`}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition text-center ${tab === t.key ? "bg-buzz-accent text-white" : "text-buzz-mute hover:text-buzz-text"}`}
               >
                 {t.label}
               </Link>
