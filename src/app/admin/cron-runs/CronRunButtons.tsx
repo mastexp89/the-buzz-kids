@@ -155,6 +155,20 @@ export default function CronRunButtons({ cities }: { cities: CityOption[] }) {
   // Cleanup polls on unmount.
   useEffect(() => () => { stopPolling(); stopWebPolling(); }, []);
 
+  // On load, show current website-scrape coverage; if a sweep is active today
+  // (scanned some venues but not full coverage), start watching it live — so
+  // just opening this page during a background sweep shows the panel.
+  useEffect(() => {
+    let cancelled = false;
+    getWebsiteCronProgress().then((res) => {
+      if (cancelled || "error" in res) return;
+      setWebProgress(res);
+      if (res.venuesScannedToday > 0 && res.done < res.total) startWebPolling();
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function fire(label: "dedupe" | "dedupe-dry" | "facebook" | "website" | "website-dry") {
     setResult(null);
     setRunning(label);
