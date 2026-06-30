@@ -26,11 +26,36 @@ type PendingEvent = {
   id: string;
   title: string;
   start_time: string;
+  end_time: string | null;
+  end_date: string | null;
+  recurrence_pattern: string | null;
+  recurrence_until: string | null;
   description: string | null;
   image_url: string | null;
   venue: { id: string; name: string; slug: string; city: { name: string; slug: string } | null } | null;
   submitter: { email: string | null; display_name: string | null } | null;
 };
+
+// Work out exactly which dates an event will appear on once approved, matching
+// the public What's On filter (which keys off end_date). Returns a human label
+// plus a `warn` flag for the gotcha case: a recurrence is set but there's no
+// end_date, so the event will only ever show on its single start day.
+function describeDates(e: PendingEvent): { text: string; warn: boolean } {
+  const fmt = (d: Date) => d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  const start = new Date(e.start_time);
+  const startLabel = fmt(start);
+
+  if (e.end_date) {
+    const end = new Date(`${e.end_date}T00:00:00`);
+    if (!Number.isNaN(end.getTime()) && end.toDateString() !== start.toDateString()) {
+      return { text: `Every day · ${startLabel} → ${fmt(end)}`, warn: false };
+    }
+  }
+  if (e.recurrence_pattern && !e.end_date) {
+    return { text: `${startLabel} only — marked “${e.recurrence_pattern}” but no end date, so it won’t repeat`, warn: true };
+  }
+  return { text: `${startLabel} only`, warn: false };
+}
 
 type PendingSuggestion = {
   id: string;
@@ -480,6 +505,7 @@ function EventRow({ event: e }: { event: PendingEvent }) {
   const when = new Date(e.start_time);
   const dateLabel = when.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
   const timeLabel = when.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  const shows = describeDates(e);
 
   return (
     <li className="px-4 py-4">
@@ -496,6 +522,19 @@ function EventRow({ event: e }: { event: PendingEvent }) {
           <div className="font-semibold truncate">{e.title}</div>
           <div className="text-xs text-buzz-mute">
             {dateLabel} · {timeLabel} · {e.venue?.name ?? "—"} · {e.venue?.city?.name ?? "—"}
+          </div>
+          <div className="mt-1.5">
+            <span
+              className={
+                "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium border " +
+                (shows.warn
+                  ? "bg-amber-500/10 text-amber-600 border-amber-500/40"
+                  : "bg-buzz-accent/10 text-buzz-accent border-buzz-accent/30")
+              }
+              title="Which dates this will appear on once approved"
+            >
+              {shows.warn ? "⚠️" : "📅"} Shows on: {shows.text}
+            </span>
           </div>
           {e.submitter && (
             <div className="text-xs text-buzz-mute mt-1">
