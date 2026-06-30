@@ -193,7 +193,7 @@ export async function publishPastedEvents(input: PublishPasteInput): Promise<Pub
         image_url: (input.imageUrl ?? "").trim() || null,
         status: "approved",
         submitted_by: ctx.userId,
-        auto_imported_from: "facebook_paste",
+        auto_imported_from: "facebook",
         _categories: d.categories,
       };
     })
