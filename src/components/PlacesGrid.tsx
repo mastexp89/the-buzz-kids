@@ -79,8 +79,8 @@ export default function PlacesGrid({ places, isAdmin }: { places: any[]; isAdmin
         <>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {visible.map((p: any) => (
-              <div key={p.id} className="flex flex-col gap-1.5">
-                <div className="relative">
+              <div key={p.id} className="flex flex-col gap-1.5 h-full">
+                <div className="relative flex-1">
                   {here && p._distance != null && (
                     <span className="absolute top-2 left-2 z-10 inline-flex items-center gap-1 rounded-full bg-black/65 text-white text-[11px] font-semibold px-2 py-1 backdrop-blur-sm">
                       📍 {formatDistance(p._distance)}

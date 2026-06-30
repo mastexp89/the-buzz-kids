@@ -45,7 +45,7 @@ export default function PlaceCard({ place, citySlug }: { place: any; citySlug: s
   return (
     <Link
       href={`/${citySlug}/venues/${place.slug}`}
-      className="card-hover group flex flex-col lift overflow-hidden"
+      className="card-hover group flex flex-col lift overflow-hidden h-full"
     >
       {/* Photo with summary badges over it */}
       <div
