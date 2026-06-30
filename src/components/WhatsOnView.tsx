@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import EventCard from "@/components/EventCard";
 import AdminDeleteButton from "@/components/AdminDeleteButton";
 import type { EventWithVenue } from "@/lib/types";
+import { isRecurring, recurrenceOccursInWindow } from "@/lib/recurrence";
 
 type City = { name: string; slug: string };
 // Pared back to four windows so the page never renders every upcoming event
@@ -48,6 +49,21 @@ export default function WhatsOnView({ events, cities, isAdmin }: { events: Event
     return events
       .filter((e) => {
         const start = new Date(e.start_time);
+        const evCitySlug = (e.venue as any)?.city?.slug ?? (e as any).city?.slug;
+        if (area && evCitySlug !== area) return false;
+
+        // Recurring series (e.g. "every Friday"): show it on every day its
+        // pattern lands on, not just the start date. The window is always set
+        // (default Today) except an empty date picker, where we just show it.
+        const rec = (e as any).recurrence_pattern as string | null | undefined;
+        const recUntil = (e as any).recurrence_until as string | null | undefined;
+        if (isRecurring(rec)) {
+          if (recUntil && endOfDay(new Date(`${recUntil}T00:00:00`)) < todayStart) return false; // series ended
+          if (!range) return true;
+          const winStart = range.start < todayStart ? todayStart : range.start;
+          return recurrenceOccursInWindow(rec, e.start_time, recUntil ?? null, winStart, range.end);
+        }
+
         // Effective end: a multi-day run (end_date) wins, then an explicit
         // end_time, else the event lasts its start day. This is what makes an
         // ongoing exhibition (e.g. 16 May → 2 Aug) show on EVERY day of its
@@ -60,8 +76,6 @@ export default function WhatsOnView({ events, cities, isAdmin }: { events: Event
           : endOfDay(start);
         // Only upcoming / still-running events.
         if (end < todayStart) return false;
-        const evCitySlug = (e.venue as any)?.city?.slug ?? (e as any).city?.slug;
-        if (area && evCitySlug !== area) return false;
         if (range) {
           // Overlap test between the event and the chosen window.
           if (start > range.end || end < range.start) return false;

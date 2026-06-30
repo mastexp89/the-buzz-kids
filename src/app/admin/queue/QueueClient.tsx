@@ -15,6 +15,7 @@ import {
   approveOrganiser,
   unapproveOrganiser,
 } from "../actions";
+import { recurrenceLabel } from "@/lib/recurrence";
 
 const BUSINESS_TYPE_LABEL: Record<string, string> = {
   individual: "Individual",
@@ -45,14 +46,20 @@ function describeDates(e: PendingEvent): { text: string; warn: boolean } {
   const start = new Date(e.start_time);
   const startLabel = fmt(start);
 
+  // Recurring series — shows on every matching day (e.g. "Every Friday").
+  const rec = recurrenceLabel(e.recurrence_pattern, e.start_time);
+  if (rec) {
+    const until = e.recurrence_until
+      ? ` until ${new Date(`${e.recurrence_until}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`
+      : "";
+    return { text: `${rec}${until}`, warn: false };
+  }
+
   if (e.end_date) {
     const end = new Date(`${e.end_date}T00:00:00`);
     if (!Number.isNaN(end.getTime()) && end.toDateString() !== start.toDateString()) {
       return { text: `Every day · ${startLabel} → ${fmt(end)}`, warn: false };
     }
-  }
-  if (e.recurrence_pattern && !e.end_date) {
-    return { text: `${startLabel} only — marked “${e.recurrence_pattern}” but no end date, so it won’t repeat`, warn: true };
   }
   return { text: `${startLabel} only`, warn: false };
 }
