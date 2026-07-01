@@ -1,6 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import SmartBackLink from "@/components/SmartBackLink";
+import GoogleRating from "@/components/GoogleRating";
+import VenueReportButton from "@/components/VenueReportButton";
 import { createClient } from "@/lib/supabase/server";
 import VenueEventsList from "@/components/VenueEventsList";
 import ShareButtons from "@/components/ShareButtons";
@@ -237,6 +239,12 @@ export default async function VenuePage({ params }: Props) {
                 />
               </div>
             </div>
+            <GoogleRating
+              rating={(venue as any).google_rating}
+              count={(venue as any).google_rating_count}
+              placeId={(venue as any).google_place_id}
+              name={venue.name}
+            />
             {venue.description && (
               <p className="whitespace-pre-line text-buzz-text/90 leading-relaxed mt-2">{venue.description}</p>
             )}
@@ -293,6 +301,9 @@ export default async function VenuePage({ params }: Props) {
               ℹ️ We gather this info from organisers and public sources, so prices, times and details
               can change. Please double-check {venue.website ? "the venue's own website" : "with the venue"} before you set off.
             </p>
+            <div className="mt-3">
+              <VenueReportButton venueId={venue.id} />
+            </div>
           </div>
           <aside className="card p-5 flex flex-col gap-3">
             <div className="flex items-center justify-between">
