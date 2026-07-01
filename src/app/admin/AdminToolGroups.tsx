@@ -22,7 +22,7 @@ type Group = {
   tools: Tool[];
 };
 
-export default function AdminToolGroups({ pendingCount }: { pendingCount: number }) {
+export default function AdminToolGroups({ pendingCount, suggestionsCount = 0 }: { pendingCount: number; suggestionsCount?: number }) {
   const groups: Group[] = [
     {
       title: "Moderation",
@@ -39,6 +39,13 @@ export default function AdminToolGroups({ pendingCount }: { pendingCount: number
           label: "Reviews",
           emoji: "⭐",
           description: "Approve or hide parent reviews",
+        },
+        {
+          href: "/admin/suggestions",
+          label: "Edit suggestions",
+          emoji: "✏️",
+          description: "Corrections & new-place requests from visitors",
+          badge: suggestionsCount,
         },
         {
           href: "/admin/events",

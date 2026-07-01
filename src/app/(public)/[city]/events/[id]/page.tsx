@@ -9,6 +9,7 @@ import AdminExpireEventButton from "@/components/AdminExpireEventButton";
 import EventHeroImage from "@/components/EventHeroImage";
 import SmartBackLink from "@/components/SmartBackLink";
 import FavouriteButton from "@/components/FavouriteButton";
+import SuggestEditButton from "@/components/SuggestEditButton";
 import { isFavourited } from "@/lib/favourites";
 
 export const dynamic = "force-dynamic";
@@ -306,6 +307,19 @@ export default async function EventPage({ params }: Props) {
 
             <div className="pt-3 border-t border-buzz-border/50">
               <ShareButtons url={`${siteUrl}/${citySlug}/events/${event.id}`} title={`${event.title} at ${placeName}`} />
+            </div>
+
+            <div className="pt-1">
+              <p className="text-xs text-buzz-mute mb-2 leading-relaxed">
+                ℹ️ We gather this from organisers and public sources, so times and details can change —
+                please double-check before you set off.
+              </p>
+              <SuggestEditButton
+                targetType="event"
+                targetId={event.id}
+                targetName={event.title}
+                citySlug={citySlug}
+              />
             </div>
 
             {/* Admin-only widget — renders nothing for non-admins. */}
