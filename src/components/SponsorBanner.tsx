@@ -1,12 +1,11 @@
-// Homepage sponsor banner. Rotates through currently-live Popular + Premium
-// sponsors targeted at the visitor (or nationwide ones). Pick one at random
-// per request and bump its impression counter.
+// Compact sponsor strip. Shows up to N currently-live Popular + Premium
+// sponsors (premium weighted heavier) as small cards in a row, rather than one
+// big banner. Logos sit on a dark tile so pale/white wordmarks stay visible on
+// the bright site. Each card links via /api/sponsor-click/[id] so clicks are
+// tracked; impressions are bumped for every card shown.
 //
-// Why server-rendered: cheap, SEO-friendly, no client JS bundle cost. The
-// click tracker is a separate /api/sponsor-click/[id] redirect so we capture
-// real clicks without needing JS either.
+// Server component — cheap, SEO-friendly, no client JS.
 
-import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/service";
 
 type Sponsor = {
@@ -21,31 +20,22 @@ type Sponsor = {
 
 export default async function SponsorBanner({
   citySlug,
-  // When true, we'll skip rendering anything if no eligible sponsor is found
-  // (so callers can place it inside a section without an empty card).
   hideIfEmpty = true,
+  limit = 4,
 }: {
   citySlug?: string;
   hideIfEmpty?: boolean;
+  limit?: number;
 }) {
   const sb = createServiceClient();
   const nowIso = new Date().toISOString();
 
-  // Resolve city ID once if we got a slug.
   let cityId: string | null = null;
   if (citySlug) {
-    const { data: city } = await sb
-      .from("cities")
-      .select("id")
-      .eq("slug", citySlug)
-      .maybeSingle();
+    const { data: city } = await sb.from("cities").select("id").eq("slug", citySlug).maybeSingle();
     cityId = city?.id ?? null;
   }
 
-  // Eligible = currently live, tier ∈ {popular, premium}.
-  //   - When called with a citySlug (city page): match that city OR nationwide
-  //   - When called without (homepage): match anything live — the homepage
-  //     covers every city so ads targeted at any city are valid
   let query = sb
     .from("sponsors")
     .select("id, slug, name, tier, image_url, link_url, blurb, city_id")
@@ -54,91 +44,74 @@ export default async function SponsorBanner({
     .gte("ends_at", nowIso)
     .in("tier", ["popular", "premium"]);
 
-  if (cityId) {
-    query = query.or(`city_id.eq.${cityId},city_id.is.null`);
-  }
-  // No `else` — homepage shows ads from every city.
+  // City pages: this area's ads + nationwide. Homepage: everything live.
+  if (cityId) query = query.or(`city_id.eq.${cityId},city_id.is.null`);
 
   const { data: sponsors } = await query;
   const pool = (sponsors ?? []) as Sponsor[];
   if (pool.length === 0) {
     return hideIfEmpty ? null : (
-      <div className="container-page py-6"><div className="card p-6 text-buzz-mute text-sm">No sponsors live right now.</div></div>
+      <div className="container-page py-6">
+        <div className="card p-6 text-buzz-mute text-sm">No sponsors live right now.</div>
+      </div>
     );
   }
 
-  // Premium > popular weighting (premium pays more, gets more eyeballs).
-  // Each premium entry counted twice in the pool before random selection.
+  // Premium counts twice, then shuffle and take up to `limit` distinct.
   const weighted = pool.flatMap((s) => (s.tier === "premium" ? [s, s] : [s]));
-  const picked = weighted[Math.floor(Math.random() * weighted.length)];
+  for (let i = weighted.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [weighted[i], weighted[j]] = [weighted[j], weighted[i]];
+  }
+  const picked: Sponsor[] = [];
+  const seen = new Set<string>();
+  for (const s of weighted) {
+    if (seen.has(s.id)) continue;
+    seen.add(s.id);
+    picked.push(s);
+    if (picked.length >= limit) break;
+  }
 
-  // Bump impression count. Awaited because dangling promises in a React
-  // Server Component can be cancelled when the response is streamed — the
-  // call is a tiny SQL UPDATE (~10ms) so blocking the render briefly is
-  // a fair trade for guaranteed accuracy.
-  await sb.rpc("increment_sponsor_impression", { sponsor_id: picked.id });
+  // Bump an impression for each card we're about to render.
+  await Promise.all(picked.map((s) => sb.rpc("increment_sponsor_impression", { sponsor_id: s.id })));
 
-  return <SponsorBannerLayout sponsor={picked} />;
-}
-
-function SponsorBannerLayout({ sponsor }: { sponsor: Sponsor }) {
   return (
     <section className="container-page py-6">
-      <a
-        // Route via our tracker so we capture the click before redirecting
-        // out to the advertiser's site.
-        href={`/api/sponsor-click/${sponsor.id}`}
-        target="_blank"
-        rel="noopener sponsored"
-        className="block group relative overflow-hidden rounded-2xl border border-buzz-accent/30 bg-gradient-to-r from-buzz-accent/5 via-buzz-card to-buzz-accent/5 hover:border-buzz-accent hover:shadow-md transition"
-      >
-        <div className="flex items-center gap-4 sm:gap-5 p-4 sm:p-5">
-          {/* Logo — no container box / border. We rely on the logo's own
-              padding + the banner's dark gradient to frame it. Looks far
-              cleaner than the previous black box, and works for both
-              transparent logos and logos with their own dark backgrounds
-              (which blend invisibly into the banner). */}
-          <div className="shrink-0">
-            {sponsor.image_url ? (
-              <div
-                className="w-20 h-14 sm:w-32 sm:h-20"
-                style={{
-                  backgroundImage: `url(${sponsor.image_url})`,
-                  backgroundSize: "contain",
-                  backgroundPosition: "center",
-                  backgroundRepeat: "no-repeat",
-                }}
-              />
-            ) : (
-              <div className="w-20 h-14 sm:w-32 sm:h-20 grid place-items-center text-base sm:text-lg font-bold text-buzz-accent">
-                {sponsor.name}
-              </div>
-            )}
-          </div>
-
-          {/* Text block — three rows of hierarchy:
-              1. "SPONSORED" eyebrow (FTC-style ad disclosure, always present)
-              2. Business name on its own line so wordmark logos that are
-                 hard to read at small sizes are reinforced in plain text
-              3. Slogan/blurb in a softer style, wraps to 2 lines on mobile */}
-          <div className="min-w-0 flex-1">
-            <p className="eyebrow text-[10px] text-buzz-accent">Sponsored</p>
-            <p className="h-display text-lg sm:text-2xl leading-snug mt-0.5 group-hover:text-buzz-accent transition truncate">
-              {sponsor.name}
-            </p>
-            {sponsor.blurb && (
-              <p className="text-xs sm:text-sm text-buzz-mute italic line-clamp-2 leading-snug mt-1">
-                {sponsor.blurb}
+      <p className="eyebrow text-[10px] text-buzz-accent mb-2">Sponsored</p>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        {picked.map((s) => (
+          <a
+            key={s.id}
+            href={`/api/sponsor-click/${s.id}`}
+            target="_blank"
+            rel="noopener sponsored"
+            className="group flex flex-col rounded-xl border border-buzz-border bg-buzz-card hover:border-buzz-accent hover:shadow-sm transition overflow-hidden"
+          >
+            {/* Dark logo tile — keeps white / pale wordmarks visible. */}
+            <div className="h-14 bg-gradient-to-br from-slate-700 to-slate-900 grid place-items-center overflow-hidden">
+              {s.image_url ? (
+                <div
+                  className="w-full h-full"
+                  style={{
+                    backgroundImage: `url(${s.image_url})`,
+                    backgroundSize: "contain",
+                    backgroundPosition: "center",
+                    backgroundRepeat: "no-repeat",
+                  }}
+                />
+              ) : (
+                <span className="text-white font-bold text-xs text-center px-2 leading-tight line-clamp-2">{s.name}</span>
+              )}
+            </div>
+            <div className="p-2.5 min-w-0">
+              <p className="font-display text-sm uppercase leading-tight truncate group-hover:text-buzz-accent transition">
+                {s.name}
               </p>
-            )}
-          </div>
-
-          {/* Arrow */}
-          <div className="hidden sm:flex items-center text-buzz-accent text-2xl pr-2 shrink-0 group-hover:translate-x-1 transition">
-            →
-          </div>
-        </div>
-      </a>
+              {s.blurb && <p className="text-[11px] text-buzz-mute line-clamp-2 leading-snug mt-0.5">{s.blurb}</p>}
+            </div>
+          </a>
+        ))}
+      </div>
     </section>
   );
 }
