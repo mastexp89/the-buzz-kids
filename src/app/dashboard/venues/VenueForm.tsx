@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef } from "react";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
+import type { PlaceDetails } from "@/app/dashboard/venues/place-actions";
 import { useRouter } from "next/navigation";
 import type { City, Venue, Genre } from "@/lib/types";
 import { saveVenue } from "./actions";
@@ -37,6 +39,26 @@ export default function VenueForm({
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+
+  // Refs so the Google place-search can fill these uncontrolled inputs.
+  const nameRef = useRef<HTMLInputElement>(null);
+  const postcodeRef = useRef<HTMLInputElement>(null);
+  const addressRef = useRef<HTMLInputElement>(null);
+  const phoneRef = useRef<HTMLInputElement>(null);
+  const websiteRef = useRef<HTMLInputElement>(null);
+
+  function fillFromPlace(p: PlaceDetails) {
+    const set = (ref: React.RefObject<HTMLInputElement | null>, v: string) => {
+      if (ref.current && v && !ref.current.value) ref.current.value = v; // don't clobber what's typed
+    };
+    // name always fills if empty; the rest fill in
+    if (nameRef.current && p.name) nameRef.current.value = p.name;
+    set(addressRef, p.address);
+    set(postcodeRef, p.postcode);
+    set(phoneRef, p.phone);
+    set(websiteRef, p.website);
+    setInfo("Filled from Google — check the details are right, then save.");
+  }
   const [logoUrl, setLogoUrl] = useState(venue?.logo_url ?? "");
   const [gallery, setGallery] = useState<string[]>(venue?.gallery_image_urls ?? []);
   const [openingHours, setOpeningHours] = useState<OpeningHours>(
@@ -85,9 +107,14 @@ export default function VenueForm({
 
   return (
     <form onSubmit={onSubmit} className="card p-6 grid sm:grid-cols-2 gap-4">
+      <div className="sm:col-span-2 rounded-xl border border-buzz-accent/30 bg-buzz-accent/5 p-3">
+        <label className="label !mb-1">Find your place</label>
+        <p className="help !mt-0 mb-2">Search Google and pick the right one — we'll auto-fill the name, address, postcode, phone and website.</p>
+        <AddressAutocomplete onSelect={fillFromPlace} />
+      </div>
       <div className="sm:col-span-2">
         <label className="label">Venue name *</label>
-        <input className="input" name="name" required defaultValue={venue?.name ?? ""} placeholder="The Buzz Bar" />
+        <input ref={nameRef} className="input" name="name" required defaultValue={venue?.name ?? ""} placeholder="The Buzz Bar" />
       </div>
       {isAdmin && venue?.slug && (
         <div className="sm:col-span-2">
@@ -113,15 +140,15 @@ export default function VenueForm({
       </div>
       <div>
         <label className="label">Postcode</label>
-        <input className="input" name="postcode" defaultValue={venue?.postcode ?? ""} placeholder="DD1 1AB" />
+        <input ref={postcodeRef} className="input" name="postcode" defaultValue={venue?.postcode ?? ""} placeholder="DD1 1AB" />
       </div>
       <div className="sm:col-span-2">
         <label className="label">Address</label>
-        <input className="input" name="address" defaultValue={venue?.address ?? ""} placeholder="103 Nethergate, Dundee" />
+        <input ref={addressRef} className="input" name="address" defaultValue={venue?.address ?? ""} placeholder="103 Nethergate, Dundee" />
       </div>
       <div>
         <label className="label">Phone</label>
-        <input className="input" name="phone" defaultValue={venue?.phone ?? ""} />
+        <input ref={phoneRef} className="input" name="phone" defaultValue={venue?.phone ?? ""} />
       </div>
       <div>
         <label className="label">Public email</label>
@@ -129,7 +156,7 @@ export default function VenueForm({
       </div>
       <div className="sm:col-span-2">
         <label className="label">Website</label>
-        <input className="input" name="website" type="url" defaultValue={venue?.website ?? ""} placeholder="https://" />
+        <input ref={websiteRef} className="input" name="website" type="url" defaultValue={venue?.website ?? ""} placeholder="https://" />
       </div>
       <div className="sm:col-span-2">
         <label className="label">Description</label>
