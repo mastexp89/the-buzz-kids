@@ -87,8 +87,9 @@ export default async function SponsorBanner({
             rel="noopener sponsored"
             className="group flex flex-col rounded-xl border border-buzz-border bg-buzz-card hover:border-buzz-accent hover:shadow-sm transition overflow-hidden"
           >
-            {/* Dark logo tile — keeps white / pale wordmarks visible. */}
-            <div className="h-14 bg-gradient-to-br from-slate-700 to-slate-900 grid place-items-center overflow-hidden">
+            {/* Dark logo tile — keeps white / pale wordmarks visible. Padding
+                keeps the logo off the edges so nothing gets clipped. */}
+            <div className="h-20 bg-gradient-to-br from-slate-700 to-slate-900 grid place-items-center overflow-hidden p-3">
               {s.image_url ? (
                 <div
                   className="w-full h-full"
