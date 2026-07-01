@@ -10,18 +10,14 @@ export default async function Home() {
   const supabase = await createClient();
   trackPageView({ source: "homepage" });
 
-  const [{ data: cityRows }, { data: spotlightVenues }] = await Promise.all([
-    supabase.from("cities").select("name, slug").eq("active", true).order("name"),
-    supabase
-      .from("venues")
-      .select("id, name, slug, logo_url, cover_photo_url, image_url, city:cities(name, slug, active)")
-      .eq("approved", true)
-      .gt("spotlight_until", new Date().toISOString())
-      .order("spotlight_until", { ascending: false })
-      .limit(6),
-  ]);
+  const { data: spotlightVenues } = await supabase
+    .from("venues")
+    .select("id, name, slug, logo_url, cover_photo_url, image_url, city:cities(name, slug, active)")
+    .eq("approved", true)
+    .gt("spotlight_until", new Date().toISOString())
+    .order("spotlight_until", { ascending: false })
+    .limit(6);
 
-  const activeCities = cityRows ?? [];
   const spotlight = (spotlightVenues ?? []).filter((v: any) => v.city?.active);
 
   return (
@@ -54,11 +50,6 @@ export default async function Home() {
                 ♡ Sign up free
               </Link>
             </p>
-            {activeCities.length > 0 && (
-              <p className="mt-5 text-xs text-buzz-mute">
-                Covering all of Scotland — {activeCities.length} areas and counting.
-              </p>
-            )}
           </div>
           <div className="hidden md:block relative w-[280px] h-[280px]">
             <Image src="/logo.png" alt="The Buzz Kids logo" fill priority sizes="280px" className="object-contain" />
