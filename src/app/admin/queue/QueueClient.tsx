@@ -8,11 +8,16 @@ import {
   makeVenueAPlace,
   searchPlaces,
   reassignEventVenue,
+  createPlaceAndAttach,
   dismissSuggestion,
   deleteSuggestion,
   approveVenueClaim,
   rejectVenueClaim,
 } from "./actions";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
+import type { PlaceDetails } from "@/app/dashboard/venues/place-actions";
+
+type QCity = { id: string; name: string; slug: string };
 import {
   approveVenue,
   approveOrganiser,
@@ -137,6 +142,7 @@ export default function QueueClient({
   claims,
   venues,
   organisers,
+  cities = [],
 }: {
   events: PendingEvent[];
   eventsTotal?: number;
@@ -144,6 +150,7 @@ export default function QueueClient({
   claims: PendingClaim[];
   venues: PendingVenue[];
   organisers: PendingOrganiser[];
+  cities?: QCity[];
 }) {
   const [tab, setTab] = useState<Tab>(
     venues.length > 0 ? "venues"
@@ -168,7 +175,7 @@ export default function QueueClient({
           <Empty message="No pending sessions. Place owners are doing their bit. ✨" />
         ) : (
           <ul className="card divide-y divide-buzz-border/60">
-            {events.map((e) => <EventRow key={e.id} event={e} />)}
+            {events.map((e) => <EventRow key={e.id} event={e} cities={cities} />)}
           </ul>
         )
       )}
@@ -569,7 +576,85 @@ function VenueReassign({
   );
 }
 
-function EventRow({ event: e }: { event: PendingEvent }) {
+// Create a brand-new Place (with Google address search) and attach this event
+// to it — for wrong-venue events whose correct place isn't on the site yet.
+function CreatePlace({
+  eventId,
+  cities,
+  defaultCitySlug,
+  suggestName,
+  onCreated,
+}: {
+  eventId: string;
+  cities: QCity[];
+  defaultCitySlug?: string;
+  suggestName?: string;
+  onCreated: (v: { id: string; name: string; slug: string }) => void;
+}) {
+  const [details, setDetails] = useState<PlaceDetails | null>(null);
+  const [name, setName] = useState(suggestName ?? "");
+  const [cityId, setCityId] = useState(
+    () => cities.find((c) => c.slug === defaultCitySlug)?.id ?? cities[0]?.id ?? "",
+  );
+  const [saving, startSave] = useTransition();
+  const [err, setErr] = useState<string | null>(null);
+
+  return (
+    <div className="mt-2 rounded-lg border border-buzz-border bg-buzz-surface/40 p-3 flex flex-col gap-2">
+      <p className="text-xs text-buzz-mute">Search the place to auto-fill its address, or just type the name.</p>
+      <AddressAutocomplete onSelect={(p) => { setDetails(p); if (p.name) setName(p.name); }} />
+      <input
+        type="text"
+        value={name}
+        onChange={(ev) => setName(ev.target.value)}
+        placeholder="Place name"
+        className="input"
+      />
+      {details && (details.address || details.postcode) && (
+        <div className="text-xs text-buzz-mute">
+          {details.address}{details.postcode ? ` · ${details.postcode}` : ""}
+        </div>
+      )}
+      <div className="flex items-center gap-2 flex-wrap">
+        <select
+          value={cityId}
+          onChange={(ev) => setCityId(ev.target.value)}
+          className="input !py-1.5 text-sm max-w-[12rem]"
+        >
+          {cities.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <button
+          type="button"
+          disabled={saving || !name.trim() || !cityId}
+          onClick={() =>
+            startSave(async () => {
+              setErr(null);
+              const r = await createPlaceAndAttach(eventId, {
+                name: name.trim(),
+                address: details?.address,
+                postcode: details?.postcode,
+                phone: details?.phone,
+                website: details?.website,
+                googlePlaceId: details?.googlePlaceId,
+                latitude: details?.latitude ?? null,
+                longitude: details?.longitude ?? null,
+                cityId,
+              });
+              if (r && "error" in r) setErr((r as any).error);
+              else onCreated({ id: (r as any).venue.id, name: name.trim(), slug: (r as any).venue.slug });
+            })
+          }
+          className="btn-primary !py-1.5 !px-3 text-xs whitespace-nowrap"
+        >
+          {saving ? "Creating…" : "Create place & attach"}
+        </button>
+      </div>
+      {err && <div className="text-xs text-rose-400">{err}</div>}
+    </div>
+  );
+}
+
+function EventRow({ event: e, cities = [] }: { event: PendingEvent; cities?: QCity[] }) {
   const [pending, start] = useTransition();
   const [placing, startPlace] = useTransition();
   const [done, setDone] = useState<"approved" | "rejected" | null>(null);
@@ -577,6 +662,7 @@ function EventRow({ event: e }: { event: PendingEvent }) {
   const [placeMade, setPlaceMade] = useState<{ href?: string } | null>(null);
   const [venueOverride, setVenueOverride] = useState<PendingEvent["venue"]>(null);
   const [showReassign, setShowReassign] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
 
   // Effective venue — may have been reassigned away from a wrong tourism-feed dump.
   const venue = venueOverride ?? e.venue;
@@ -619,16 +705,37 @@ function EventRow({ event: e }: { event: PendingEvent }) {
             </span>
             <button
               type="button"
-              onClick={() => setShowReassign((s) => !s)}
+              onClick={() => { setShowReassign((s) => !s); setShowCreate(false); }}
               className="text-buzz-accent hover:underline whitespace-nowrap"
             >
               {showReassign ? "✕ close" : "✎ change venue"}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowCreate((s) => !s); setShowReassign(false); }}
+              className="text-buzz-accent hover:underline whitespace-nowrap"
+            >
+              {showCreate ? "✕ close" : "＋ create place"}
             </button>
           </div>
           {showReassign && (
             <VenueReassign
               eventId={e.id}
               onReassigned={(v) => { setVenueOverride(v); setPlaceMade(null); setShowReassign(false); }}
+            />
+          )}
+          {showCreate && (
+            <CreatePlace
+              eventId={e.id}
+              cities={cities}
+              defaultCitySlug={venue?.city?.slug}
+              suggestName={e.venue?.name}
+              onCreated={(v) => {
+                setVenueOverride({ id: v.id, name: v.name, slug: v.slug, approved: true, venue_type: "both", city: null } as any);
+                setPlaceMade(null);
+                setShowCreate(false);
+                setDone("approved");
+              }}
             />
           )}
           <div className="mt-1.5">

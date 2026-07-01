@@ -87,6 +87,13 @@ export default async function AdminQueuePage() {
     .select("id", { count: "exact", head: true })
     .eq("status", "pending");
 
+  // Active areas — for the "create the right place" form's area picker.
+  const { data: cities } = await supabase
+    .from("cities")
+    .select("id, name, slug")
+    .eq("active", true)
+    .order("name");
+
   // Look up submitter / claimant profiles separately — events/suggestions/claims reference auth.users,
   // not profiles, so PostgREST can't auto-resolve the relationship.
   const allSubmitterIds = Array.from(new Set([
@@ -142,6 +149,7 @@ export default async function AdminQueuePage() {
       <QueueClient
         events={(pendingEvents ?? []) as any}
         eventsTotal={pendingEventsTotal ?? (pendingEvents ?? []).length}
+        cities={(cities ?? []) as any}
         suggestions={(pendingSuggestions ?? []) as any}
         claims={(pendingClaims ?? []) as any}
         venues={(pendingVenues ?? []) as any}
