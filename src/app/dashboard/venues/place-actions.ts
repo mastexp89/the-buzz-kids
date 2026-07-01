@@ -51,6 +51,8 @@ export type PlaceDetails = {
   phone: string;
   website: string;
   googlePlaceId: string;
+  latitude: number | null;
+  longitude: number | null;
 };
 
 export async function placeDetails(placeId: string): Promise<{ place?: PlaceDetails; error?: string }> {
@@ -59,7 +61,7 @@ export async function placeDetails(placeId: string): Promise<{ place?: PlaceDeta
   if (!(await requireUser())) return { error: "Not signed in." };
   try {
     const fields =
-      "id,displayName,formattedAddress,addressComponents,nationalPhoneNumber,internationalPhoneNumber,websiteUri";
+      "id,displayName,formattedAddress,addressComponents,nationalPhoneNumber,internationalPhoneNumber,websiteUri,location";
     const res = await fetch(
       `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}?fields=${fields}`,
       { headers: { "X-Goog-Api-Key": key } }
@@ -76,6 +78,8 @@ export async function placeDetails(placeId: string): Promise<{ place?: PlaceDeta
         phone: j.nationalPhoneNumber ?? j.internationalPhoneNumber ?? "",
         website: j.websiteUri ?? "",
         googlePlaceId: j.id ?? placeId,
+        latitude: j.location?.latitude ?? null,
+        longitude: j.location?.longitude ?? null,
       },
     };
   } catch {

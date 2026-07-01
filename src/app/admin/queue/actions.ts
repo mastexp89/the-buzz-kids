@@ -10,6 +10,8 @@ import {
   notifyArtistClaimRejected,
 } from "@/lib/email";
 import { sendApprovalWelcomeMessage } from "@/lib/welcome-message";
+import { slugify } from "@/lib/utils";
+import { geocodePostcode } from "@/lib/geocode";
 
 async function requireAdmin() {
   const supabase = await createClient();
@@ -105,6 +107,71 @@ export async function reassignEventVenue(eventId: string, venueId: string) {
   if (error) return { error: error.message };
   revalidatePath("/admin/queue");
   return { ok: true, venue: v };
+}
+
+// Create a brand-new Place from typed/Google-searched details and attach a
+// queued event to it — for wrong-venue events whose correct place isn't on the
+// site yet. Creates the venue live (approved) and approves the event.
+export async function createPlaceAndAttach(
+  eventId: string,
+  place: {
+    name: string; address?: string; postcode?: string; phone?: string; website?: string;
+    googlePlaceId?: string; latitude?: number | null; longitude?: number | null; cityId: string;
+  },
+) {
+  const ctx = await requireAdmin();
+  if (!ctx) return { error: "Not authorised." };
+  const { supabase } = ctx;
+  if (!place?.name?.trim() || !place?.cityId) return { error: "Name and area are required." };
+
+  // Unique slug.
+  const base = (slugify(place.name).slice(0, 90) || "place");
+  let slug = base;
+  for (let n = 2; n < 30; n++) {
+    const { data: exists } = await supabase.from("venues").select("id").eq("slug", slug).maybeSingle();
+    if (!exists) break;
+    slug = `${base}-${n}`;
+  }
+
+  let latitude = place.latitude ?? null;
+  let longitude = place.longitude ?? null;
+  if ((latitude == null || longitude == null) && place.postcode) {
+    const geo = await geocodePostcode(place.postcode);
+    if (geo) { latitude = geo.lat; longitude = geo.lng; }
+  }
+
+  const { data: venue, error: vErr } = await supabase
+    .from("venues")
+    .insert({
+      name: place.name.trim(),
+      slug,
+      address: place.address || null,
+      postcode: place.postcode || null,
+      phone: place.phone || null,
+      website: place.website || null,
+      google_place_id: place.googlePlaceId || null,
+      city_id: place.cityId,
+      latitude,
+      longitude,
+      venue_type: "both", // a real place that also hosts events
+      approved: true,
+    })
+    .select("id, slug, city:cities(slug)")
+    .single();
+  if (vErr || !venue) return { error: vErr?.message ?? "Couldn't create the place." };
+
+  // Attach + approve the event; strip any stale ⚠ wrong-venue note.
+  const { data: ev } = await supabase.from("events").select("description").eq("id", eventId).maybeSingle();
+  let desc = ev?.description ?? "";
+  if (desc.startsWith("⚠")) desc = desc.replace(/^⚠[\s\S]*?\n\n/, "");
+  const { error: eErr } = await supabase
+    .from("events")
+    .update({ venue_id: venue.id, city_id: place.cityId, description: desc, status: "approved", reviewed_at: new Date().toISOString() })
+    .eq("id", eventId);
+  if (eErr) return { error: eErr.message };
+
+  revalidatePath("/admin/queue");
+  return { ok: true, venue: { id: venue.id, slug: venue.slug, citySlug: (venue as any).city?.slug ?? "dundee" } };
 }
 
 export async function rejectEvent(eventId: string) {
