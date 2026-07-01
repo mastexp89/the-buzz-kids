@@ -136,7 +136,7 @@ export default function SearchBox() {
 
                   {venues.length > 0 && (
                     <div className="mb-3">
-                      <div className="eyebrow text-[10px] px-2 py-1">Venues</div>
+                      <div className="eyebrow text-[10px] px-2 py-1">Places</div>
                       <ul className="flex flex-col">
                         {venues.map((v) => (
                           <li key={v.id}>
@@ -161,7 +161,7 @@ export default function SearchBox() {
                               })()}
                               <div className="min-w-0 flex-1">
                                 <div className="font-medium truncate">{v.name}</div>
-                                <div className="text-xs text-buzz-mute truncate">{v.city?.name ?? "Venue"}</div>
+                                <div className="text-xs text-buzz-mute truncate">{v.city?.name ?? "Place"}</div>
                               </div>
                             </Link>
                           </li>
@@ -172,7 +172,7 @@ export default function SearchBox() {
 
                   {events.length > 0 && (
                     <div className="mb-3">
-                      <div className="eyebrow text-[10px] px-2 py-1">Upcoming gigs</div>
+                      <div className="eyebrow text-[10px] px-2 py-1">What's on</div>
                       <ul className="flex flex-col">
                         {events.map((e) => {
                           const citySlug = e.venue?.city?.slug ?? "dundee";
