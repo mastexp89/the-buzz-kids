@@ -4,6 +4,9 @@ const nextConfig = {
     remotePatterns: [
       { protocol: "https", hostname: "**.supabase.co" },
       { protocol: "https", hostname: "images.unsplash.com" },
+      // Google Places photos — the source for ~950 venue images.
+      { protocol: "https", hostname: "lh3.googleusercontent.com" },
+      { protocol: "https", hostname: "*.googleusercontent.com" },
     ],
   },
   // Retired music-era routes (carried over from The Buzz Guide). Kept out of

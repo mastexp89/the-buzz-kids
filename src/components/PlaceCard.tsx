@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { AccessibilityBadges } from "@/components/AccessibilityBadges";
 import { summaryBadges as deriveSummary } from "@/lib/accessibility";
 import { extractTownFromAddress } from "@/lib/utils";
@@ -56,16 +57,19 @@ export default function PlaceCard({ place, citySlug }: { place: any; citySlug: s
       href={`/${citySlug}/venues/${place.slug}`}
       className="card-hover group flex flex-col lift overflow-hidden h-full"
     >
-      {/* Photo with summary badges over it */}
-      <div
-        className="relative h-44 bg-buzz-surface"
-        style={
-          photo
-            ? { backgroundImage: `url(${photo})`, backgroundSize: "cover", backgroundPosition: "center" }
-            : undefined
-        }
-      >
-        {!photo && (
+      {/* Photo with summary badges over it. next/image serves a resized,
+          lazy-loaded, WebP/AVIF version instead of the full-res original,
+          which is the main page-weight win on the grids. */}
+      <div className="relative h-44 bg-buzz-surface overflow-hidden">
+        {photo ? (
+          <Image
+            src={photo}
+            alt=""
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            className="object-cover"
+          />
+        ) : (
           <div className="absolute inset-0 grid place-items-center text-5xl opacity-60" aria-hidden>🐝</div>
         )}
         {showGoogleAttribution && (
