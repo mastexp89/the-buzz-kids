@@ -80,6 +80,14 @@ export default async function VenuePage({ params }: Props) {
   const { data: { user: viewer } } = await supabase.auth.getUser();
   const venueFavourited = viewer ? await isFavourited("venue", venue.id) : false;
 
+  // Is the viewer an admin? Used to show an inline "Edit venue" button in the
+  // header (there's also the floating AdminEditBar, but this one is obvious).
+  let viewerIsAdmin = false;
+  if (viewer) {
+    const { data: prof } = await supabase.from("profiles").select("role").eq("id", viewer.id).maybeSingle();
+    viewerIsAdmin = prof?.role === "admin";
+  }
+
   // Fetch events that started today onwards — wider net, then post-filter using
   // venue closing time when end_time isn't set.
   const startOfToday = new Date();
@@ -193,17 +201,14 @@ export default async function VenuePage({ params }: Props) {
         )}
 
         {heroPhoto && (
-          <div className="mt-6 relative h-56 sm:h-80 rounded-2xl overflow-hidden border border-buzz-border bg-buzz-surface">
-            {/* Blurred fill so any photo shape sits nicely… */}
-            <div
-              className="absolute inset-0 scale-110"
-              style={{ backgroundImage: `url(${heroPhoto})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(20px)", opacity: 0.55 }}
-            />
-            {/* …with the whole photo shown sharp on top (no cropping). */}
+          <div className="mt-6 relative aspect-[16/9] sm:aspect-[2/1] max-h-[26rem] rounded-2xl overflow-hidden border border-buzz-border bg-buzz-surface">
+            {/* Fill the banner edge-to-edge (object-cover) so there are no
+                blurred side-bars from portrait/narrow photos. Landscape venue
+                photos — the common case from Google — sit in perfectly. */}
             <img
               src={heroPhoto}
               alt={venue.name}
-              className="relative h-full w-full object-contain"
+              className="absolute inset-0 h-full w-full object-cover"
             />
             {heroIsGoogle && (venue as any).google_photo_attribution && (
               <span className="absolute bottom-1.5 right-2.5 text-[11px] text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">
@@ -225,7 +230,17 @@ export default async function VenuePage({ params }: Props) {
 
         <div className="mt-6 grid md:grid-cols-[2fr_1fr] gap-8 items-start">
           <div className="flex flex-col gap-4">
-            <p className="eyebrow">{cityName} · Place</p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="eyebrow">{cityName} · Place</p>
+              {viewerIsAdmin && (
+                <Link
+                  href={`/dashboard/venues/${venue.id}/edit`}
+                  className="inline-flex items-center gap-1 shrink-0 text-xs font-semibold text-buzz-accent border border-buzz-accent/40 rounded-full px-3 py-1 hover:bg-buzz-accent/10 transition"
+                >
+                  ✏️ Edit venue
+                </Link>
+              )}
+            </div>
             <div className="flex items-start justify-between gap-3 flex-wrap">
               <h1 className="h-display text-5xl sm:text-6xl flex-1 min-w-0">{venue.name}</h1>
               {/* Prominent favourite button — sits next to the title so it's

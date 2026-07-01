@@ -76,7 +76,8 @@ export async function fetchPlaces(supabase: SupabaseClient, opts: PlaceQuery): P
   const CARD_COLUMNS =
     "id, name, slug, description, address, " +
     "cover_photo_url, image_url, gallery_image_urls, logo_url, google_photo_url, google_photo_attribution, " +
-    "accessibility, age_min, age_max, setting, is_free, price_from, price_note, latitude, longitude, dog_friendly";
+    "accessibility, age_min, age_max, setting, is_free, price_from, price_note, latitude, longitude, dog_friendly, " +
+    "google_rating, google_rating_count";
 
   // Build a fresh query with all filters applied. Called per page because
   // Supabase hard-caps a single request at 1000 rows — we page past that so
