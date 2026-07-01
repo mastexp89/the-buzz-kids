@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createOffer, deleteOffer, approveOffer } from "./actions";
+import { createOffer, deleteOffer, approveOffer, searchOfferVenues, extractOfferFromImage } from "./actions";
 
 type Offer = {
   id: string; category: string; title: string; provider: string | null;
@@ -19,6 +19,39 @@ export default function OffersAdminClient({ offers, cities, canManage = true }: 
   const [busyT, start] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
 
+  // Poster autofill + venue attach.
+  const categoryRef = useRef<HTMLSelectElement>(null);
+  const providerRef = useRef<HTMLInputElement>(null);
+  const titleRef = useRef<HTMLInputElement>(null);
+  const descRef = useRef<HTMLInputElement>(null);
+  const termsRef = useRef<HTMLTextAreaElement>(null);
+  const urlRef = useRef<HTMLInputElement>(null);
+  const [imageUrl, setImageUrl] = useState("");
+  const [extracting, setExtracting] = useState(false);
+  const [venue, setVenue] = useState<{ id: string; name: string } | null>(null);
+  const [vq, setVq] = useState("");
+  const [vResults, setVResults] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (vq.trim().length < 2 || venue) { setVResults([]); return; }
+    const t = setTimeout(async () => { const r = await searchOfferVenues(vq); setVResults((r as any).results ?? []); }, 250);
+    return () => clearTimeout(t);
+  }, [vq, venue]);
+
+  async function onPoster(file: File) {
+    setError(null); setExtracting(true);
+    const dataUrl: string = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.readAsDataURL(file); });
+    const out = await extractOfferFromImage(dataUrl, file.name);
+    setExtracting(false);
+    if ((out as any).imageUrl) setImageUrl((out as any).imageUrl);
+    if ((out as any).error) { setError((out as any).error); return; }
+    const f = (out as any).fields || {};
+    const set = (ref: React.RefObject<any>, v: string) => { if (ref.current && v) ref.current.value = v; };
+    if (categoryRef.current && (f.category === "food" || f.category === "days-out")) categoryRef.current.value = f.category;
+    set(providerRef, f.provider); set(titleRef, f.title); set(descRef, f.description); set(termsRef, f.terms); set(urlRef, f.url);
+    if (f.scope === "local" || f.scope === "national") setScope(f.scope);
+  }
+
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
@@ -28,7 +61,7 @@ export default function OffersAdminClient({ offers, cities, canManage = true }: 
     setBusy(false);
     if (r.error) { setError(r.error); return; }
     form.reset();
-    setScope("national");
+    setScope("national"); setVenue(null); setVq(""); setImageUrl("");
     router.refresh();
   }
 
@@ -105,32 +138,70 @@ export default function OffersAdminClient({ offers, cities, canManage = true }: 
       {/* Add form */}
       <form onSubmit={onSubmit} className="card p-6 grid sm:grid-cols-2 gap-4 mb-10">
         <h2 className="sm:col-span-2 font-display text-2xl uppercase">Add an offer</h2>
+
+        {/* Poster autofill */}
+        <div className="sm:col-span-2 rounded-xl border border-buzz-accent/30 bg-buzz-accent/5 p-3">
+          <label className="label !mb-1">📸 Got a poster? Drop it here</label>
+          <p className="help !mt-0 mb-2">Upload a deal poster and AI fills the form below — check it before saving.</p>
+          <input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) onPoster(f); }} className="text-sm" />
+          {extracting && <span className="text-xs text-buzz-accent ml-2">Reading the poster…</span>}
+          {imageUrl && <img src={imageUrl} alt="" className="mt-2 h-24 rounded-lg border border-buzz-border object-contain bg-buzz-surface" />}
+        </div>
+
+        {/* Attach to a place */}
+        <div className="sm:col-span-2 relative">
+          <label className="label">Attach to a place <span className="text-buzz-mute font-normal">(optional)</span></label>
+          {venue ? (
+            <div className="flex items-center gap-2">
+              <span className="input flex-1 flex items-center">📍 {venue.name}</span>
+              <button type="button" onClick={() => { setVenue(null); setVq(""); }} className="btn-secondary text-sm">Change</button>
+            </div>
+          ) : (
+            <>
+              <input value={vq} onChange={(e) => setVq(e.target.value)} placeholder="Search your places by name…" className="input" autoComplete="off" />
+              {vResults.length > 0 && (
+                <ul className="absolute z-20 mt-1 w-full rounded-lg border border-buzz-border bg-buzz-card shadow-xl max-h-56 overflow-y-auto">
+                  {vResults.map((v) => (
+                    <li key={v.id}>
+                      <button type="button" onClick={() => { setVenue({ id: v.id, name: v.name }); setVResults([]); }} className="w-full text-left px-3 py-2 text-sm hover:bg-buzz-surface">
+                        {v.name} <span className="text-buzz-mute text-xs">· {v.city?.name ?? "—"}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+        </div>
+        <input type="hidden" name="venue_id" value={venue?.id ?? ""} />
+        <input type="hidden" name="image_url" value={imageUrl} />
+
         <div>
           <label className="label">Type *</label>
-          <select name="category" className="input" defaultValue="food">
+          <select ref={categoryRef} name="category" className="input" defaultValue="food">
             <option value="food">🍽️ Food (eating out)</option>
             <option value="days-out">🎟️ Days out</option>
           </select>
         </div>
         <div>
           <label className="label">Provider</label>
-          <input name="provider" className="input" placeholder="e.g. Asda Café" maxLength={120} />
+          <input ref={providerRef} name="provider" className="input" placeholder="e.g. Asda Café" maxLength={120} />
         </div>
         <div className="sm:col-span-2">
           <label className="label">Title *</label>
-          <input name="title" className="input" required maxLength={160} placeholder="e.g. Kids eat for £1 at Asda Café" />
+          <input ref={titleRef} name="title" className="input" required maxLength={160} placeholder="e.g. Kids eat for £1 at Asda Café" />
         </div>
         <div className="sm:col-span-2">
           <label className="label">Short description</label>
-          <input name="description" className="input" maxLength={300} placeholder="One line on what the deal is." />
+          <input ref={descRef} name="description" className="input" maxLength={300} placeholder="One line on what the deal is." />
         </div>
         <div className="sm:col-span-2">
           <label className="label">Terms / small print</label>
-          <textarea name="terms" className="input min-h-[80px]" maxLength={500} placeholder="Ages, days, minimum spend, branches etc." />
+          <textarea ref={termsRef} name="terms" className="input min-h-[80px]" maxLength={500} placeholder="Ages, days, minimum spend, branches etc." />
         </div>
         <div>
           <label className="label">Offer link <span className="text-buzz-mute font-normal">(where the deal is)</span></label>
-          <input name="url" type="url" className="input" placeholder="https://…/offers" />
+          <input ref={urlRef} name="url" type="url" className="input" placeholder="https://…/offers" />
         </div>
         <div>
           <label className="label">Business website</label>
