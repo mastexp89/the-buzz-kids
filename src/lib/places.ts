@@ -73,7 +73,7 @@ export async function fetchPlaces(supabase: SupabaseClient, opts: PlaceQuery): P
   // payload badly. The directory grid never renders those, so we leave them
   // out. (Filters below still run on columns whether or not they're selected.)
   const CARD_COLUMNS =
-    "id, name, slug, description, " +
+    "id, name, slug, description, address, " +
     "cover_photo_url, image_url, gallery_image_urls, logo_url, google_photo_url, google_photo_attribution, " +
     "accessibility, age_min, age_max, setting, is_free, price_from, price_note, latitude, longitude";
 
