@@ -198,7 +198,9 @@ export default function AdminVenueList({
       )}
 
       {filtered.length === 0 ? (
-        <div className="px-4 py-8 text-center text-sm text-buzz-mute">No places match “{query}”.</div>
+        <div className="px-4 py-8 text-center text-sm text-buzz-mute">
+          {query.trim() ? `No places match “${query}”.` : "Search above to find a place."}
+        </div>
       ) : (
         <ul className="divide-y divide-buzz-border/60">
           {filtered.map((v) => (
