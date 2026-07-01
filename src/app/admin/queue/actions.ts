@@ -68,6 +68,45 @@ export async function makeVenueAPlace(venueId: string) {
   return { ok: true, href: `/${citySlug}/venues/${(v as any).slug}`, name: (v as any).name };
 }
 
+// Live search of live Places, for reassigning an event that got attached to
+// the wrong venue (the tourism-feed dumps). Admin-only.
+export async function searchPlaces(query: string) {
+  const ctx = await requireAdmin();
+  if (!ctx) return { results: [] as any[] };
+  const q = query.trim();
+  if (q.length < 2) return { results: [] as any[] };
+  const { supabase } = ctx;
+  const { data } = await supabase
+    .from("venues")
+    .select("id, name, slug, venue_type, city:cities(name, slug)")
+    .ilike("name", `%${q}%`)
+    .eq("approved", true)
+    .in("venue_type", ["attraction", "both", "programmes"])
+    .order("name")
+    .limit(8);
+  return { results: data ?? [] };
+}
+
+// Move an event onto a different venue (and that venue's city).
+export async function reassignEventVenue(eventId: string, venueId: string) {
+  const ctx = await requireAdmin();
+  if (!ctx) return { error: "Not authorised." };
+  const { supabase } = ctx;
+  const { data: v } = await supabase
+    .from("venues")
+    .select("id, name, slug, city_id, approved, venue_type, city:cities(name, slug)")
+    .eq("id", venueId)
+    .maybeSingle();
+  if (!v) return { error: "Venue not found." };
+  const { error } = await supabase
+    .from("events")
+    .update({ venue_id: venueId, city_id: (v as any).city_id })
+    .eq("id", eventId);
+  if (error) return { error: error.message };
+  revalidatePath("/admin/queue");
+  return { ok: true, venue: v };
+}
+
 export async function rejectEvent(eventId: string) {
   const ctx = await requireAdmin();
   if (!ctx) return { error: "Not authorised." };

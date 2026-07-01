@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import Link from "next/link";
 import {
   approveEvent,
   rejectEvent,
   makeVenueAPlace,
+  searchPlaces,
+  reassignEventVenue,
   dismissSuggestion,
   deleteSuggestion,
   approveVenueClaim,
@@ -501,18 +503,89 @@ function Empty({ message }: { message: string }) {
   return <div className="card p-10 text-buzz-mute text-center">{message}</div>;
 }
 
+// Inline place search for fixing a wrong-venue event. Type a name, pick the
+// right place, and the event moves onto it (and its city).
+function VenueReassign({
+  eventId,
+  onReassigned,
+}: {
+  eventId: string;
+  onReassigned: (v: PendingEvent["venue"]) => void;
+}) {
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState<any[]>([]);
+  const [searching, startSearch] = useTransition();
+  const [saving, startSave] = useTransition();
+
+  useEffect(() => {
+    if (q.trim().length < 2) { setResults([]); return; }
+    const t = setTimeout(() => {
+      startSearch(async () => {
+        const r = await searchPlaces(q);
+        setResults((r as any).results ?? []);
+      });
+    }, 250);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  return (
+    <div className="mt-2 rounded-lg border border-buzz-border bg-buzz-surface/40 p-2.5">
+      <input
+        autoFocus
+        type="text"
+        value={q}
+        onChange={(ev) => setQ(ev.target.value)}
+        placeholder="Search places by name…"
+        className="w-full rounded-md bg-buzz-card border border-buzz-border px-3 py-2 text-sm"
+      />
+      {searching && <div className="text-xs text-buzz-mute mt-1.5 px-1">Searching…</div>}
+      {results.length > 0 && (
+        <ul className="mt-1.5 flex flex-col max-h-56 overflow-y-auto">
+          {results.map((v) => (
+            <li key={v.id}>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => startSave(async () => {
+                  const r = await reassignEventVenue(eventId, v.id);
+                  if (r && !("error" in r)) onReassigned((r as any).venue);
+                })}
+                className="w-full text-left px-2.5 py-2 rounded-md hover:bg-buzz-accent/10 text-sm flex items-center justify-between gap-2"
+              >
+                <span className="truncate">
+                  <strong className="font-medium">{v.name}</strong>{" "}
+                  <span className="text-buzz-mute">· {v.city?.name ?? "—"}</span>
+                </span>
+                <span className="text-[10px] text-buzz-accent shrink-0">move here →</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {q.trim().length >= 2 && !searching && results.length === 0 && (
+        <div className="text-xs text-buzz-mute mt-1.5 px-1">No matching places.</div>
+      )}
+    </div>
+  );
+}
+
 function EventRow({ event: e }: { event: PendingEvent }) {
   const [pending, start] = useTransition();
   const [placing, startPlace] = useTransition();
   const [done, setDone] = useState<"approved" | "rejected" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [placeMade, setPlaceMade] = useState<{ href?: string } | null>(null);
+  const [venueOverride, setVenueOverride] = useState<PendingEvent["venue"]>(null);
+  const [showReassign, setShowReassign] = useState(false);
+
+  // Effective venue — may have been reassigned away from a wrong tourism-feed dump.
+  const venue = venueOverride ?? e.venue;
 
   // Is the venue this event sits at already a live Place on the directory?
   const venueIsPlace =
-    !!e.venue?.approved && (e.venue?.venue_type === "attraction" || e.venue?.venue_type === "both");
+    !!venue?.approved && (venue?.venue_type === "attraction" || venue?.venue_type === "both");
   const onPlaces = venueIsPlace || !!placeMade;
-  const placeHref = placeMade?.href ?? (e.venue ? `/${e.venue.city?.slug ?? "dundee"}/venues/${e.venue.slug}` : null);
+  const placeHref = placeMade?.href ?? (venue ? `/${venue.city?.slug ?? "dundee"}/venues/${venue.slug}` : null);
 
   if (done) {
     return (
@@ -540,9 +613,24 @@ function EventRow({ event: e }: { event: PendingEvent }) {
         )}
         <div className="flex-1 min-w-0">
           <div className="font-semibold truncate">{e.title}</div>
-          <div className="text-xs text-buzz-mute">
-            {dateLabel} · {timeLabel} · {e.venue?.name ?? "—"} · {e.venue?.city?.name ?? "—"}
+          <div className="text-xs text-buzz-mute flex items-center gap-1.5 flex-wrap">
+            <span>
+              {dateLabel} · {timeLabel} · <strong className="font-medium text-buzz-text/80">{venue?.name ?? "—"}</strong> · {venue?.city?.name ?? "—"}
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowReassign((s) => !s)}
+              className="text-buzz-accent hover:underline whitespace-nowrap"
+            >
+              {showReassign ? "✕ close" : "✎ change venue"}
+            </button>
           </div>
+          {showReassign && (
+            <VenueReassign
+              eventId={e.id}
+              onReassigned={(v) => { setVenueOverride(v); setPlaceMade(null); setShowReassign(false); }}
+            />
+          )}
           <div className="mt-1.5">
             <span
               className={
@@ -564,7 +652,7 @@ function EventRow({ event: e }: { event: PendingEvent }) {
               <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium border bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
                 ✓ On the Places page
               </span>
-            ) : e.venue ? (
+            ) : venue ? (
               <>
                 <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium border bg-amber-500/10 text-amber-600 border-amber-500/40">
                   ⚠️ Not on Places yet
@@ -573,7 +661,7 @@ function EventRow({ event: e }: { event: PendingEvent }) {
                   type="button"
                   disabled={placing}
                   onClick={() => startPlace(async () => {
-                    const r = await makeVenueAPlace(e.venue!.id);
+                    const r = await makeVenueAPlace(venue!.id);
                     if (r && "error" in r) setError((r as any).error);
                     else setPlaceMade({ href: (r as any).href });
                   })}
