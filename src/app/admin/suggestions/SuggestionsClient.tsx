@@ -17,6 +17,7 @@ type Suggestion = {
   contact_email: string | null;
   is_owner: boolean;
   status: "new" | "reviewed" | "done";
+  image_url: string | null;
   created_at: string;
 };
 
@@ -101,6 +102,16 @@ export default function SuggestionsClient({ suggestions }: { suggestions: Sugges
         </div>
 
         {s.details && <p className="text-sm text-buzz-text/90 whitespace-pre-line">{s.details}</p>}
+
+        {s.image_url && (
+          <a href={s.image_url} target="_blank" rel="noreferrer" className="inline-block">
+            <img
+              src={s.image_url}
+              alt="Attached poster / photo"
+              className="h-28 rounded-lg border border-buzz-border object-contain bg-buzz-surface hover:border-buzz-accent transition"
+            />
+          </a>
+        )}
 
         {(s.contact_name || s.contact_email) && (
           <p className="text-xs text-buzz-mute">

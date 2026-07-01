@@ -215,6 +215,7 @@ export function notifyEditSuggestion(opts: {
   contact_name: string | null;
   contact_email: string | null;
   is_owner: boolean;
+  image_url?: string | null;
 }) {
   const kindLabel =
     opts.target_type === "new_place" ? "New place request"
@@ -232,6 +233,7 @@ export function notifyEditSuggestion(opts: {
         ["What they said", opts.details ?? "—"],
         ["From", opts.is_owner ? "Says they run this place/activity" : "A visitor"],
         ["Contact", [opts.contact_name, opts.contact_email].filter(Boolean).join(" · ") || "—"],
+        ...(opts.image_url ? [["Poster / photo", opts.image_url] as [string, string]] : []),
       ]},
       { kind: "button", href: `${SITE}/admin/suggestions`, text: "Review suggestions" },
     ],
