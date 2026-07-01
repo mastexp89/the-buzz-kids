@@ -61,7 +61,18 @@ export default async function BrowsePage({ searchParams }: Props) {
     const nowIso = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
     const { data: eventRows } = await supabase
       .from("events")
-      .select("*, venue:venues(*, city:cities(*)), city:cities(*), event_genres(genre:genres(*))")
+      // Only the columns the event cards + client date/area filters use — was
+      // `*, venue:venues(*)`, which shipped every heavy venue column (opening
+      // hours, socials, google fields…) × 500 rows and made What's On slow to
+      // load (~1.9MB → ~0.7MB).
+      .select(
+        "id, title, start_time, end_time, end_date, recurrence_pattern, recurrence_until, " +
+        "highlighted_until, weekend_boost_until, cancelled, status, image_url, description, " +
+        "age_min, age_max, is_free, cover_charge, accessibility, location_name, " +
+        "venue:venues(id, name, slug, approved, address, latitude, longitude, cover_photo_url, image_url, gallery_image_urls, logo_url, google_photo_url, city:cities(slug, active, name)), " +
+        "city:cities(slug, active, name), " +
+        "event_genres(genre:genres(id, name, slug))",
+      )
       // Filter to approved in the QUERY, not just in JS below — otherwise the
       // limit is filled by the ~1000 pending queue events (which have earlier
       // start dates), starving out approved events with later dates so they
