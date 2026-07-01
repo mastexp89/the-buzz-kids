@@ -83,18 +83,14 @@ export default async function SponsorBanner({
 
 function SponsorBannerLayout({ sponsor }: { sponsor: Sponsor }) {
   return (
-    // pb-0 + negative bottom margin pulls the following section up to close
-    // the gap between the ad and the "TONIGHT IN" header. The next section
-    // applies its own py-12 sm:py-16 internally, which was creating a big
-    // dead zone below the banner.
-    <section className="container-page pt-4 pb-0 -mb-8 sm:-mb-12">
+    <section className="container-page py-6">
       <a
         // Route via our tracker so we capture the click before redirecting
         // out to the advertiser's site.
         href={`/api/sponsor-click/${sponsor.id}`}
         target="_blank"
         rel="noopener sponsored"
-        className="block group relative overflow-hidden rounded-2xl border border-buzz-accent/30 bg-gradient-to-r from-black via-buzz-card to-black hover:border-buzz-accent transition"
+        className="block group relative overflow-hidden rounded-2xl border border-buzz-accent/30 bg-gradient-to-r from-buzz-accent/5 via-buzz-card to-buzz-accent/5 hover:border-buzz-accent hover:shadow-md transition"
       >
         <div className="flex items-center gap-4 sm:gap-5 p-4 sm:p-5">
           {/* Logo — no container box / border. We rely on the logo's own
