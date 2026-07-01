@@ -1,40 +1,40 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Advertise on The Buzz Guide — reach locals heading out tonight",
+  title: "Advertise on The Buzz Kids — reach local families planning their days out",
   description:
-    "Advertise your local business to thousands of locals planning their nights out on The Buzz Guide. Pubs, taxi firms, takeaways, music shops, breweries — get in touch.",
+    "Put your brand in front of thousands of parents and carers planning days out across Scotland. Attractions, soft plays, family brands, days-out companies — get in touch.",
 };
 
 export default function AdvertisePage() {
   return (
     <div className="container-page py-12 sm:py-20 max-w-4xl">
       <div className="text-center mb-12">
-        <p className="eyebrow mb-2">For local businesses</p>
+        <p className="eyebrow mb-2">For family brands & businesses</p>
         <h1 className="h-display text-5xl sm:text-7xl mb-4">
-          Reach the people <span className="text-buzz-accent">going out tonight.</span>
+          Reach the parents <span className="text-buzz-accent">planning the weekend.</span>
         </h1>
         <p className="text-buzz-mute max-w-xl mx-auto text-lg">
-          The Buzz Guide is where locals plan their nights out. People scrolling our site are choosing
-          a venue, a band, a night out. They're already committed to spending money — your job
-          is to be in front of them at the right moment.
+          The Buzz Kids is where families plan their days out. People scrolling our site are choosing
+          where to take the kids this weekend or over the holidays. They're already ready to spend —
+          your job is to be in front of them at the right moment.
         </p>
       </div>
 
       {/* Who's a fit */}
       <div className="card p-8 mb-8">
         <p className="eyebrow mb-2">Good fits</p>
-        <h2 className="h-display text-2xl mb-4">If you sell to people heading out, we're for you.</h2>
+        <h2 className="h-display text-2xl mb-4">If you sell to families, we're for you.</h2>
         <div className="grid sm:grid-cols-2 gap-y-2 gap-x-6 text-sm">
           {[
-            "🚖 Taxi firms & private hire",
-            "🍕 Takeaways & late-night food",
-            "🍺 Breweries & drink brands",
-            "🎸 Music shops & instrument hire",
-            "🎟 Promoters & tour managers",
-            "💈 Barbers, tattoo studios, salons",
-            "🏨 Hotels & late-night bars",
-            "🎤 Recording studios & rehearsal rooms",
+            "🎢 Attractions & days out",
+            "🧸 Soft plays & play centres",
+            "🍔 Family-friendly cafés & restaurants",
+            "🎂 Party venues & entertainers",
+            "🎨 Classes, clubs & workshops",
+            "🚗 Family car & travel brands",
+            "🛍️ Kids' clothing & toy brands",
+            "🏕️ Holiday parks & family getaways",
           ].map((opt) => (
             <div key={opt}>{opt}</div>
           ))}
@@ -71,7 +71,7 @@ export default function AdvertisePage() {
           <p className="eyebrow mb-2">Brand sponsorship</p>
           <h3 className="h-display text-2xl mb-2">Whole-site partnership.</h3>
           <p className="text-sm text-buzz-mute">
-            "The Buzz Guide, in association with Brand X." Bigger commitment, exclusive in-category.
+            "The Buzz Kids, in association with Brand X." Bigger commitment, exclusive in-category.
             Talk to us.
           </p>
         </div>
