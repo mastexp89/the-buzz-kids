@@ -9,6 +9,8 @@ import {
   searchPlaces,
   reassignEventVenue,
   createPlaceAndAttach,
+  suggestSplitVenues,
+  splitEventToVenues,
   dismissSuggestion,
   deleteSuggestion,
   approveVenueClaim,
@@ -654,6 +656,105 @@ function CreatePlace({
   );
 }
 
+// Fan a vague multi-venue event out to each specific place: pre-suggests our
+// venues of the right kind in the area, admin ticks them, and it clones the
+// event onto each (approved) and rejects the original.
+function SplitAcrossVenues({ eventId, onDone }: { eventId: string; onDone: (n: number) => void }) {
+  const [loading, startLoad] = useTransition();
+  const [saving, startSave] = useTransition();
+  const [searching, startSearch] = useTransition();
+  const [kind, setKind] = useState("");
+  const [suggested, setSuggested] = useState<any[]>([]);
+  const [selected, setSelected] = useState<Record<string, { id: string; name: string }>>({});
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState<any[]>([]);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    startLoad(async () => {
+      const r = await suggestSplitVenues(eventId);
+      setSuggested(r.venues ?? []);
+      setKind(r.kind ?? "");
+      const pre: Record<string, { id: string; name: string }> = {};
+      (r.venues ?? []).forEach((v: any) => { pre[v.id] = { id: v.id, name: v.name }; });
+      setSelected(pre);
+    });
+  }, [eventId]);
+
+  useEffect(() => {
+    if (q.trim().length < 2) { setResults([]); return; }
+    const t = setTimeout(() => startSearch(async () => {
+      const r = await searchPlaces(q);
+      setResults((r as any).results ?? []);
+    }), 250);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  const toggle = (v: any) => setSelected((s) => {
+    const n = { ...s };
+    if (n[v.id]) delete n[v.id]; else n[v.id] = { id: v.id, name: v.name };
+    return n;
+  });
+  const count = Object.keys(selected).length;
+
+  return (
+    <div className="mt-2 rounded-lg border border-buzz-border bg-buzz-surface/40 p-3 flex flex-col gap-2">
+      {loading ? (
+        <div className="text-xs text-buzz-mute">Finding {kind || "places"} in this area…</div>
+      ) : (
+        <>
+          <p className="text-xs text-buzz-mute">
+            {suggested.length > 0
+              ? `Found ${suggested.length} ${kind} in this area — tick the ones it runs at:`
+              : "Search and tick the places this runs at:"}
+          </p>
+          {suggested.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {suggested.map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => toggle(v)}
+                  className={"text-xs rounded-full px-2.5 py-1 border " + (selected[v.id] ? "bg-buzz-accent/15 border-buzz-accent/50 text-buzz-accent" : "border-buzz-border text-buzz-mute hover:border-buzz-accent")}
+                >
+                  {selected[v.id] ? "✓ " : ""}{v.name}
+                </button>
+              ))}
+            </div>
+          )}
+          <input type="text" value={q} onChange={(ev) => setQ(ev.target.value)} placeholder="Add another place…" className="input" autoComplete="off" />
+          {searching && <div className="text-xs text-buzz-mute px-1">Searching…</div>}
+          {results.length > 0 && (
+            <ul className="flex flex-col max-h-40 overflow-y-auto rounded-md border border-buzz-border">
+              {results.filter((r) => !suggested.some((s) => s.id === r.id)).map((r) => (
+                <li key={r.id}>
+                  <button type="button" onClick={() => { toggle(r); setQ(""); setResults([]); }} className="w-full text-left px-2.5 py-1.5 text-sm hover:bg-buzz-accent/10">
+                    {selected[r.id] ? "✓ " : "+ "}{r.name} <span className="text-buzz-mute text-xs">· {r.city?.name ?? "—"}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <button
+            type="button"
+            disabled={saving || count === 0}
+            onClick={() => startSave(async () => {
+              setErr(null);
+              const r = await splitEventToVenues(eventId, Object.keys(selected));
+              if (r && "error" in r) setErr((r as any).error);
+              else onDone((r as any).count);
+            })}
+            className="btn-primary !py-1.5 !px-3 text-xs self-start"
+          >
+            {saving ? "Creating…" : `Create at ${count} place${count === 1 ? "" : "s"} · reject the vague one`}
+          </button>
+          {err && <div className="text-xs text-rose-400">{err}</div>}
+        </>
+      )}
+    </div>
+  );
+}
+
 function EventRow({ event: e, cities = [] }: { event: PendingEvent; cities?: QCity[] }) {
   const [pending, start] = useTransition();
   const [placing, startPlace] = useTransition();
@@ -663,6 +764,8 @@ function EventRow({ event: e, cities = [] }: { event: PendingEvent; cities?: QCi
   const [venueOverride, setVenueOverride] = useState<PendingEvent["venue"]>(null);
   const [showReassign, setShowReassign] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [showSplit, setShowSplit] = useState(false);
+  const [splitInto, setSplitInto] = useState<number | null>(null);
 
   // Effective venue — may have been reassigned away from a wrong tourism-feed dump.
   const venue = venueOverride ?? e.venue;
@@ -673,6 +776,13 @@ function EventRow({ event: e, cities = [] }: { event: PendingEvent; cities?: QCi
   const onPlaces = venueIsPlace || !!placeMade;
   const placeHref = placeMade?.href ?? (venue ? `/${venue.city?.slug ?? "dundee"}/venues/${venue.slug}` : null);
 
+  if (splitInto != null) {
+    return (
+      <li className="px-4 py-3 text-sm text-emerald-500">
+        ✓ Split “{e.title}” into {splitInto} place{splitInto === 1 ? "" : "s"} (original rejected)
+      </li>
+    );
+  }
   if (done) {
     return (
       <li className="px-4 py-3 text-sm text-buzz-mute">
@@ -712,12 +822,22 @@ function EventRow({ event: e, cities = [] }: { event: PendingEvent; cities?: QCi
             </button>
             <button
               type="button"
-              onClick={() => { setShowCreate((s) => !s); setShowReassign(false); }}
+              onClick={() => { setShowCreate((s) => !s); setShowReassign(false); setShowSplit(false); }}
               className="text-buzz-accent hover:underline whitespace-nowrap"
             >
               {showCreate ? "✕ close" : "＋ create place"}
             </button>
+            <button
+              type="button"
+              onClick={() => { setShowSplit((s) => !s); setShowReassign(false); setShowCreate(false); }}
+              className="text-buzz-accent hover:underline whitespace-nowrap"
+            >
+              {showSplit ? "✕ close" : "⎇ split across places"}
+            </button>
           </div>
+          {showSplit && (
+            <SplitAcrossVenues eventId={e.id} onDone={(n) => setSplitInto(n)} />
+          )}
           {showReassign && (
             <VenueReassign
               eventId={e.id}
