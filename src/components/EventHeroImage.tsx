@@ -39,21 +39,12 @@ export default function EventHeroImage({
   }
 
   return (
-    <>
-      {/* Blurred fill so a portrait poster isn't cropped… */}
-      <div
-        aria-hidden
-        className="absolute inset-0 scale-110"
-        style={{ backgroundImage: `url(${imageUrl})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(24px)", opacity: 0.5 }}
-      />
-      {/* …with the whole poster shown sharp on top. */}
-      <img
-        src={imageUrl}
-        alt=""
-        onError={() => setBroken(true)}
-        className="absolute inset-0 w-full h-full object-contain"
-        loading="eager"
-      />
-    </>
+    <img
+      src={imageUrl}
+      alt=""
+      onError={() => setBroken(true)}
+      className="absolute inset-0 w-full h-full object-cover"
+      loading="eager"
+    />
   );
 }

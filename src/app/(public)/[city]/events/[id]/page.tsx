@@ -7,6 +7,7 @@ import { trackPageView } from "@/lib/track";
 import AdminEditBar from "@/components/AdminEditBar";
 import AdminExpireEventButton from "@/components/AdminExpireEventButton";
 import EventHeroImage from "@/components/EventHeroImage";
+import SmartBackLink from "@/components/SmartBackLink";
 import FavouriteButton from "@/components/FavouriteButton";
 import { isFavourited } from "@/lib/favourites";
 
@@ -170,9 +171,9 @@ export default async function EventPage({ params }: Props) {
       )}
 
       <div className="container-page py-8 sm:py-12 max-w-5xl">
-        <Link href={`/${citySlug}`} className="inline-flex items-center gap-1 text-sm text-buzz-mute hover:text-buzz-accent transition mb-6">
-          ← Back to {eventCity.name}
-        </Link>
+        <div className="mb-6">
+          <SmartBackLink fallbackHref={`/${citySlug}`} />
+        </div>
 
         {/* Festival affiliation banner — only renders when this event is
             linked to a published festival. Shows a "happening now" pulse
