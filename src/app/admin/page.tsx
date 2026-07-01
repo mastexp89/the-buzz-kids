@@ -99,27 +99,38 @@ export default async function AdminPage({ searchParams }: Props) {
   if (searchOr) pendingBase = pendingBase.or(searchOr);
   const pendingQuery = pendingBase.order("created_at", { ascending: false });
 
-  // Approved places now exceed Supabase's hard 1000-row-per-request cap
-  // (1,089+), so a single query silently stops at 1000 — which is why the
-  // count read "(1000)". Page through to load them all. When a search is
-  // active (searchOr) the result is small, so the loop runs just once.
-  const approvedAll = (async () => {
-    const PAGE = 1000;
-    const all: any[] = [];
-    for (let from = 0; ; from += PAGE) {
-      let q = supabase
-        .from("venues")
-        .select("*, city:cities(*), owner:profiles!owner_id(email, display_name)")
-        .eq("approved", true);
-      if (filterCityId) q = q.eq("city_id", filterCityId);
-      if (searchOr) q = q.or(searchOr);
-      const { data, error } = await q.order("name").range(from, from + PAGE - 1);
-      if (error || !data || data.length === 0) break;
-      all.push(...data);
-      if (data.length < PAGE) break;
-    }
-    return { data: all };
-  })();
+  // Only load the approved ROWS when the admin is actually searching. The
+  // approved list sits in a collapsed panel, so pulling all ~1,500 rows
+  // (2MB+ with full venue columns) on every admin load just to hide them was
+  // the page's single biggest cost. A cheap count still powers the header;
+  // rows arrive on search (which covers the whole table anyway).
+  const approvedAll = searchOr
+    ? (async () => {
+        const PAGE = 1000;
+        const all: any[] = [];
+        for (let from = 0; ; from += PAGE) {
+          let q = supabase
+            .from("venues")
+            .select("*, city:cities(*), owner:profiles!owner_id(email, display_name)")
+            .eq("approved", true)
+            .or(searchOr);
+          if (filterCityId) q = q.eq("city_id", filterCityId);
+          const { data, error } = await q.order("name").range(from, from + PAGE - 1);
+          if (error || !data || data.length === 0) break;
+          all.push(...data);
+          if (data.length < PAGE) break;
+        }
+        return { data: all };
+      })()
+    : Promise.resolve({ data: [] as any[] });
+
+  // Cheap count for the "Approved places (N)" header without loading rows.
+  let approvedCountQ = supabase
+    .from("venues")
+    .select("id", { count: "exact", head: true })
+    .eq("approved", true);
+  if (filterCityId) approvedCountQ = approvedCountQ.eq("city_id", filterCityId);
+  const { count: approvedCount } = await approvedCountQ;
 
   const [
     { data: pending },
@@ -361,14 +372,17 @@ export default async function AdminPage({ searchParams }: Props) {
           <h2 className="font-display text-2xl uppercase inline">
             Approved places
             {cityFilterSlug && <span className="text-buzz-mute text-sm font-normal"> in {allCities?.find((c) => c.slug === cityFilterSlug)?.name ?? cityFilterSlug}</span>}
-            <span className="text-buzz-mute text-sm font-normal"> ({approved?.length ?? 0})</span>
+            <span className="text-buzz-mute text-sm font-normal"> ({approvedCount ?? 0})</span>
           </h2>
         </summary>
-        {(approved && approved.length > 0) || searchQ ? (
-          <AdminVenueList venues={(approved ?? []) as any} searchable initialQuery={searchQ} />
-        ) : (
-          <div className="card p-6 text-buzz-mute">No approved places yet.</div>
+        {!searchQ && (approvedCount ?? 0) > 0 && (
+          <p className="text-sm text-buzz-mute mb-3">
+            Search below to find one of the {approvedCount} approved places — they&apos;re loaded on
+            demand to keep this page fast. To browse them all, use{" "}
+            <Link href="/admin/venues-manage" className="text-buzz-accent hover:underline">Manage places</Link>.
+          </p>
         )}
+        <AdminVenueList venues={(approved ?? []) as any} searchable initialQuery={searchQ} />
       </details>
 
       <div className="flex items-center justify-between gap-3 flex-wrap mb-4">

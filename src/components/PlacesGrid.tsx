@@ -5,21 +5,23 @@
 // so this is a client wrapper; distance is pure maths on the lat/lng we
 // already store — no API, no cost.
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PlaceCard from "@/components/PlaceCard";
 import AdminDeleteButton from "@/components/AdminDeleteButton";
 import { useNearMe } from "@/components/NearMeContext";
 import { formatDistance } from "@/lib/geocode";
 
 const RADII = [1, 3, 5, 10, 25, 50]; // miles
-// Show this many places at first; the rest hide behind a "show more" button.
-// The full list can be 1,000+ now, which is a huge DOM and a wall of cards.
+// Show this many places at first, then reveal more a page at a time. The full
+// list can be 1,500+, which is a huge DOM and a wall of cards — rendering it
+// all at once is the main cause of the slow paint on browse/city pages.
 const INITIAL_CAP = 24;
+const PAGE = 24;
 
 export default function PlacesGrid({ places, isAdmin }: { places: any[]; isAdmin?: boolean }) {
   const { here, loading, error, request, clear, rawDistanceTo } = useNearMe();
   const [radius, setRadius] = useState<number | null>(null);
-  const [expanded, setExpanded] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(INITIAL_CAP);
 
   // When we have a location, attach distance, optionally filter by radius,
   // and sort nearest-first. Places without coords sink to the bottom.
@@ -33,10 +35,13 @@ export default function PlacesGrid({ places, isAdmin }: { places: any[]; isAdmin
     shown = filtered.map((x) => ({ ...x.p, _distance: x.d }));
   }
 
-  // Cap the rendered list until the user clicks "show all" (keeps the DOM
-  // small when there are 1,000+ places). The count summaries above still
-  // reflect the full filtered set.
-  const visible = expanded ? shown : shown.slice(0, INITIAL_CAP);
+  // Reset back to the first page whenever the filter set changes (turning
+  // location on/off or picking a radius) so a new list starts at the top.
+  useEffect(() => { setVisibleCount(INITIAL_CAP); }, [here, radius]);
+
+  // Only render up to visibleCount cards; "Load more" reveals another page.
+  // The count summaries above still reflect the full filtered set.
+  const visible = shown.slice(0, visibleCount);
 
   return (
     <>
@@ -98,15 +103,20 @@ export default function PlacesGrid({ places, isAdmin }: { places: any[]; isAdmin
             ))}
           </div>
 
-          {shown.length > INITIAL_CAP && (
+          {visibleCount < shown.length && (
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+              <button onClick={() => setVisibleCount((v) => v + PAGE)} className="btn-primary">
+                Load more <span className="opacity-80">({shown.length - visibleCount} to go)</span>
+              </button>
+              <button onClick={() => setVisibleCount(shown.length)} className="btn-secondary">
+                Show all {shown.length}
+              </button>
+            </div>
+          )}
+          {visibleCount >= shown.length && shown.length > INITIAL_CAP && (
             <div className="mt-8 text-center">
-              <button
-                onClick={() => setExpanded((v) => !v)}
-                className="btn-secondary"
-              >
-                {expanded
-                  ? "Show fewer"
-                  : `Show all ${shown.length} places →`}
+              <button onClick={() => setVisibleCount(INITIAL_CAP)} className="btn-secondary">
+                Show fewer
               </button>
             </div>
           )}
