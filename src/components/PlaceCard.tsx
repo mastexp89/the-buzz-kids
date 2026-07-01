@@ -121,6 +121,11 @@ export default function PlaceCard({ place, citySlug }: { place: any; citySlug: s
                 {setting}
               </span>
             )}
+            {place.dog_friendly && (
+              <span className="inline-flex items-center rounded-full bg-buzz-surface border border-buzz-border px-2.5 py-1 text-[11px] font-medium">
+                🐶 Dog friendly
+              </span>
+            )}
             {price && (
               <span className="ml-auto text-xs font-semibold" style={{ color: place.is_free ? "#2E9E33" : undefined }}>
                 {price}
