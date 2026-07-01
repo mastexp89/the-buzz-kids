@@ -34,7 +34,7 @@ export default async function AdminQueuePage() {
       .select(`
         id, title, start_time, end_time, end_date, recurrence_pattern, recurrence_until,
         description, image_url, submitted_by, auto_import_source_url, ticket_url,
-        venue:venues(id, name, slug, city:cities(name, slug))
+        venue:venues(id, name, slug, approved, venue_type, city:cities(name, slug))
       `)
       .eq("status", "pending")
       .order("created_at", { ascending: false })

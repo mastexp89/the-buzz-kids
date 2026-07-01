@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   approveEvent,
   rejectEvent,
+  makeVenueAPlace,
   dismissSuggestion,
   deleteSuggestion,
   approveVenueClaim,
@@ -35,7 +36,7 @@ type PendingEvent = {
   image_url: string | null;
   auto_import_source_url: string | null;
   ticket_url: string | null;
-  venue: { id: string; name: string; slug: string; city: { name: string; slug: string } | null } | null;
+  venue: { id: string; name: string; slug: string; approved?: boolean; venue_type?: string | null; city: { name: string; slug: string } | null } | null;
   submitter: { email: string | null; display_name: string | null } | null;
 };
 
@@ -502,8 +503,16 @@ function Empty({ message }: { message: string }) {
 
 function EventRow({ event: e }: { event: PendingEvent }) {
   const [pending, start] = useTransition();
+  const [placing, startPlace] = useTransition();
   const [done, setDone] = useState<"approved" | "rejected" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [placeMade, setPlaceMade] = useState<{ href?: string } | null>(null);
+
+  // Is the venue this event sits at already a live Place on the directory?
+  const venueIsPlace =
+    !!e.venue?.approved && (e.venue?.venue_type === "attraction" || e.venue?.venue_type === "both");
+  const onPlaces = venueIsPlace || !!placeMade;
+  const placeHref = placeMade?.href ?? (e.venue ? `/${e.venue.city?.slug ?? "dundee"}/venues/${e.venue.slug}` : null);
 
   if (done) {
     return (
@@ -546,6 +555,44 @@ function EventRow({ event: e }: { event: PendingEvent }) {
             >
               {shows.warn ? "⚠️" : "📅"} Shows on: {shows.text}
             </span>
+          </div>
+          {/* Is this event's venue already a Place? Lets you safely reject a
+              "session" that's really just general admission — or one-click add
+              the place first if it's missing. */}
+          <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+            {onPlaces ? (
+              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium border bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
+                ✓ On the Places page
+              </span>
+            ) : e.venue ? (
+              <>
+                <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium border bg-amber-500/10 text-amber-600 border-amber-500/40">
+                  ⚠️ Not on Places yet
+                </span>
+                <button
+                  type="button"
+                  disabled={placing}
+                  onClick={() => startPlace(async () => {
+                    const r = await makeVenueAPlace(e.venue!.id);
+                    if (r && "error" in r) setError((r as any).error);
+                    else setPlaceMade({ href: (r as any).href });
+                  })}
+                  className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold border border-buzz-accent/50 text-buzz-accent hover:bg-buzz-accent/10 transition"
+                  title="Add this venue to the Places directory (keeps it as an event host too)"
+                >
+                  {placing ? "…" : "📍 Make it a place"}
+                </button>
+              </>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium border bg-buzz-surface text-buzz-mute border-buzz-border">
+                No linked place
+              </span>
+            )}
+            {onPlaces && placeHref && (
+              <a href={placeHref} target="_blank" rel="noreferrer" className="text-[11px] text-buzz-mute hover:text-buzz-accent">
+                View place ↗
+              </a>
+            )}
           </div>
           {e.submitter && (
             <div className="text-xs text-buzz-mute mt-1">

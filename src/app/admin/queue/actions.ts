@@ -39,6 +39,35 @@ export async function approveEvent(eventId: string) {
   return { ok: true };
 }
 
+// Promote the venue a queued event is attached to into a live Place on the
+// directory. Used when a "session" is really just a place (general admission /
+// opening hours) — you make the venue a Place, then reject the redundant event
+// knowing the place itself is now on the site.
+export async function makeVenueAPlace(venueId: string) {
+  const ctx = await requireAdmin();
+  if (!ctx) return { error: "Not authorised." };
+  const { supabase } = ctx;
+  const { data: v } = await supabase
+    .from("venues")
+    .select("venue_type, approved, name, slug, city:cities(slug)")
+    .eq("id", venueId)
+    .maybeSingle();
+  if (!v) return { error: "Venue not found." };
+  // Keep an existing attraction/both type; otherwise make it visitable. A
+  // programmes-only (event-host) venue becomes "both" so it stays an event
+  // host AND shows on the Places page.
+  const current = (v as any).venue_type;
+  const newType = current === "attraction" || current === "both" ? current : "both";
+  const { error } = await supabase
+    .from("venues")
+    .update({ approved: true, venue_type: newType })
+    .eq("id", venueId);
+  if (error) return { error: error.message };
+  revalidatePath("/admin/queue");
+  const citySlug = (v as any).city?.slug ?? "dundee";
+  return { ok: true, href: `/${citySlug}/venues/${(v as any).slug}`, name: (v as any).name };
+}
+
 export async function rejectEvent(eventId: string) {
   const ctx = await requireAdmin();
   if (!ctx) return { error: "Not authorised." };
