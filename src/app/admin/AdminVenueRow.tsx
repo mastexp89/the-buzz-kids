@@ -156,6 +156,14 @@ export default function AdminVenueRow({
                   Auto-imported
                 </span>
               )}
+              {venue.reports > 0 && (
+                <span
+                  className="text-[10px] uppercase tracking-wide bg-rose-500/15 text-rose-500 px-1.5 py-0.5 rounded shrink-0"
+                  title={venue.report_note ? `Latest report: ${venue.report_note}` : "Flagged by a visitor"}
+                >
+                  ⚠️ {venue.reports} report{venue.reports === 1 ? "" : "s"}
+                </span>
+              )}
             </div>
             <div className="text-xs text-buzz-mute">
               {venue.city?.name ?? "—"}
