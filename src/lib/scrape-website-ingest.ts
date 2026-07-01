@@ -171,6 +171,15 @@ export async function scrapeAndIngestVenueWebsite(opts: WebsiteIngestOptions): P
         });
         if (valid.length === 0) continue;
 
+        // Only attach the page image when the page yielded a SINGLE event —
+        // i.e. it's an event detail page whose og:image is that event's poster.
+        // On a listing / "what's on" page (multiple events) the first image is
+        // just the top banner, and blindly stamping it on every event was
+        // giving unrelated events the same wrong picture (e.g. all New Lanark
+        // events showing the "Bug Man's Tour" poster). Better no image than a
+        // misleading one — the card falls back to a clean placeholder.
+        const pagePoster = valid.length === 1 ? (page.imageUrls[0] ?? null) : null;
+
         const rows: Array<Record<string, unknown>> = [];
         const drafts: ExtractedEvent[] = [];
         for (const e of valid) {
@@ -186,7 +195,7 @@ export async function scrapeAndIngestVenueWebsite(opts: WebsiteIngestOptions): P
           sameHour.push(nt);
           titlesByHour.set(hk, sameHour);
 
-          const poster = page.imageUrls[0] ?? null;
+          const poster = pagePoster;
           rows.push({
             venue_id: v.id,
             city_id: v.city_id,
