@@ -30,11 +30,15 @@ function rangeFor(filter: DateFilter, picked: string): { start: Date; end: Date 
     const d = new Date(picked + "T00:00:00");
     return { start: startOfDay(d), end: endOfDay(d) };
   }
-  // weekend
-  if (day === 0) return { start: startOfDay(today), end: endOfDay(today) }; // Sunday → just today
-  const sat = new Date(today); sat.setDate(today.getDate() + (6 - day));
-  const sun = new Date(sat); sun.setDate(sat.getDate() + 1);
-  return { start: startOfDay(day === 6 ? today : sat), end: endOfDay(sun) };
+  // weekend = Friday → Sunday. Families plan the whole weekend, and Friday
+  // clubs / after-school sessions are part of it — so a "every Friday" Bookbug
+  // or a Fri-only event shows under "This weekend" too (previously Sat+Sun only,
+  // which hid Friday events and confused people).
+  const daysUntilSun = (7 - day) % 7;               // Wed→4, Fri→2, Sat→1, Sun→0
+  const sun = new Date(today); sun.setDate(today.getDate() + daysUntilSun);
+  const fri = new Date(sun); fri.setDate(sun.getDate() - 2);
+  const start = today > fri ? today : fri;          // already into the weekend → start from today
+  return { start: startOfDay(start), end: endOfDay(sun) };
 }
 
 export default function WhatsOnView({ events, cities, isAdmin }: { events: EventWithVenue[]; cities: City[]; isAdmin?: boolean }) {
