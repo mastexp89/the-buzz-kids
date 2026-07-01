@@ -234,14 +234,14 @@ export async function createPlaceAndAttach(
 // mentioned, so the admin can fan it out to each specific place.
 export async function suggestSplitVenues(eventId: string) {
   const ctx = await requireAdmin();
-  if (!ctx) return { venues: [] as any[], kind: "" };
+  if (!ctx) return { venues: [] as any[], kind: "", sourceReadable: false };
   const { supabase } = ctx;
   const { data: ev } = await supabase
     .from("events")
-    .select("title, description, city_id, venue:venues(city_id)")
+    .select("title, description, city_id, auto_import_source_url, venue:venues(city_id)")
     .eq("id", eventId)
     .maybeSingle();
-  if (!ev) return { venues: [], kind: "" };
+  if (!ev) return { venues: [], kind: "", sourceReadable: false };
   const text = `${ev.title ?? ""} ${ev.description ?? ""}`.toLowerCase();
   const cityId = ev.city_id ?? (ev.venue as any)?.city_id;
   // Map the words in the event to a place type + name patterns to search for.
@@ -255,7 +255,7 @@ export async function suggestSplitVenues(eventId: string) {
     { test: /\bpark/, kind: "parks", names: ["park"] },
   ];
   const match = KINDS.find((k) => k.test.test(text));
-  if (!match || !cityId) return { venues: [], kind: match?.kind ?? "" };
+  if (!match || !cityId) return { venues: [], kind: match?.kind ?? "", sourceReadable: false };
   const orClause = match.names.map((n) => `name.ilike.%${n}%`).join(",");
   const { data: venues } = await supabase
     .from("venues")
@@ -265,7 +265,35 @@ export async function suggestSplitVenues(eventId: string) {
     .or(orClause)
     .order("name")
     .limit(40);
-  return { venues: venues ?? [], kind: match.kind };
+
+  // Verify against the event's source page: only trust a place if its
+  // distinctive name (town / specific bit, not just "library") actually appears
+  // on the page the event was scraped from. That's our proof it runs there.
+  let sourceText = "";
+  let sourceReadable = false;
+  if (ev.auto_import_source_url) {
+    try {
+      const wr = await fetch(ev.auto_import_source_url, {
+        headers: { "User-Agent": "Mozilla/5.0" },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (wr.ok) {
+        const html = await wr.text();
+        sourceText = " " + html.replace(/<[^>]+>/g, " ").toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim() + " ";
+        sourceReadable = sourceText.length > 300;
+      }
+    } catch { /* couldn't read the source — leave unconfirmed */ }
+  }
+  const GENERIC = new Set(["library", "libraries", "leisure", "centre", "center", "pool", "swimming", "sports", "sport", "museum", "gallery", "galleries", "theatre", "hall", "community", "park", "the", "and", "of"]);
+  const norm = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ");
+  const withConfirm = (venues ?? []).map((v: any) => {
+    const toks = norm(v.name).split(" ").filter((w) => w.length >= 4 && !GENERIC.has(w));
+    const confirmed = sourceReadable && toks.length > 0 && toks.some((t) => sourceText.includes(` ${t} `));
+    return { ...v, confirmed };
+  });
+  // Confirmed first for a tidy UI.
+  withConfirm.sort((a: any, b: any) => Number(b.confirmed) - Number(a.confirmed));
+  return { venues: withConfirm, kind: match.kind, sourceReadable };
 }
 
 // Clone a queued event onto each chosen place (approved), then reject the

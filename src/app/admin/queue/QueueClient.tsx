@@ -665,6 +665,7 @@ function SplitAcrossVenues({ eventId, onDone }: { eventId: string; onDone: (n: n
   const [searching, startSearch] = useTransition();
   const [kind, setKind] = useState("");
   const [suggested, setSuggested] = useState<any[]>([]);
+  const [sourceReadable, setSourceReadable] = useState(true);
   const [selected, setSelected] = useState<Record<string, { id: string; name: string }>>({});
   const [q, setQ] = useState("");
   const [results, setResults] = useState<any[]>([]);
@@ -675,8 +676,10 @@ function SplitAcrossVenues({ eventId, onDone }: { eventId: string; onDone: (n: n
       const r = await suggestSplitVenues(eventId);
       setSuggested(r.venues ?? []);
       setKind(r.kind ?? "");
+      setSourceReadable((r as any).sourceReadable ?? false);
+      // Only pre-tick places CONFIRMED on the event's source page.
       const pre: Record<string, { id: string; name: string }> = {};
-      (r.venues ?? []).forEach((v: any) => { pre[v.id] = { id: v.id, name: v.name }; });
+      (r.venues ?? []).forEach((v: any) => { if (v.confirmed) pre[v.id] = { id: v.id, name: v.name }; });
       setSelected(pre);
     });
   }, [eventId]);
@@ -703,23 +706,37 @@ function SplitAcrossVenues({ eventId, onDone }: { eventId: string; onDone: (n: n
         <div className="text-xs text-buzz-mute">Finding {kind || "places"} in this area…</div>
       ) : (
         <>
-          <p className="text-xs text-buzz-mute">
-            {suggested.length > 0
-              ? `Found ${suggested.length} ${kind} in this area — tick the ones it runs at:`
-              : "Search and tick the places this runs at:"}
-          </p>
+          {(() => {
+            const confirmedCount = suggested.filter((v) => v.confirmed).length;
+            if (!sourceReadable) {
+              return <p className="text-xs text-amber-600">⚠ Couldn't read the event's source page to confirm which places it runs at — only tick ones you're sure about.</p>;
+            }
+            if (confirmedCount > 0) {
+              return <p className="text-xs text-buzz-mute"><strong className="text-emerald-600">{confirmedCount} confirmed on the source page</strong> (pre-ticked). Grey ones are the same kind of place nearby but <em>weren't</em> named on the source — only tick if you know it runs there.</p>;
+            }
+            return <p className="text-xs text-amber-600">⚠ None of these were named on the event's source page — verify before ticking any.</p>;
+          })()}
           {suggested.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
-              {suggested.map((v) => (
-                <button
-                  key={v.id}
-                  type="button"
-                  onClick={() => toggle(v)}
-                  className={"text-xs rounded-full px-2.5 py-1 border " + (selected[v.id] ? "bg-buzz-accent/15 border-buzz-accent/50 text-buzz-accent" : "border-buzz-border text-buzz-mute hover:border-buzz-accent")}
-                >
-                  {selected[v.id] ? "✓ " : ""}{v.name}
-                </button>
-              ))}
+              {suggested.map((v) => {
+                const on = !!selected[v.id];
+                const cls = on
+                  ? "bg-buzz-accent/15 border-buzz-accent/50 text-buzz-accent"
+                  : v.confirmed
+                  ? "border-buzz-border text-buzz-mute hover:border-buzz-accent"
+                  : "border-dashed border-buzz-border/70 text-buzz-mute/60 hover:border-buzz-accent";
+                return (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => toggle(v)}
+                    title={v.confirmed ? "Named on the source page" : "Not found on the source page — verify"}
+                    className={"text-xs rounded-full px-2.5 py-1 border " + cls}
+                  >
+                    {on ? "✓ " : v.confirmed ? "" : "? "}{v.name}
+                  </button>
+                );
+              })}
             </div>
           )}
           <input type="text" value={q} onChange={(ev) => setQ(ev.target.value)} placeholder="Add another place…" className="input" autoComplete="off" />
