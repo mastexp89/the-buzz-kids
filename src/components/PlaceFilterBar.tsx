@@ -144,8 +144,6 @@ export default function PlaceFilterBar({
         <>
           <Pill active={open === "today"} onClick={() => update({ open: null })}>Today</Pill>
           <Pill active={open === "tomorrow"} onClick={() => update({ open: "tomorrow" })}>Tomorrow</Pill>
-          <Pill active={open === "weekend"} onClick={() => update({ open: "weekend" })}>This weekend</Pill>
-          <Pill active={open === "any"} onClick={() => update({ open: "any" })}>Any day</Pill>
           <label className={pillClass(openIsDate) + " cursor-pointer"}>
             📅 {openIsDate ? openDayLabel(open) : "Pick a date"}
             <input
