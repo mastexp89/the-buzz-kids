@@ -33,6 +33,8 @@ type PendingEvent = {
   recurrence_until: string | null;
   description: string | null;
   image_url: string | null;
+  auto_import_source_url: string | null;
+  ticket_url: string | null;
   venue: { id: string; name: string; slug: string; city: { name: string; slug: string } | null } | null;
   submitter: { email: string | null; display_name: string | null } | null;
 };
@@ -553,6 +555,23 @@ function EventRow({ event: e }: { event: PendingEvent }) {
           {e.description && (
             <p className="text-sm text-buzz-text/80 mt-2 line-clamp-2">{e.description}</p>
           )}
+          {(() => {
+            const src = e.auto_import_source_url || e.ticket_url;
+            if (!src) return null;
+            let host = src;
+            try { host = new URL(src).hostname.replace(/^www\./, ""); } catch {}
+            return (
+              <a
+                href={src}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-buzz-accent hover:underline mt-2"
+                title="Open the page this was scraped from to double-check"
+              >
+                🔗 Check source ({host}) ↗
+              </a>
+            );
+          })()}
         </div>
         <div className="flex flex-col gap-1.5 items-end shrink-0">
           <button
