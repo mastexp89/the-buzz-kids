@@ -61,10 +61,15 @@ export default async function BrowsePage({ searchParams }: Props) {
     const nowIso = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
     const { data: eventRows } = await supabase
       .from("events")
-      .select("*, venue:venues(*, city:cities(*)), city:cities(*), event_genres(genre:genres(*))")
+      // Filter to approved in the QUERY, not just in JS below — otherwise the
+      // limit is filled by the ~1000 pending queue events (which have earlier
+      // start dates), starving out approved events with later dates so they
+      // never load into What's On at all.
+      .eq("status", "approved")
+      .eq("cancelled", false)
       .or(`start_time.gte.${nowIso},end_time.gte.${nowIso}`)
       .order("start_time", { ascending: true })
-      .limit(300);
+      .limit(500);
     events = (eventRows ?? [])
       .filter((e: any) => {
         if (e.status && e.status !== "approved") return false;
