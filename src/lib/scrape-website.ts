@@ -21,6 +21,34 @@ const COMMON_EVENT_PATHS = [
 const SCRAPER_UA =
   "Mozilla/5.0 (compatible; TheBuzzBot/1.0; +https://www.thebuzzguide.co.uk/about)";
 
+// Regional tourism directories / "visit X" portals. These are NEVER a single
+// venue — their /whats-on lists an entire region's events. If a venue's website
+// is one of these, scraping it dumps the whole region onto that one venue
+// (that's how Beltane Fire Festival & the Tattoo ended up "at Cramond Beach").
+// Skip them entirely.
+const DIRECTORY_HOSTS = [
+  "visitscotland.com",
+  "welcometofife.com",
+  "visitangus.com",
+  "visiteastlothian.org",
+  "visitdunbartonshire.com",
+  "visitlanarkshire.com",
+  "ayrshirescotland.com",
+  "visitayrshirearran.com",
+  "visitaberdeenshire.com",
+  "visitcairngorms.com",
+  "visitinvernesslochness.com",
+  "visitscottishborders.com",
+  "daysoutwithkids.co.uk",
+  "list.co.uk",
+  "eventbrite.co.uk",
+];
+
+function isDirectoryHost(host: string): boolean {
+  const h = host.replace(/^www\./, "").toLowerCase();
+  return DIRECTORY_HOSTS.some((d) => h === d || h.endsWith("." + d));
+}
+
 export type ScrapedPage = {
   url: string;
   title: string;
@@ -47,19 +75,45 @@ export type WebsiteScrapeResult = {
 
 export async function scrapeVenueWebsite(websiteUrl: string): Promise<WebsiteScrapeResult> {
   let origin: string;
+  let parsed: URL;
   try {
-    origin = new URL(websiteUrl).origin;
+    parsed = new URL(websiteUrl);
+    origin = parsed.origin;
   } catch {
     return { pages: [], errors: [`Invalid URL: ${websiteUrl}`], socials: {} };
   }
 
+  // Never scrape a regional tourism directory as if it were one venue.
+  if (isDirectoryHost(parsed.hostname)) {
+    return {
+      pages: [],
+      errors: [`skipped: ${parsed.hostname} is a regional directory, not a single venue`],
+      socials: {},
+    };
+  }
+
   const candidates = new Set<string>();
   candidates.add(websiteUrl);
-  for (const path of COMMON_EVENT_PATHS) {
-    try {
-      candidates.add(new URL(path, origin).toString());
-    } catch {
-      /* ignore */
+
+  // How deep is the venue's own URL? A root/shallow site (path "/" or one
+  // segment) is a standalone venue — safe to probe origin-level /whats-on etc.
+  // A DEEP path (e.g. glasgowlife.org.uk/museums/venues/kelvingrove) is a single
+  // venue's page on a shared council/operator platform: probing the origin root
+  // would grab the whole city's listings and dump them on this one venue. So we
+  // only look for event pages *underneath the venue's own path* in that case.
+  const segments = parsed.pathname.replace(/\/+$/, "").split("/").filter(Boolean);
+  if (segments.length <= 1) {
+    for (const path of COMMON_EVENT_PATHS) {
+      try {
+        candidates.add(new URL(path, origin).toString());
+      } catch {
+        /* ignore */
+      }
+    }
+  } else {
+    const base = `${origin}${parsed.pathname.replace(/\/+$/, "")}`;
+    for (const sub of ["/events", "/whats-on", "/calendar", "/diary"]) {
+      candidates.add(base + sub);
     }
   }
 
