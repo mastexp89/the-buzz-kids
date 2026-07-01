@@ -33,7 +33,7 @@ export default async function AdminQueuePage() {
       .from("events")
       .select(`
         id, title, start_time, end_time, end_date, recurrence_pattern, recurrence_until,
-        description, image_url, submitted_by,
+        description, image_url, submitted_by, auto_import_source_url, ticket_url,
         venue:venues(id, name, slug, city:cities(name, slug))
       `)
       .eq("status", "pending")
