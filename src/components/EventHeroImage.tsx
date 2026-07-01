@@ -38,12 +38,15 @@ export default function EventHeroImage({
     );
   }
 
+  // object-CONTAIN so the whole poster is visible (event flyers carry key info
+  // right to the edges — prices, dates — so we must never crop them). The frame
+  // sits on a clean solid background (the parent's bg), not a blurred fill.
   return (
     <img
       src={imageUrl}
       alt=""
       onError={() => setBroken(true)}
-      className="absolute inset-0 w-full h-full object-cover"
+      className="absolute inset-0 w-full h-full object-contain"
       loading="eager"
     />
   );

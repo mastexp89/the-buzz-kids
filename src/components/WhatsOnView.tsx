@@ -10,7 +10,7 @@ type City = { name: string; slug: string };
 // Pared back to four windows so the page never renders every upcoming event
 // at once (which was slow + overwhelming): Today, Tomorrow, This weekend, or a
 // specific picked date. There's deliberately no "show everything" option.
-type DateFilter = "today" | "tomorrow" | "weekend" | "date";
+type DateFilter = "today" | "tomorrow" | "weekend" | "date" | "upcoming";
 
 function startOfDay(d: Date) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
 function endOfDay(d: Date) { const x = new Date(d); x.setHours(23, 59, 59, 999); return x; }
@@ -20,6 +20,10 @@ function endOfDay(d: Date) { const x = new Date(d); x.setHours(23, 59, 59, 999);
 function rangeFor(filter: DateFilter, picked: string): { start: Date; end: Date } | null {
   const today = new Date();
   const day = today.getDay(); // 0 Sun … 6 Sat
+  // "Any date" — no window, so every upcoming/ongoing event shows (the filter
+  // still drops anything that has already finished). Lets people find things
+  // that aren't today, like a holiday camp a fortnight away.
+  if (filter === "upcoming") return null;
   if (filter === "today") return { start: startOfDay(today), end: endOfDay(today) };
   if (filter === "tomorrow") {
     const tm = new Date(today); tm.setDate(today.getDate() + 1);
@@ -94,6 +98,7 @@ export default function WhatsOnView({ events, cities, isAdmin }: { events: Event
   const PINK = "#EC1E8C";
   const whenLabel =
     filter === "tomorrow" ? "Tomorrow"
+    : filter === "upcoming" ? "Any date"
     : filter === "weekend" ? "This weekend"
     : filter === "date" && picked ? new Date(`${picked}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
     : "Today";
@@ -137,6 +142,7 @@ export default function WhatsOnView({ events, cities, isAdmin }: { events: Event
                     <button onClick={() => setFilter("today")} className={pill(filter === "today")}>Today</button>
                     <button onClick={() => setFilter("tomorrow")} className={pill(filter === "tomorrow")}>Tomorrow</button>
                     <button onClick={() => setFilter("weekend")} className={pill(filter === "weekend")}>This weekend</button>
+                    <button onClick={() => setFilter("upcoming")} className={pill(filter === "upcoming")}>Any date</button>
                     <label className={pill(filter === "date") + " cursor-pointer"}>
                       📅 {filter === "date" && picked ? whenLabel : "Pick a date"}
                       <input
