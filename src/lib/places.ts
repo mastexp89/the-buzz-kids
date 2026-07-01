@@ -78,44 +78,58 @@ export async function fetchPlaces(supabase: SupabaseClient, opts: PlaceQuery): P
     "cover_photo_url, image_url, gallery_image_urls, logo_url, google_photo_url, google_photo_attribution, " +
     "accessibility, age_min, age_max, setting, is_free, price_from, price_note, latitude, longitude, dog_friendly";
 
-  let q = supabase
-    .from("venues")
-    .select(`${CARD_COLUMNS}, venue_genres ( genre:genres ( name, slug ) ), city:cities ( name, slug )`)
-    .eq("approved", true)
-    .in("venue_type", ["attraction", "both"])
-    .order("name");
+  // Build a fresh query with all filters applied. Called per page because
+  // Supabase hard-caps a single request at 1000 rows — we page past that so
+  // the whole set (1,400+) is available (e.g. the Surprise "in the mix" pool).
+  const build = () => {
+    let q = supabase
+      .from("venues")
+      .select(`${CARD_COLUMNS}, venue_genres ( genre:genres ( name, slug ) ), city:cities ( name, slug )`)
+      .eq("approved", true)
+      .in("venue_type", ["attraction", "both"])
+      .order("name");
 
-  if (opts.cityId) q = q.eq("city_id", opts.cityId);
-  if (opts.cityIds) q = q.in("city_id", opts.cityIds.length ? opts.cityIds : [NO_MATCH]);
+    if (opts.cityId) q = q.eq("city_id", opts.cityId);
+    if (opts.cityIds) q = q.in("city_id", opts.cityIds.length ? opts.cityIds : [NO_MATCH]);
 
-  if (venueIdInclude !== null) {
-    q = q.in("id", venueIdInclude.length ? venueIdInclude : [NO_MATCH]);
-  } else if (venueIdExclude.length > 0) {
-    q = q.not("id", "in", `(${venueIdExclude.join(",")})`);
+    if (venueIdInclude !== null) {
+      q = q.in("id", venueIdInclude.length ? venueIdInclude : [NO_MATCH]);
+    } else if (venueIdExclude.length > 0) {
+      q = q.not("id", "in", `(${venueIdExclude.join(",")})`);
+    }
+
+    // "Open on this day" — a place passes if it's open on ANY of the requested
+    // days OR has no opening hours on file at all (parks, beaches, playgrounds
+    // and the ~140 venues we lack hours for shouldn't vanish — only places we
+    // KNOW are closed that day get filtered out).
+    if (opts.openOnDays && opts.openOnDays.length > 0) {
+      const clause = [
+        "opening_hours_json.is.null",
+        ...opts.openOnDays.map((d) => `opening_hours_json->${d}.not.is.null`),
+      ].join(",");
+      q = q.or(clause);
+    }
+
+    if (opts.dogOnly) q = q.eq("dog_friendly", true);
+    if (opts.toddler) q = q.lte("age_min", 3); // suitable from toddler age (0–3)
+    if (opts.indoorOnly) q = q.in("setting", ["indoor", "both"]); // stays dry if it rains
+    if (opts.outdoorOnly) q = q.in("setting", ["outdoor", "both"]);
+    if (opts.accessKeys && opts.accessKeys.length > 0) q = q.contains("accessibility", opts.accessKeys);
+    if (opts.freeOnly) q = q.eq("is_free", true);
+    else if (opts.maxPrice != null) q = q.or(`is_free.eq.true,price_from.lte.${opts.maxPrice},price_from.is.null`);
+    if (opts.suitableForAge != null) q = q.or(`age_min.is.null,age_min.lte.${opts.suitableForAge}`);
+    return q;
+  };
+
+  const PAGE = 1000;
+  const all: any[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data: page, error } = await build().range(from, from + PAGE - 1);
+    if (error || !page || page.length === 0) break;
+    all.push(...page);
+    if (page.length < PAGE) break;
   }
-
-  // "Open on this day" — a place passes if it's open on ANY of the requested
-  // days OR has no opening hours on file at all (parks, beaches, playgrounds
-  // and the ~140 venues we lack hours for shouldn't vanish — only places we
-  // KNOW are closed that day get filtered out).
-  if (opts.openOnDays && opts.openOnDays.length > 0) {
-    const clause = [
-      "opening_hours_json.is.null",
-      ...opts.openOnDays.map((d) => `opening_hours_json->${d}.not.is.null`),
-    ].join(",");
-    q = q.or(clause);
-  }
-
-  if (opts.dogOnly) q = q.eq("dog_friendly", true);
-  if (opts.toddler) q = q.lte("age_min", 3); // suitable from toddler age (0–3)
-  if (opts.indoorOnly) q = q.in("setting", ["indoor", "both"]); // stays dry if it rains
-  if (opts.outdoorOnly) q = q.in("setting", ["outdoor", "both"]);
-  if (opts.accessKeys && opts.accessKeys.length > 0) q = q.contains("accessibility", opts.accessKeys);
-  if (opts.freeOnly) q = q.eq("is_free", true);
-  else if (opts.maxPrice != null) q = q.or(`is_free.eq.true,price_from.lte.${opts.maxPrice},price_from.is.null`);
-  if (opts.suitableForAge != null) q = q.or(`age_min.is.null,age_min.lte.${opts.suitableForAge}`);
-
-  const { data } = await q;
+  const data = all;
   return (data ?? []).map((p: any) => ({
     ...p,
     categories: (p.venue_genres ?? []).map((vg: any) => vg.genre).filter(Boolean),
