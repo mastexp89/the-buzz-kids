@@ -61,6 +61,7 @@ export default async function BrowsePage({ searchParams }: Props) {
     const nowIso = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
     const { data: eventRows } = await supabase
       .from("events")
+      .select("*, venue:venues(*, city:cities(*)), city:cities(*), event_genres(genre:genres(*))")
       // Filter to approved in the QUERY, not just in JS below — otherwise the
       // limit is filled by the ~1000 pending queue events (which have earlier
       // start dates), starving out approved events with later dates so they
