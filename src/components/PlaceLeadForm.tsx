@@ -7,15 +7,31 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { submitPlaceLead } from "@/lib/edit-suggestion-actions";
+import { submitPlaceLead, uploadSuggestionImage } from "@/lib/edit-suggestion-actions";
 
 export default function PlaceLeadForm() {
   const [placeName, setPlaceName] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [details, setDetails] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
   const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  async function onFile(file: File) {
+    setErrorMsg(null);
+    setUploading(true);
+    const dataUrl: string = await new Promise((res) => {
+      const r = new FileReader();
+      r.onload = () => res(String(r.result));
+      r.readAsDataURL(file);
+    });
+    const out = await uploadSuggestionImage(dataUrl, file.name);
+    setUploading(false);
+    if (out.error) { setErrorMsg(out.error); return; }
+    if (out.imageUrl) setImageUrl(out.imageUrl);
+  }
 
   if (state === "done") {
     return (
@@ -34,7 +50,7 @@ export default function PlaceLeadForm() {
     e.preventDefault();
     setState("busy");
     setErrorMsg(null);
-    const res = await submitPlaceLead({ placeName, details, contactName: name, contactEmail: email });
+    const res = await submitPlaceLead({ placeName, details, contactName: name, contactEmail: email, imageUrl });
     if (res.error) {
       setErrorMsg(res.error);
       setState("error");
@@ -66,6 +82,27 @@ export default function PlaceLeadForm() {
           maxLength={2000}
         />
       </div>
+      <div>
+        <label className="label">Poster or photo <span className="text-buzz-mute font-normal">(optional)</span></label>
+        {imageUrl ? (
+          <div className="flex items-center gap-3">
+            <img src={imageUrl} alt="Your upload" className="h-24 rounded-lg border border-buzz-border object-contain bg-buzz-surface" />
+            <button type="button" onClick={() => setImageUrl("")} className="btn-secondary text-sm">Remove</button>
+          </div>
+        ) : (
+          <>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }}
+              className="text-sm"
+            />
+            {uploading && <span className="text-xs text-buzz-accent ml-2">Uploading…</span>}
+          </>
+        )}
+        <p className="help !mt-1">A flyer, logo or photo of the place — helps us set it up faster.</p>
+      </div>
+
       <div className="grid sm:grid-cols-2 gap-3">
         <div>
           <label className="label">Your name</label>
@@ -79,8 +116,8 @@ export default function PlaceLeadForm() {
 
       {state === "error" && errorMsg && <p className="text-sm text-rose-500">{errorMsg}</p>}
 
-      <button type="submit" className="btn-primary" disabled={state === "busy"}>
-        {state === "busy" ? "Sending…" : "Send it in — it's free"}
+      <button type="submit" className="btn-primary" disabled={state === "busy" || uploading}>
+        {state === "busy" ? "Sending…" : uploading ? "Uploading image…" : "Send it in — it's free"}
       </button>
       <p className="help !mt-0">Free to list, free forever. We&apos;ll add it and keep the details right for you.</p>
     </form>
