@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AccessibilityBadges } from "@/components/AccessibilityBadges";
 import { summaryBadges as deriveSummary } from "@/lib/accessibility";
+import { extractTownFromAddress } from "@/lib/utils";
 
 // "Ages 3+" / "Up to 8s" / "All ages" for a place.
 function ageLabel(min: number | null | undefined, max: number | null | undefined): string | null {
@@ -41,6 +42,14 @@ export default function PlaceCard({ place, citySlug }: { place: any; citySlug: s
   const age = ageLabel(place.age_min, place.age_max);
   const price = priceLabel(place);
   const setting = place.setting ? SETTING_LABEL[place.setting] : null;
+
+  // Where it is: the specific town from the address (e.g. "Aberfeldy") plus the
+  // area, falling back to just the area when we can't pull a town out.
+  const town = extractTownFromAddress(place.address);
+  const area = place.city?.name ?? null;
+  const where =
+    town && area && town.toLowerCase() !== area.toLowerCase() ? `${town}, ${area}`
+    : (town ?? area);
 
   return (
     <Link
@@ -89,6 +98,12 @@ export default function PlaceCard({ place, citySlug }: { place: any; citySlug: s
         <h3 className="font-display text-xl uppercase leading-tight group-hover:text-buzz-accent transition">
           {place.name}
         </h3>
+        {where && (
+          <div className="text-sm text-buzz-mute flex items-center gap-1 -mt-0.5">
+            <span aria-hidden>📍</span>
+            <span className="truncate">{where}</span>
+          </div>
+        )}
         {place.description && (
           <p className="text-sm text-buzz-mute line-clamp-2">{place.description}</p>
         )}
