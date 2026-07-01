@@ -229,11 +229,18 @@ export default async function AdminPage({ searchParams }: Props) {
   const admins = (users ?? []).filter((u) => u.role === "admin");
   const others = (users ?? []).filter((u) => u.role !== "admin");
 
+  // New (unactioned) edit suggestions / new-place requests — drives the
+  // orange badge on the Suggestions tile.
+  const { count: suggestionsCount } = await supabase
+    .from("edit_suggestions")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "new");
+
   return (
     <div className="container-page py-10 max-w-5xl">
       <p className="eyebrow mb-1">Admin</p>
       <h1 className="h-display text-4xl sm:text-5xl mb-3">Control room</h1>
-      <AdminToolGroups pendingCount={pending?.length ?? 0} />
+      <AdminToolGroups pendingCount={pending?.length ?? 0} suggestionsCount={suggestionsCount ?? 0} />
 
       <LiveActivity />
 

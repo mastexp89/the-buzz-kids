@@ -203,6 +203,41 @@ export function notifyVenueSuggestion(opts: {
   });
 }
 
+// A visitor (or a place owner) suggested an edit to a listing, or asked for
+// a brand-new place to be added. Lands in the admin edit_suggestions queue;
+// this just pings us so we notice. Reply-to is set to their contact email
+// when they left one, so a reply reaches them directly.
+export function notifyEditSuggestion(opts: {
+  target_type: string;
+  target_name: string | null;
+  reason: string | null;
+  details: string | null;
+  contact_name: string | null;
+  contact_email: string | null;
+  is_owner: boolean;
+}) {
+  const kindLabel =
+    opts.target_type === "new_place" ? "New place request"
+    : opts.target_type === "event" ? "Event edit suggestion"
+    : "Place edit suggestion";
+  return sendBrandedEmail({
+    subject: `${kindLabel}: ${opts.target_name ?? "—"}`,
+    preheader: `${opts.reason ?? "Someone suggested a change"}${opts.is_owner ? " — from the owner" : ""}.`,
+    replyTo: opts.contact_email ?? undefined,
+    blocks: [
+      { kind: "h", text: kindLabel },
+      { kind: "kv", pairs: [
+        [opts.target_type === "new_place" ? "Place" : "Listing", opts.target_name ?? "—"],
+        ["Reason", opts.reason ?? "—"],
+        ["What they said", opts.details ?? "—"],
+        ["From", opts.is_owner ? "Says they run this place/activity" : "A visitor"],
+        ["Contact", [opts.contact_name, opts.contact_email].filter(Boolean).join(" · ") || "—"],
+      ]},
+      { kind: "button", href: `${SITE}/admin/suggestions`, text: "Review suggestions" },
+    ],
+  });
+}
+
 export function notifyPendingGig(opts: {
   venueName: string;
   venueOwnerEmail: string | null;

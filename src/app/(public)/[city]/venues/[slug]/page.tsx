@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import SmartBackLink from "@/components/SmartBackLink";
 import GoogleRating from "@/components/GoogleRating";
-import VenueReportButton from "@/components/VenueReportButton";
+import SuggestEditButton from "@/components/SuggestEditButton";
 import { createClient } from "@/lib/supabase/server";
 import VenueEventsList from "@/components/VenueEventsList";
 import ShareButtons from "@/components/ShareButtons";
@@ -317,7 +317,12 @@ export default async function VenuePage({ params }: Props) {
               can change. Please double-check {venue.website ? "the venue's own website" : "with the venue"} before you set off.
             </p>
             <div className="mt-3">
-              <VenueReportButton venueId={venue.id} />
+              <SuggestEditButton
+                targetType="venue"
+                targetId={venue.id}
+                targetName={venue.name}
+                citySlug={citySlug}
+              />
             </div>
           </div>
           <aside className="card p-5 flex flex-col gap-3">
@@ -444,27 +449,10 @@ export default async function VenuePage({ params }: Props) {
           </aside>
         </div>
 
-        {!venue.owner_id && (
-          <section className="mt-10">
-            <div className="card p-6 sm:p-7 border-buzz-accent/40 bg-buzz-accent/5 flex flex-col sm:flex-row sm:items-center gap-4 sm:justify-between">
-              <div className="flex-1 min-w-0">
-                <p className="eyebrow mb-1 text-buzz-accent">For the organiser</p>
-                <h3 className="h-display text-2xl mb-1">Is this your place?</h3>
-                <p className="text-sm text-buzz-mute max-w-xl">
-                  This page hasn't been claimed yet. If you run{" "}
-                  {venue.name}, take ownership to manage your listing, photos, prices
-                  and sessions directly from your dashboard.
-                </p>
-              </div>
-              <Link
-                href={`/${citySlug}/venues/${venue.slug}/claim`}
-                className="btn-primary shrink-0"
-              >
-                Claim this listing →
-              </Link>
-            </div>
-          </section>
-        )}
+        {/* Owner self-service accounts are switched off — businesses reach us
+            via the "I run this place" tick on Suggest an edit (above), which
+            lands in the admin queue. The old "Claim this listing" flow is kept
+            in the codebase but no longer surfaced. */}
 
         <ReviewsSection venueId={venue.id} venueName={venue.name} />
       </div>
