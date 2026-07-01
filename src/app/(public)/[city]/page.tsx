@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ city: string }>;
-  searchParams: Promise<{ cat?: string; access?: string; toddler?: string; rain?: string; outdoor?: string; free?: string; other?: string; open?: string }>;
+  searchParams: Promise<{ cat?: string; access?: string; toddler?: string; rain?: string; outdoor?: string; free?: string; other?: string; open?: string; dog?: string }>;
 };
 
 export async function generateMetadata({ params }: Props) {
@@ -66,6 +66,7 @@ export default async function CityPage({ params, searchParams }: Props) {
     freeOnly: sp.free === "1",
     accessKeys: placeAccess,
     openOnDays: openDayKeysFor(sp.open || "today"),
+    dogOnly: sp.dog === "1",
   });
 
   return (

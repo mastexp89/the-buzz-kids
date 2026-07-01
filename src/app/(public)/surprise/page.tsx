@@ -12,7 +12,7 @@ export const metadata = {
 };
 
 type Props = {
-  searchParams: Promise<{ cat?: string; access?: string; toddler?: string; rain?: string; outdoor?: string; free?: string; other?: string; loc?: string; open?: string }>;
+  searchParams: Promise<{ cat?: string; access?: string; toddler?: string; rain?: string; outdoor?: string; free?: string; other?: string; loc?: string; open?: string; dog?: string }>;
 };
 
 function ageLabel(min: number | null, max: number | null): string | null {
@@ -55,6 +55,7 @@ export default async function SurprisePage({ searchParams }: Props) {
     outdoorOnly: sp.outdoor === "1",
     freeOnly: sp.free === "1",
     openOnDays: openDayKeysFor(sp.open || "today"),
+    dogOnly: sp.dog === "1",
   });
 
   const places: SurprisePlace[] = raw.map((p: any) => ({

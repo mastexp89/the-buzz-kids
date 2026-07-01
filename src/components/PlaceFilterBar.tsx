@@ -60,6 +60,7 @@ export default function PlaceFilterBar({
   const outdoor = params.get("outdoor") === "1";
   const free = params.get("free") === "1";
   const other = params.get("other") === "1";
+  const dog = params.get("dog") === "1";
   const open = params.get("open") || "today";
   const openIsDate = /^\d{4}-\d{2}-\d{2}$/.test(open);
 
@@ -80,7 +81,7 @@ export default function PlaceFilterBar({
   );
 
   const activityCount = cats.length + (other ? 1 : 0);
-  const moreCount = [toddler, free, rain, outdoor].filter(Boolean).length;
+  const moreCount = [toddler, free, rain, outdoor, dog].filter(Boolean).length;
   const anyFilter = locs.length > 0 || activityCount > 0 || access.length > 0 || moreCount > 0 || open !== "today";
 
   const chips: { key: CatKey; label: string; active: boolean; show: boolean }[] = [
@@ -110,7 +111,7 @@ export default function PlaceFilterBar({
         ))}
         {anyFilter && (
           <button
-            onClick={() => { update({ cat: null, access: null, toddler: null, rain: null, outdoor: null, free: null, other: null, loc: null, open: null }); close(); }}
+            onClick={() => { update({ cat: null, access: null, toddler: null, rain: null, outdoor: null, free: null, other: null, dog: null, loc: null, open: null }); close(); }}
             className="shrink-0 rounded-full px-3 py-2 text-sm font-medium text-buzz-accent hover:underline whitespace-nowrap"
           >
             Clear all
@@ -195,6 +196,7 @@ export default function PlaceFilterBar({
         <Pill active={free} onClick={() => update({ free: free ? null : "1" })}>💷 Free entry</Pill>
         <Pill active={rain} onClick={() => update({ rain: rain ? null : "1", outdoor: null })}>🌧️ Rainy day</Pill>
         <Pill active={outdoor} onClick={() => update({ outdoor: outdoor ? null : "1", rain: null })}>☀️ Sunny day</Pill>
+        <Pill active={dog} onClick={() => update({ dog: dog ? null : "1" })}>🐶 Dog friendly</Pill>
       </>
     );
   }

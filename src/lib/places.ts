@@ -18,6 +18,7 @@ export type PlaceQuery = {
   maxPrice?: number;             // planner: free, unknown, or price_from <= maxPrice
   suitableForAge?: number;       // planner: place admits a child of this age
   openOnDays?: string[];         // only places open on ANY of these day keys ("sat","sun"…)
+  dogOnly?: boolean;             // only dog-friendly places
 };
 
 // Day-of-week keys matching opening_hours_json's per-day shape.
@@ -75,7 +76,7 @@ export async function fetchPlaces(supabase: SupabaseClient, opts: PlaceQuery): P
   const CARD_COLUMNS =
     "id, name, slug, description, address, " +
     "cover_photo_url, image_url, gallery_image_urls, logo_url, google_photo_url, google_photo_attribution, " +
-    "accessibility, age_min, age_max, setting, is_free, price_from, price_note, latitude, longitude";
+    "accessibility, age_min, age_max, setting, is_free, price_from, price_note, latitude, longitude, dog_friendly";
 
   let q = supabase
     .from("venues")
@@ -105,6 +106,7 @@ export async function fetchPlaces(supabase: SupabaseClient, opts: PlaceQuery): P
     q = q.or(clause);
   }
 
+  if (opts.dogOnly) q = q.eq("dog_friendly", true);
   if (opts.toddler) q = q.lte("age_min", 3); // suitable from toddler age (0–3)
   if (opts.indoorOnly) q = q.in("setting", ["indoor", "both"]); // stays dry if it rains
   if (opts.outdoorOnly) q = q.in("setting", ["outdoor", "both"]);

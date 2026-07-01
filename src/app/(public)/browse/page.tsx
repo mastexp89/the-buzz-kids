@@ -17,7 +17,7 @@ export const metadata = {
 };
 
 type Props = {
-  searchParams: Promise<{ tab?: string; cat?: string; access?: string; toddler?: string; rain?: string; outdoor?: string; free?: string; other?: string; loc?: string; open?: string }>;
+  searchParams: Promise<{ tab?: string; cat?: string; access?: string; toddler?: string; rain?: string; outdoor?: string; free?: string; other?: string; loc?: string; open?: string; dog?: string }>;
 };
 
 export default async function BrowsePage({ searchParams }: Props) {
@@ -116,6 +116,7 @@ export default async function BrowsePage({ searchParams }: Props) {
     freeOnly: free,
     accessKeys: access,
     openOnDays: openDayKeysFor(sp.open || "today"),
+    dogOnly: sp.dog === "1",
   });
 
   return (
