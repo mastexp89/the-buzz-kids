@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import EventCard from "@/components/EventCard";
 import AdminDeleteButton from "@/components/AdminDeleteButton";
 import type { EventWithVenue } from "@/lib/types";
@@ -45,11 +46,35 @@ function rangeFor(filter: DateFilter, picked: string): { start: Date; end: Date 
   return { start: startOfDay(start), end: endOfDay(sun) };
 }
 
+const WHEN_FILTERS: DateFilter[] = ["today", "tomorrow", "weekend", "upcoming"];
+
 export default function WhatsOnView({ events, cities, isAdmin }: { events: EventWithVenue[]; cities: City[]; isAdmin?: boolean }) {
-  const [filter, setFilter] = useState<DateFilter>("today");
-  const [picked, setPicked] = useState("");
-  const [area, setArea] = useState("");
+  const searchParams = useSearchParams();
+  // Seed the filters from the URL so returning from an event page (router.back)
+  // — or opening a shared link — keeps the date + area you had.
+  const initWhen = searchParams.get("when") ?? "today";
+  const initIsDate = /^\d{4}-\d{2}-\d{2}$/.test(initWhen);
+  const [filter, setFilter] = useState<DateFilter>(
+    initIsDate ? "date" : (WHEN_FILTERS.includes(initWhen as DateFilter) ? (initWhen as DateFilter) : "today"),
+  );
+  const [picked, setPicked] = useState(initIsDate ? initWhen : "");
+  const [area, setArea] = useState(searchParams.get("area") ?? "");
   const [openPanel, setOpenPanel] = useState<"when" | "area" | null>(null);
+
+  // Mirror the current filters into the URL (query only, no navigation/refetch)
+  // so back/forward and shared links preserve them.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    params.set("tab", "events");
+    const whenVal = filter === "date" ? picked : filter;
+    if (whenVal && whenVal !== "today") params.set("when", whenVal);
+    else params.delete("when");
+    if (area) params.set("area", area);
+    else params.delete("area");
+    const qs = params.toString();
+    const url = `${window.location.pathname}${qs ? `?${qs}` : ""}`;
+    window.history.replaceState(window.history.state, "", url);
+  }, [filter, picked, area]);
 
   const filtered = useMemo(() => {
     const todayStart = startOfDay(new Date());
