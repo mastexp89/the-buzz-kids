@@ -201,7 +201,7 @@ export default async function VenuePage({ params }: Props) {
         )}
 
         {heroPhoto && (
-          <div className="mt-6 relative aspect-[16/9] sm:aspect-[2/1] max-h-[26rem] rounded-2xl overflow-hidden border border-buzz-border bg-buzz-surface">
+          <div className="mt-6 relative h-40 sm:h-56 rounded-2xl overflow-hidden border border-buzz-border bg-buzz-surface">
             {/* Fill the banner edge-to-edge (object-cover) so there are no
                 blurred side-bars from portrait/narrow photos. Landscape venue
                 photos — the common case from Google — sit in perfectly. */}
