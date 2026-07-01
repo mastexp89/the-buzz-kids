@@ -122,7 +122,7 @@ export default function PlaceFilterBar({
       {openPanel && (
         <>
           <div className="fixed inset-0 z-40 bg-black/40 sm:bg-transparent" onClick={close} aria-hidden />
-          <div className="z-50 fixed inset-x-0 bottom-0 max-h-[80vh] rounded-t-2xl border-t sm:absolute sm:inset-x-auto sm:bottom-auto sm:top-full sm:left-0 sm:mt-2 sm:w-[30rem] sm:max-w-[90vw] sm:max-h-[26rem] sm:rounded-2xl sm:border bg-buzz-card border-buzz-border overflow-y-auto shadow-xl">
+          <div className="z-50 fixed inset-x-0 bottom-0 max-h-[80vh] rounded-t-2xl border-t sm:absolute sm:inset-x-auto sm:bottom-auto sm:top-full sm:left-0 sm:mt-2 sm:w-[44rem] sm:max-w-[92vw] sm:max-h-[34rem] sm:rounded-2xl sm:border bg-buzz-card border-buzz-border overflow-y-auto shadow-xl">
             <div className="sticky top-0 bg-buzz-card flex items-center justify-between px-4 py-3 border-b border-buzz-border/60">
               <span className="font-display text-lg uppercase">{panelTitle(openPanel)}</span>
               <button onClick={close} aria-label="Close" className="text-buzz-mute hover:text-buzz-text text-xl leading-none">✕</button>

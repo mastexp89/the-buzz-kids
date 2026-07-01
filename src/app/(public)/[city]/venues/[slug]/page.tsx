@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import SmartBackLink from "@/components/SmartBackLink";
 import { createClient } from "@/lib/supabase/server";
 import VenueEventsList from "@/components/VenueEventsList";
 import ShareButtons from "@/components/ShareButtons";
@@ -179,9 +180,7 @@ export default async function VenuePage({ params }: Props) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       <div className="container-page py-8 sm:py-10 max-w-5xl">
-        <Link href={`/${citySlug}`} className="text-sm text-buzz-mute hover:text-buzz-accent transition">
-          ← Back to {cityName}
-        </Link>
+        <SmartBackLink fallbackHref={`/${citySlug}`} />
 
         {liveFestivals.length > 0 && (
           <div className="mt-5 flex flex-col gap-2">
