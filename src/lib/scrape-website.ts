@@ -54,6 +54,10 @@ export type ScrapedPage = {
   title: string;
   text: string;
   imageUrls: string[];
+  // Each content image paired with the text around it (alt + nearby card text),
+  // so a listing page's events can be matched to their OWN poster by title
+  // rather than all sharing the top banner.
+  imageContexts?: { url: string; text: string }[];
   fetchedAt: string;
   socials: SocialLinks;
 };
@@ -313,15 +317,58 @@ async function fetchPage(url: string): Promise<ScrapedPage> {
   const socials = extractSocialLinks(html);
   const text = htmlToText(html);
   const imageUrls = extractImageUrls(html, url);
+  const imageContexts = extractImageContexts(html, url);
 
   return {
     url: res.url || url,
     title,
     text: text.slice(0, 12_000), // cap per page so we don't blow the AI's context
     imageUrls,
+    imageContexts,
     fetchedAt: new Date().toISOString(),
     socials,
   };
+}
+
+// Pull each content image out WITH the text around it (its alt plus a window of
+// nearby markup stripped to text — on a card listing that's the event title +
+// blurb sitting next to the image). Lets the ingester match each event to its
+// own poster instead of giving them all the page's top banner.
+export function extractImageContexts(html: string, baseUrl: string): { url: string; text: string }[] {
+  const SKIP = /(logo|icon|sprite|favicon|avatar|placeholder|header[-_/]?bg|footer[-_/]?bg|menu|nav[-_/]?bg|emoji)/i;
+  const out: { url: string; text: string }[] = [];
+  const seen = new Set<string>();
+  const imgRe = /<img\b[^>]*>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = imgRe.exec(html)) !== null) {
+    const tag = m[0];
+    // Prefer a real lazy-loaded source over a placeholder src.
+    const srcM =
+      /\bdata-src=["']([^"']+)["']/i.exec(tag) ||
+      /\bdata-lazy-src=["']([^"']+)["']/i.exec(tag) ||
+      /\bsrc=["']([^"']+)["']/i.exec(tag);
+    if (!srcM) continue;
+    let url: string;
+    try {
+      url = new URL(srcM[1], baseUrl).toString();
+    } catch {
+      continue;
+    }
+    if (!/\.(jpg|jpeg|png|webp|gif)(\?|$)/i.test(url)) continue;
+    if (SKIP.test(url)) continue;
+    if (seen.has(url)) continue;
+    seen.add(url);
+    const altM = /\balt=["']([^"']*)["']/i.exec(tag);
+    const alt = altM ? altM[1] : "";
+    // Window of markup around the image → the card's title/blurb usually lives
+    // right after (sometimes just before) the <img>.
+    const from = Math.max(0, m.index - 220);
+    const window = html.slice(from, m.index + 600).replace(/<[^>]+>/g, " ");
+    const text = decodeEntities(`${alt} ${window}`).replace(/\s+/g, " ").trim().slice(0, 240);
+    out.push({ url, text });
+    if (out.length >= 60) break;
+  }
+  return out;
 }
 
 const SOCIAL_PATTERNS: Array<{ key: keyof SocialLinks; pattern: RegExp; reject?: RegExp }> = [

@@ -84,6 +84,41 @@ const hourKey = (iso: string) => {
   return `${t.getUTCFullYear()}-${pad(t.getUTCMonth() + 1)}-${pad(t.getUTCDate())}T${pad(t.getUTCHours())}`;
 };
 
+// Generic words that shouldn't count towards an image↔event match (otherwise
+// "Family Fun Day" would match any image whose caption says "family").
+const IMG_STOP = new Set([
+  "the", "and", "for", "with", "kids", "family", "event", "events", "session", "sessions",
+  "day", "days", "club", "new", "free", "summer", "winter", "autumn", "spring", "holiday",
+  "holidays", "activity", "activities", "morning", "afternoon", "workshop", "tour", "tours",
+  "live", "show", "shows", "class", "classes", "children", "child",
+]);
+
+// Pick the image whose surrounding text best matches this event's title, so each
+// event on a listing page gets its OWN poster. Requires a real overlap of
+// distinctive words (not just generic ones) and never reuses an image already
+// claimed by another event on the same page.
+function matchImageToTitle(
+  title: string,
+  contexts: { url: string; text: string }[],
+  used: Set<string>,
+): string | null {
+  const toks = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").split(" ");
+  const words = toks(title).filter((w) => w.length >= 4 && !IMG_STOP.has(w));
+  if (words.length === 0) return null;
+  const need = Math.min(2, words.length); // 2 distinctive words, or all of them if fewer
+  let best: { url: string; text: string } | null = null;
+  let bestScore = 0;
+  for (const c of contexts) {
+    if (used.has(c.url)) continue;
+    const ctext = " " + toks(c.text).join(" ") + " ";
+    let score = 0;
+    for (const w of words) if (ctext.includes(` ${w} `)) score++;
+    if (score > bestScore) { bestScore = score; best = c; }
+  }
+  if (best && bestScore >= need) { used.add(best.url); return best.url; }
+  return null;
+}
+
 export async function scrapeAndIngestVenueWebsite(opts: WebsiteIngestOptions): Promise<WebsiteIngestResult> {
   const { venue: v, availableGenres, genreSlugToId, locationFilter, dry, supabase: sb } = opts;
   const maxPages = Math.max(1, Math.min(6, opts.maxPages || DEFAULT_MAX_PAGES));
@@ -171,14 +206,14 @@ export async function scrapeAndIngestVenueWebsite(opts: WebsiteIngestOptions): P
         });
         if (valid.length === 0) continue;
 
-        // Only attach the page image when the page yielded a SINGLE event —
-        // i.e. it's an event detail page whose og:image is that event's poster.
-        // On a listing / "what's on" page (multiple events) the first image is
-        // just the top banner, and blindly stamping it on every event was
-        // giving unrelated events the same wrong picture (e.g. all New Lanark
-        // events showing the "Bug Man's Tour" poster). Better no image than a
-        // misleading one — the card falls back to a clean placeholder.
-        const pagePoster = valid.length === 1 ? (page.imageUrls[0] ?? null) : null;
+        // Work out each event's poster. On a single-event page the og:image is
+        // that event's poster. On a listing page we match each event to the
+        // image whose caption mentions it (matchImageToTitle) so they get their
+        // OWN poster instead of all sharing the top banner. No confident match →
+        // no image (the card falls back to the venue photo).
+        const singlePagePoster = valid.length === 1 ? (page.imageUrls[0] ?? null) : null;
+        const contexts = page.imageContexts ?? [];
+        const usedImages = new Set<string>();
 
         const rows: Array<Record<string, unknown>> = [];
         const drafts: ExtractedEvent[] = [];
@@ -195,7 +230,7 @@ export async function scrapeAndIngestVenueWebsite(opts: WebsiteIngestOptions): P
           sameHour.push(nt);
           titlesByHour.set(hk, sameHour);
 
-          const poster = pagePoster;
+          const poster = matchImageToTitle(e.title, contexts, usedImages) ?? singlePagePoster;
           rows.push({
             venue_id: v.id,
             city_id: v.city_id,
