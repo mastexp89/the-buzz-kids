@@ -160,6 +160,61 @@ export async function createPlaceAndAttach(
     .single();
   if (vErr || !venue) return { error: vErr?.message ?? "Couldn't create the place." };
 
+  // Best-effort enrichment — a photo, description and rating. Never fails the
+  // create; the place is already live without it.
+  try {
+    const key = process.env.GOOGLE_PLACES_KEY;
+    const upd: Record<string, unknown> = {};
+    let description: string | null = null;
+    if (key && place.googlePlaceId) {
+      const dRes = await fetch(
+        `https://places.googleapis.com/v1/places/${encodeURIComponent(place.googlePlaceId)}?fields=editorialSummary,photos,rating,userRatingCount,primaryTypeDisplayName`,
+        { headers: { "X-Goog-Api-Key": key } },
+      );
+      const d = await dRes.json();
+      // Google photo (shown with the required author attribution).
+      const photo = d.photos?.[0];
+      if (photo?.name) {
+        const mRes = await fetch(
+          `https://places.googleapis.com/v1/${photo.name}/media?maxWidthPx=1200&skipHttpRedirect=true`,
+          { headers: { "X-Goog-Api-Key": key } },
+        );
+        if (mRes.ok) {
+          const m = await mRes.json();
+          if (m.photoUri) {
+            upd.google_photo_url = m.photoUri;
+            upd.google_photo_attribution = photo.authorAttributions?.[0]?.displayName ?? null;
+          }
+        }
+      }
+      if (typeof d.rating === "number") { upd.google_rating = d.rating; upd.google_rating_count = d.userRatingCount ?? null; }
+      description = d.editorialSummary?.text ?? null;
+      if (!description && d.primaryTypeDisplayName?.text) {
+        const seg = (place.address ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+        const town = seg.length >= 2 ? seg[seg.length - 2].replace(/\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/, "").trim() : "";
+        description = `A ${d.primaryTypeDisplayName.text.toLowerCase()}${town ? ` in ${town}` : ""}.`;
+      }
+    }
+    // Fall back to the venue's own website for a picture / description.
+    if ((!upd.google_photo_url || !description) && place.website) {
+      try {
+        const wr = await fetch(place.website, { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(8000) });
+        const html = await wr.text();
+        if (!upd.google_photo_url) {
+          const og = /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i.exec(html)?.[1];
+          if (og) upd.cover_photo_url = og;
+        }
+        if (!description) {
+          const ogd = /<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i.exec(html)?.[1]
+            || /<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i.exec(html)?.[1];
+          if (ogd) description = ogd.replace(/&amp;/g, "&").replace(/&#0?39;|&rsquo;/g, "'").trim().slice(0, 400);
+        }
+      } catch { /* ignore website fetch issues */ }
+    }
+    if (description) upd.description = description;
+    if (Object.keys(upd).length) await supabase.from("venues").update(upd).eq("id", venue.id);
+  } catch { /* enrichment is best-effort */ }
+
   // Attach + approve the event; strip any stale ⚠ wrong-venue note.
   const { data: ev } = await supabase.from("events").select("description").eq("id", eventId).maybeSingle();
   let desc = ev?.description ?? "";
