@@ -72,13 +72,8 @@ export default async function Footer() {
           <Link href="/about" className="hover:text-buzz-accent transition">About</Link>
           <Link href="/accessibility" className="hover:text-buzz-accent transition">Accessibility</Link>
           <Link href="/privacy" className="hover:text-buzz-accent transition">Privacy</Link>
-          {user ? (
-            <>
-              <Link href="/dashboard" className="hover:text-buzz-accent transition">Dashboard</Link>
-              {role === "admin" && (
-                <Link href="/admin" className="hover:text-buzz-accent transition">Admin</Link>
-              )}
-            </>
+          {user && role === "admin" ? (
+            <Link href="/admin" className="hover:text-buzz-accent transition">Admin</Link>
           ) : null}
         </nav>
       </div>
