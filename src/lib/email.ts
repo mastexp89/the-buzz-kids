@@ -4,7 +4,7 @@
 // Required env vars (set in Vercel Production + Preview, and in .env.local):
 //   RESEND_API_KEY            re_xxxxxxxxxxxxxxxx
 //   ADMIN_NOTIFY_EMAIL        hello@thebuzzkids.co.uk
-//   ADMIN_NOTIFY_FROM         "The Buzz Guide <noreply@thebuzzguide.co.uk>"
+//   ADMIN_NOTIFY_FROM         "The Buzz Kids <noreply@thebuzzkids.co.uk>"
 //
 // All sends are best-effort — if Resend fails we log + return false, never throw.
 
@@ -122,7 +122,7 @@ export function notifyNewArtist(opts: {
     preheader: `${opts.artistName} just registered.`,
     blocks: [
       { kind: "h", text: "New artist registered" },
-      { kind: "p", text: "An artist account just registered on The Buzz Guide." },
+      { kind: "p", text: "An artist account just registered on The Buzz Kids." },
       { kind: "kv", pairs: [
         ["Artist", opts.artistName],
         ["Registered by", opts.claimerEmail ?? "—"],
@@ -167,7 +167,7 @@ export function notifyNewSignup(opts: {
     preheader: `A new ${typeLabel.toLowerCase()} account just signed up.`,
     blocks: [
       { kind: "h", text: "New account signup" },
-      { kind: "p", text: "Someone just created an account on The Buzz Guide. They'll go through the setup wizard next." },
+      { kind: "p", text: "Someone just created an account on The Buzz Kids. They'll go through the setup wizard next." },
       { kind: "kv", pairs: [
         ["Name", opts.displayName ?? "—"],
         ["Email", opts.email ?? "—"],
@@ -284,7 +284,7 @@ export function notifyClaimApproved(opts: {
 }) {
   return sendBrandedEmail({
     to: opts.claimantEmail,
-    subject: `You're now the owner of ${opts.venueName} on The Buzz Guide`,
+    subject: `You're now the owner of ${opts.venueName} on The Buzz Kids`,
     preheader: `Your claim on ${opts.venueName} has been approved.`,
     blocks: [
       { kind: "h", text: "Claim approved" },
@@ -308,7 +308,7 @@ export function notifyClaimRejected(opts: {
     preheader: `Update on your claim for ${opts.venueName}.`,
     blocks: [
       { kind: "h", text: "Claim update" },
-      { kind: "p", text: `Thanks for your interest in claiming ${opts.venueName} on The Buzz Guide.` },
+      { kind: "p", text: `Thanks for your interest in claiming ${opts.venueName} on The Buzz Kids.` },
       { kind: "p", text: "We weren't able to approve this claim at the moment." },
       ...(opts.reason ? [{ kind: "kv" as const, pairs: [["Reason", opts.reason] as [string, string]] }] : []),
       { kind: "p", text: "If you think this was a mistake or you'd like to provide more info, just reply to this email and we'll take another look." },
@@ -335,7 +335,7 @@ export function notifyArtistClaim(opts: {
     replyTo: opts.claimantEmail ?? undefined,
     blocks: [
       { kind: "h", text: "New artist ownership claim" },
-      { kind: "p", text: "Someone wants to claim an artist page on The Buzz Guide." },
+      { kind: "p", text: "Someone wants to claim an artist page on The Buzz Kids." },
       { kind: "kv", pairs: [
         ["Artist", opts.artistName],
         ["Page", artistLink],
@@ -357,7 +357,7 @@ export function notifyArtistClaimApproved(opts: {
 }) {
   return sendBrandedEmail({
     to: opts.claimantEmail,
-    subject: `You're now the owner of ${opts.artistName} on The Buzz Guide`,
+    subject: `You're now the owner of ${opts.artistName} on The Buzz Kids`,
     preheader: `Your claim on ${opts.artistName} has been approved.`,
     blocks: [
       { kind: "h", text: "Claim approved" },
@@ -381,7 +381,7 @@ export function notifyArtistClaimRejected(opts: {
     preheader: `Update on your claim for ${opts.artistName}.`,
     blocks: [
       { kind: "h", text: "Claim update" },
-      { kind: "p", text: `Thanks for your interest in claiming ${opts.artistName} on The Buzz Guide.` },
+      { kind: "p", text: `Thanks for your interest in claiming ${opts.artistName} on The Buzz Kids.` },
       { kind: "p", text: "We weren't able to approve this claim at the moment." },
       ...(opts.reason ? [{ kind: "kv" as const, pairs: [["Reason", opts.reason] as [string, string]] }] : []),
       { kind: "p", text: "If you think this was a mistake or you'd like to provide more info, reply to this email and we'll take another look." },
@@ -454,15 +454,15 @@ export function notifyFollowedGigsDigest(opts: {
     to: opts.userEmail,
     subject:
       count === 1
-        ? `New gig: ${opts.items[0].title} at ${opts.items[0].venueName}`
-        : `${count} new gigs from venues & artists you follow`,
-    preheader: `Picked just for you on The Buzz Guide — ${count} new ${count === 1 ? "gig" : "gigs"}.`,
+        ? `New activity: ${opts.items[0].title} at ${opts.items[0].venueName}`
+        : `${count} new activities from places you follow`,
+    preheader: `Picked just for you on The Buzz Kids — ${count} new ${count === 1 ? "activity" : "activities"}.`,
     blocks: [
-      { kind: "h", text: count === 1 ? "New gig from your favourites" : `${count} new gigs from your favourites` },
-      { kind: "p", text: `Hey${opts.displayName ? ` ${opts.displayName}` : ""} — just letting you know about ${count === 1 ? "a gig that's" : "some gigs that are"} just been added to The Buzz Guide from venues, artists or organisers you follow.` },
+      { kind: "h", text: count === 1 ? "New activity from your favourites" : `${count} new activities from your favourites` },
+      { kind: "p", text: `Hey${opts.displayName ? ` ${opts.displayName}` : ""} — just letting you know about ${count === 1 ? "an activity that's" : "some activities that have"} just been added to The Buzz Kids from places or organisers you follow.` },
       { kind: "kv", pairs },
       { kind: "button", href: `${SITE}/dashboard/favourites`, text: "Open my favourites" },
-      { kind: "small", text: "You're getting this because you saved at least one venue, artist or organiser on The Buzz Guide. Manage which alerts you receive in your dashboard." },
+      { kind: "small", text: "You're getting this because you saved at least one place or organiser on The Buzz Kids. Manage which alerts you receive in your dashboard." },
     ],
   });
 }
@@ -492,11 +492,11 @@ export function notifyMorningOf(opts: {
     to: opts.userEmail,
     subject:
       count === 1
-        ? `Tonight: ${opts.items[0].title}`
-        : `${count} gigs you saved happen today`,
-    preheader: `${count} ${count === 1 ? "gig" : "gigs"} from your favourites today.`,
+        ? `Today: ${opts.items[0].title}`
+        : `${count} activities you saved are on today`,
+    preheader: `${count} ${count === 1 ? "activity" : "activities"} from your favourites today.`,
     blocks: [
-      { kind: "h", text: count === 1 ? "Your saved gig is today" : "Your saved gigs today" },
+      { kind: "h", text: count === 1 ? "Your saved activity is today" : "Your saved activities today" },
       { kind: "p", text: `Morning${opts.displayName ? ` ${opts.displayName}` : ""} — here&apos;s what's on the cards from your favourites:` },
       { kind: "kv", pairs },
       { kind: "button", href: `${SITE}/dashboard/favourites?tab=events`, text: "Open today's plan" },
@@ -554,7 +554,7 @@ export function notifyWelcome(opts: {
     preheader: variant.preheader,
     blocks: [
       { kind: "h", text: variant.heading },
-      { kind: "p", text: `Hey${name} — welcome to The Buzz Guide! ${variant.intro}` },
+      { kind: "p", text: `Hey${name} — welcome to The Buzz Kids! ${variant.intro}` },
       { kind: "kv", pairs: variant.bullets },
       { kind: "button", href: `${SITE}${variant.ctaHref}`, text: variant.ctaText },
       {
@@ -580,65 +580,49 @@ function welcomeVariantFor(accountType: string): WelcomeVariant {
   switch (accountType) {
     case "venue_owner":
       return {
-        subject: "Welcome to The Buzz Guide — let's get your venue live",
+        subject: "Welcome to The Buzz Kids — let's get your place live",
         heading: "Welcome — let's get you set up",
-        preheader: "Claim your venue and start adding gigs in a couple of clicks.",
+        preheader: "Claim your place and start adding activities in a couple of clicks.",
         intro:
-          "You're signed up as a venue. From your dashboard you can claim your page, add gigs, upload posters and reach more music fans.",
+          "You're signed up as a place. From your dashboard you can claim your page, add activities and sessions, upload posters and reach more local families.",
         bullets: [
-          ["🐝 Claim your venue", "Find your venue in the directory and take ownership"],
-          ["🎤 Add events", "Quick form, AI poster import, or paste-in fixtures for sport"],
-          ["📊 See views", "Track how many fans open your page and click your links"],
-          ["♡ Get followed", "Fans who heart you get emailed about every new gig"],
-        ],
-        ctaHref: "/dashboard",
-        ctaText: "Open my dashboard",
-      };
-    case "artist":
-      return {
-        subject: "Welcome to The Buzz Guide — let's get your band found",
-        heading: "Welcome — let's get you on the map",
-        preheader: "Claim your artist page and start adding gigs.",
-        intro:
-          "You're signed up as an artist. Claim your page so it shows up properly on venue pages and search, then add the gigs you've got booked.",
-        bullets: [
-          ["🎤 Claim your page", "Find your band in the directory and take ownership"],
-          ["🎵 Add upcoming gigs", "Tag the venue and we'll cross-link automatically"],
-          ["🔗 Link your socials", "Spotify, Instagram, Bandcamp — the lot"],
-          ["♡ Get followed", "Fans who heart you get emailed every time you announce a gig"],
+          ["🐝 Claim your place", "Find your place in the directory and take ownership"],
+          ["🎟️ Add activities", "Quick form or AI poster import for classes, sessions & events"],
+          ["📊 See views", "Track how many families open your page and click your links"],
+          ["♡ Get followed", "Families who save you get emailed when you add something new"],
         ],
         ctaHref: "/dashboard",
         ctaText: "Open my dashboard",
       };
     case "organiser":
       return {
-        subject: "Welcome to The Buzz Guide — let's get your events live",
+        subject: "Welcome to The Buzz Kids — let's get your activities live",
         heading: "Welcome — let's get you set up",
-        preheader: "Claim your organiser page and add events across multiple venues.",
+        preheader: "Claim your organiser page and add activities across multiple places.",
         intro:
-          "You're signed up as an event organiser. From your dashboard you can claim your page, add events at any venue on the site and grow your following.",
+          "You're signed up as an activity organiser. From your dashboard you can claim your page, add activities at any place on the site and grow your following.",
         bullets: [
           ["📋 Claim your page", "Find your organisation in the directory and take ownership"],
-          ["🎵 Add events", "Pick any venue — events appear on theirs + yours"],
+          ["🎟️ Add activities", "Pick any place — activities appear on theirs + yours"],
           ["🔗 Link your socials", "Tickets, Facebook event pages, your own site"],
-          ["♡ Get followed", "Fans who heart you get notified about every new event"],
+          ["♡ Get followed", "Families who save you get notified about every new activity"],
         ],
         ctaHref: "/dashboard",
         ctaText: "Open my dashboard",
       };
     default:
-      // "user" / "fan" / anything else — treat as fan.
+      // "user" / "fan" / "parent" / anything else — treat as a parent.
       return {
-        subject: "Welcome to The Buzz Guide 👋",
-        heading: "Welcome to The Buzz Guide",
-        preheader: "Save your favourite venues and never miss a gig.",
+        subject: "Welcome to The Buzz Kids 👋",
+        heading: "Welcome to The Buzz Kids",
+        preheader: "Save your favourite places and never miss a thing to do.",
         intro:
-          "Thanks for signing up. The Buzz Guide is the local guide to live music & nights out across Dundee + Angus. Here's how to get the most out of it:",
+          "Thanks for signing up. The Buzz Kids is the free guide to kid-friendly things to do across Scotland. Here's how to get the most out of it:",
         bullets: [
-          ["♡ Heart what you like", "Save venues, bands and organisers you want to follow"],
-          ["📩 Get the emails you want", "We'll ping you when your favourites announce a gig"],
-          ["📍 Day planner", "Build a route through a festival or busy gig night"],
-          ["🔍 Browse what's on", "Pubs, festivals, comedy, quizzes, live sport — all in one place"],
+          ["♡ Build your bucket list", "Save the places and activities you want to try"],
+          ["📩 Get the emails you want", "We'll ping you when new sessions land for the holidays"],
+          ["📍 Day planner", "Plan a route through a busy day out with the kids"],
+          ["🔍 Browse what's on", "Soft play, farm parks, messy play, holiday clubs — all in one place"],
         ],
         ctaHref: "/",
         ctaText: "Browse what's on",
