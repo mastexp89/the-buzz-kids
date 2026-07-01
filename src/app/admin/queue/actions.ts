@@ -229,6 +229,88 @@ export async function createPlaceAndAttach(
   return { ok: true, venue: { id: venue.id, slug: venue.slug, citySlug: (venue as any).city?.slug ?? "dundee" } };
 }
 
+// For a vague multi-venue event ("Bookbug at all East Dunbartonshire
+// Libraries"), suggest our venues in the same area that match the kind of place
+// mentioned, so the admin can fan it out to each specific place.
+export async function suggestSplitVenues(eventId: string) {
+  const ctx = await requireAdmin();
+  if (!ctx) return { venues: [] as any[], kind: "" };
+  const { supabase } = ctx;
+  const { data: ev } = await supabase
+    .from("events")
+    .select("title, description, city_id, venue:venues(city_id)")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (!ev) return { venues: [], kind: "" };
+  const text = `${ev.title ?? ""} ${ev.description ?? ""}`.toLowerCase();
+  const cityId = ev.city_id ?? (ev.venue as any)?.city_id;
+  // Map the words in the event to a place type + name patterns to search for.
+  const KINDS: { test: RegExp; kind: string; names: string[] }[] = [
+    { test: /librar/, kind: "libraries", names: ["library", "libraries"] },
+    { test: /leisure|swim|pool|sports? cent/, kind: "leisure centres", names: ["leisure", "pool", "swim", "sports"] },
+    { test: /\bmuseum/, kind: "museums", names: ["museum"] },
+    { test: /gallery|galleries/, kind: "galleries", names: ["gallery", "galleries"] },
+    { test: /theatre/, kind: "theatres", names: ["theatre"] },
+    { test: /communit/, kind: "community centres", names: ["community", "hall"] },
+    { test: /\bpark/, kind: "parks", names: ["park"] },
+  ];
+  const match = KINDS.find((k) => k.test.test(text));
+  if (!match || !cityId) return { venues: [], kind: match?.kind ?? "" };
+  const orClause = match.names.map((n) => `name.ilike.%${n}%`).join(",");
+  const { data: venues } = await supabase
+    .from("venues")
+    .select("id, name, slug, city:cities(name, slug)")
+    .eq("city_id", cityId)
+    .eq("approved", true)
+    .or(orClause)
+    .order("name")
+    .limit(40);
+  return { venues: venues ?? [], kind: match.kind };
+}
+
+// Clone a queued event onto each chosen place (approved), then reject the
+// original vague one.
+export async function splitEventToVenues(eventId: string, venueIds: string[]) {
+  const ctx = await requireAdmin();
+  if (!ctx) return { error: "Not authorised." };
+  const { supabase, user } = ctx;
+  const ids = Array.from(new Set((venueIds ?? []).filter(Boolean)));
+  if (ids.length === 0) return { error: "Pick at least one place." };
+
+  const { data: src } = await supabase.from("events").select("*").eq("id", eventId).maybeSingle();
+  if (!src) return { error: "Event not found." };
+  const { data: venues } = await supabase.from("venues").select("id, city_id").in("id", ids);
+  if (!venues?.length) return { error: "Places not found." };
+
+  let desc = (src as any).description ?? "";
+  if (desc.startsWith("⚠")) desc = desc.replace(/^⚠[\s\S]*?\n\n/, "");
+  const CLONE = [
+    "title", "start_time", "end_time", "end_date", "recurrence_pattern", "recurrence_until",
+    "image_url", "auto_import_image_url", "auto_import_source_url", "auto_imported_from",
+    "ticket_url", "age_min", "age_max", "is_free", "price_from", "booking_required",
+    "setting", "accessibility", "location_name",
+  ] as const;
+  const rows = venues.map((v) => {
+    const row: Record<string, unknown> = { venue_id: v.id, city_id: v.city_id, description: desc, status: "approved", reviewed_at: new Date().toISOString(), reviewed_by: user.id, cancelled: false };
+    for (const f of CLONE) row[f] = (src as any)[f] ?? null;
+    return row;
+  });
+  const { data: created, error: insErr } = await supabase.from("events").insert(rows).select("id");
+  if (insErr) return { error: insErr.message };
+
+  // Copy the original's genres onto each new event.
+  const { data: genres } = await supabase.from("event_genres").select("genre_id").eq("event_id", eventId);
+  if (genres?.length && created?.length) {
+    const links = created.flatMap((c: any) => genres.map((g: any) => ({ event_id: c.id, genre_id: g.genre_id })));
+    await supabase.from("event_genres").insert(links);
+  }
+
+  // Reject the original vague event.
+  await supabase.from("events").update({ status: "rejected", reviewed_at: new Date().toISOString(), reviewed_by: user.id }).eq("id", eventId);
+  revalidatePath("/admin/queue");
+  return { ok: true, count: created?.length ?? 0 };
+}
+
 export async function rejectEvent(eventId: string) {
   const ctx = await requireAdmin();
   if (!ctx) return { error: "Not authorised." };
