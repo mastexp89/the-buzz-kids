@@ -145,7 +145,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
           {!isFan && (venueList.length > 0 || artistList.length === 0) && (
           <div className="card p-4">
-            <div className="eyebrow text-[10px] mb-3">Your places</div>
+            <div className="eyebrow text-[10px] mb-3">{venueList.length > 0 ? "Your places" : "Get started"}</div>
             <ul className="flex flex-col gap-1 text-sm">
               {venueList.map((v) => (
                 <li key={v.id}>
@@ -168,11 +168,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
               ))}
               <li>
                 <Link
-                  href="/dashboard/venue-setup"
+                  href={venueList.length > 0 ? "/dashboard/venue-setup" : "/dashboard/add"}
                   className="flex items-center gap-2 px-2 py-2 rounded-lg text-buzz-accent hover:bg-buzz-surface transition"
                 >
                   <span className="w-7 h-7 rounded-md shrink-0 grid place-items-center text-lg leading-none">+</span>
-                  {venueList.length > 0 ? "Add another place" : "Add a place"}
+                  {venueList.length > 0 ? "Add another place" : "Add a place or activity"}
                 </Link>
               </li>
             </ul>

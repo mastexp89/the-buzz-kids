@@ -138,8 +138,15 @@ export async function GET(req: Request) {
       supabase: sb,
     });
 
-    // Mark scraped (even on partial failure) so we don't get stuck on one venue.
-    if (!dry) {
+    // Mark scraped so we don't get stuck on one venue — but NOT when the
+    // failure was a transient Anthropic error (out of credit, rate limit,
+    // overloaded). Those venues never actually got extracted, so stamping them
+    // would drop them out of the queue permanently once credit is topped up.
+    // Leaving last_website_scrape null means the next run retries them.
+    const retryable =
+      !!r.error &&
+      /credit balance is too low|Anthropic 429|Anthropic 5\d\d|rate.?limit|overloaded/i.test(r.error);
+    if (!dry && !retryable) {
       await sb.from("venues").update({ last_website_scrape: new Date().toISOString() }).eq("id", v.id);
     }
 

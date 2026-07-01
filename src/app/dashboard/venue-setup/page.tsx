@@ -50,23 +50,23 @@ export default async function VenueSetupPage() {
         ← Back to dashboard
       </Link>
       <p className="eyebrow mt-3 mb-2">
-        {isFirstTime ? "Welcome to The Buzz Guide" : "Add another venue"}
+        {isFirstTime ? "Welcome to The Buzz Kids" : "Add another place"}
       </p>
       <h1 className="h-display text-4xl sm:text-5xl mb-3">
-        {isFirstTime ? "Set up your venue" : "Add a venue"}
+        {isFirstTime ? "Set up your place" : "Add a place"}
       </h1>
       <p className="text-buzz-mute mb-6">
         {isFirstTime ? (
           <>
-            Before we create a new page, let's check whether your venue's already
-            on The Buzz Guide — many pubs already have an unowned page that an admin or
-            our auto-importer added. If yours is one of them, claim it and you'll
-            keep all its existing event history.
+            Before we create a new page, let's check whether your place is already
+            on The Buzz Kids — lots of places already have an unowned page our
+            importer added. If yours is one of them, claim it and you'll keep all
+            its existing info and sessions.
           </>
         ) : (
           <>
-            Manage another venue too? Search for it first in case it's already
-            on The Buzz Guide, otherwise create a new page.
+            Run another place too? Search for it first in case it's already on
+            The Buzz Kids, otherwise create a new page.
           </>
         )}
       </p>

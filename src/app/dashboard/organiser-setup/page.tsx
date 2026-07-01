@@ -48,7 +48,7 @@ export default async function OrganiserSetupPage() {
         ← Back to dashboard
       </Link>
       <p className="eyebrow mt-3 mb-2">
-        {isFirstTime ? "Welcome to The Buzz Guide" : "Add another organiser"}
+        {isFirstTime ? "Welcome to The Buzz Kids" : "Add another organiser"}
       </p>
       <h1 className="h-display text-4xl sm:text-5xl mb-3">
         {isFirstTime ? "Set up your organiser page" : "Add an organiser page"}
@@ -56,15 +56,16 @@ export default async function OrganiserSetupPage() {
       <p className="text-buzz-mute mb-6">
         {isFirstTime ? (
           <>
-            Before we create a new page, let's check whether your promoter / event
-            company is already listed on The Buzz Guide. If so, claim it and you'll
-            keep all its existing event history. Otherwise create a new page —
-            it'll go live once an admin approves it.
+            This is for when you run clubs, classes or activities at places you
+            don't own (a baby group at a community centre, a holiday camp at a
+            leisure centre). Let's check you're not already listed on The Buzz
+            Kids — if you are, claim it and keep your session history. Otherwise
+            create a new page; it'll go live once an admin approves it.
           </>
         ) : (
           <>
-            Run more than one promoter brand? Add another organiser page. Each one
-            has its own bio, photo, socials and event history. You manage them all
+            Run more than one club or activity brand? Add another organiser page.
+            Each has its own bio, photo, socials and session history — all managed
             from this account.
           </>
         )}
