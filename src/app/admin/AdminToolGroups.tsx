@@ -53,12 +53,6 @@ export default function AdminToolGroups({ pendingCount, suggestionsCount = 0 }: 
           emoji: "🔎",
           description: "Find any session, edit or reassign",
         },
-        {
-          href: "/admin/messages",
-          label: "Messages",
-          emoji: "📬",
-          description: "Threads with place owners & organisers",
-        },
       ],
     },
     {
@@ -146,18 +140,6 @@ export default function AdminToolGroups({ pendingCount, suggestionsCount = 0 }: 
     {
       title: "Ops",
       tools: [
-        {
-          href: "/admin/activity-log",
-          label: "Activity log",
-          emoji: "📜",
-          description: "Recent edits by places and organisers",
-        },
-        {
-          href: "/admin/claimed-venues",
-          label: "Claimed venues activity",
-          emoji: "📊",
-          description: "Who's added events recently · who needs a nudge",
-        },
         {
           href: "/admin/favourites",
           label: "Favourites",
