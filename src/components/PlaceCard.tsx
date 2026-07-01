@@ -73,6 +73,15 @@ export default function PlaceCard({ place, citySlug }: { place: any; citySlug: s
             {place.google_photo_attribution} · Google
           </span>
         )}
+        {place.google_rating != null && (
+          <span className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-black/60 backdrop-blur-sm text-white text-[11px] font-semibold px-2 py-1 shadow-sm">
+            <span className="text-amber-400" aria-hidden>★</span>
+            {Number(place.google_rating).toFixed(1)}
+            {place.google_rating_count != null && (
+              <span className="text-white/70 font-normal">({place.google_rating_count})</span>
+            )}
+          </span>
+        )}
         {badges.length > 0 && (
           <div className="absolute top-2 right-2 flex flex-col items-end gap-1.5">
             {badges.map((b) => (
