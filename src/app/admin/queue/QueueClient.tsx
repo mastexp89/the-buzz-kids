@@ -47,6 +47,7 @@ type PendingEvent = {
   ticket_url: string | null;
   venue: { id: string; name: string; slug: string; approved?: boolean; venue_type?: string | null; city: { name: string; slug: string } | null } | null;
   submitter: { email: string | null; display_name: string | null } | null;
+  suggestedVenue?: { id: string; name: string; slug: string; citySlug: string } | null;
 };
 
 // Work out exactly which dates an event will appear on once approved, matching
@@ -783,6 +784,7 @@ function EventRow({ event: e, cities = [] }: { event: PendingEvent; cities?: QCi
   const [showCreate, setShowCreate] = useState(false);
   const [showSplit, setShowSplit] = useState(false);
   const [splitInto, setSplitInto] = useState<number | null>(null);
+  const [showFullDesc, setShowFullDesc] = useState(false);
 
   // Effective venue — may have been reassigned away from a wrong tourism-feed dump.
   const venue = venueOverride ?? e.venue;
@@ -931,8 +933,39 @@ function EventRow({ event: e, cities = [] }: { event: PendingEvent; cities?: QCi
               Submitted by {e.submitter.display_name ?? e.submitter.email ?? "anonymous"}
             </div>
           )}
+          {/* Suggested correct venue, inferred from the event's own text. */}
+          {e.suggestedVenue && !venueOverride && e.suggestedVenue.id !== venue?.id && (
+            <div className="mt-2 flex items-center gap-2 flex-wrap text-xs rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1.5">
+              <span className="text-emerald-700">💡 Its text says it's at <strong>{e.suggestedVenue.name}</strong></span>
+              <button
+                type="button"
+                disabled={placing}
+                onClick={() => startPlace(async () => {
+                  const r = await reassignEventVenue(e.id, e.suggestedVenue!.id);
+                  if (r && "error" in r) setError((r as any).error);
+                  else setVenueOverride((r as any).venue);
+                })}
+                className="rounded-full px-2.5 py-0.5 font-semibold border border-emerald-500/50 text-emerald-700 hover:bg-emerald-500/15"
+              >
+                {placing ? "…" : "Move here →"}
+              </button>
+            </div>
+          )}
           {e.description && (
-            <p className="text-sm text-buzz-text/80 mt-2 line-clamp-2">{e.description}</p>
+            <div className="mt-2">
+              <p className={"text-sm text-buzz-text/80 whitespace-pre-line" + (showFullDesc ? "" : " line-clamp-2")}>
+                {e.description}
+              </p>
+              {(e.description.length > 140 || (e.description.match(/\n/g)?.length ?? 0) > 0) && (
+                <button
+                  type="button"
+                  onClick={() => setShowFullDesc((s) => !s)}
+                  className="text-xs text-buzz-accent hover:underline mt-0.5"
+                >
+                  {showFullDesc ? "Show less" : "Read full description"}
+                </button>
+              )}
+            </div>
           )}
           {(() => {
             const src = e.auto_import_source_url || e.ticket_url;

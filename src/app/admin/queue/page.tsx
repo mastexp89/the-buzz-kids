@@ -113,9 +113,42 @@ export default async function AdminQueuePage() {
       submitterMap.set(s.id, { email: s.email, display_name: s.display_name });
     }
   }
+  // Suggest the correct venue for wrong-venue events: if the event's own text
+  // names a real live venue (as "at/in <venue>" or in the title) that isn't its
+  // current venue, offer it as a one-click fix. Same high-precision rule as the
+  // bulk auto-reassign.
+  const { data: venueIdx } = await supabase
+    .from("venues")
+    .select("id, name, slug, city_id, city:cities(slug, active)")
+    .eq("approved", true)
+    .limit(2000);
+  const vnorm = (s: string) =>
+    " " + (s || "").toLowerCase().replace(/\([^)]*\)/g, " ").replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim() + " ";
+  const idx = (venueIdx ?? [])
+    .filter((v: any) => v.city?.active)
+    .map((v: any) => ({ id: v.id, name: v.name, slug: v.slug, citySlug: v.city?.slug, key: vnorm(v.name).trim() }))
+    .filter((v: any) => v.key.length >= 9 && v.key.split(" ").length >= 2);
+  const located = (text: string, titleN: string, key: string) =>
+    titleN.includes(" " + key + " ") ||
+    text.includes(" at " + key + " ") ||
+    text.includes(" in " + key + " ") ||
+    text.includes(" @ " + key + " ");
+  const suggestFor = (e: any) => {
+    const text = vnorm(`${e.title ?? ""} ${e.description ?? ""}`);
+    const titleN = vnorm(e.title);
+    const curKey = vnorm(e.venue?.name).trim();
+    const hits = idx.filter((v: any) => v.id !== e.venue?.id && located(text, titleN, v.key));
+    const uniq = [...new Map(hits.map((h: any) => [h.id, h])).values()];
+    if (uniq.length !== 1) return null;
+    if (curKey && located(text, titleN, curKey)) return null;
+    const t = uniq[0] as any;
+    return { id: t.id, name: t.name, slug: t.slug, citySlug: t.citySlug };
+  };
+
   const pendingEvents = (pendingEventsRaw ?? []).map((e: any) => ({
     ...e,
     submitter: e.submitted_by ? submitterMap.get(e.submitted_by) ?? null : null,
+    suggestedVenue: suggestFor(e),
   }));
   const pendingSuggestions = (pendingSuggestionsRaw ?? []).map((s: any) => ({
     ...s,
