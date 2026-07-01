@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { trackPageView } from "@/lib/track";
+import SponsorBanner from "@/components/SponsorBanner";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +57,10 @@ export default async function Home() {
           </div>
         </div>
       </section>
+
+      {/* Sponsor ad — rotates a currently-live paid sponsor. Renders nothing
+          when none are booked, so the page is unaffected until we sell one. */}
+      <SponsorBanner />
 
       {/* Spotlight */}
       {spotlight.length > 0 && (

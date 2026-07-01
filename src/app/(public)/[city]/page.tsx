@@ -5,6 +5,7 @@ import { AccessibilityLegend } from "@/components/AccessibilityBadges";
 import PlacesGrid from "@/components/PlacesGrid";
 import PlaceFilterBar from "@/components/PlaceFilterBar";
 import CitySwitcher from "@/components/CitySwitcher";
+import SponsorBanner from "@/components/SponsorBanner";
 import { fetchPlaces, openDayKeysFor } from "@/lib/places";
 import { trackPageView } from "@/lib/track";
 
@@ -97,6 +98,10 @@ export default async function CityPage({ params, searchParams }: Props) {
           </div>
         </div>
       </section>
+
+      {/* Area-targeted sponsor ad (falls back to nationwide). Renders nothing
+          when none are live for this area. */}
+      <SponsorBanner citySlug={city.slug} />
 
       {/* One combined directory — places + activities, narrow with the filters. */}
       <div className="container-page py-8">
