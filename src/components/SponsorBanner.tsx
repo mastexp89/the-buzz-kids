@@ -77,8 +77,8 @@ export default async function SponsorBanner({
 
   return (
     <section className="container-page py-6">
-      <p className="eyebrow text-[10px] text-buzz-accent mb-2">Sponsored</p>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+      <p className="eyebrow text-[10px] text-buzz-accent mb-2.5">Sponsored</p>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 items-stretch">
         {picked.map((s) => {
           // "House ad" — a sponsor that promotes the ad space itself (links to
           // our /advertise page). Rendered as an accent CTA instead of a brand
@@ -92,49 +92,54 @@ export default async function SponsorBanner({
                 href={`/api/sponsor-click/${s.id}`}
                 target="_blank"
                 rel="noopener"
-                className="group flex flex-col rounded-xl border border-dashed border-buzz-accent/50 bg-buzz-accent/5 hover:border-buzz-accent hover:bg-buzz-accent/10 transition overflow-hidden"
+                className="group flex flex-col h-full rounded-2xl border-2 border-dashed border-buzz-accent/40 bg-gradient-to-br from-buzz-accent/10 to-buzz-accent/[0.03] hover:border-buzz-accent hover:shadow-lg hover:shadow-buzz-accent/10 transition-all overflow-hidden"
               >
-                <div className="h-20 grid place-items-center text-3xl">📣</div>
-                <div className="p-2.5 min-w-0">
-                  <p className="font-display text-sm uppercase leading-tight text-buzz-accent truncate">{s.name}</p>
-                  {s.blurb && <p className="text-[11px] text-buzz-mute line-clamp-2 leading-snug mt-0.5">{s.blurb}</p>}
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-buzz-accent mt-1 group-hover:translate-x-0.5 transition">Get prices →</p>
+                <div className="h-24 grid place-items-center">
+                  <div className="w-12 h-12 rounded-full bg-buzz-accent/15 grid place-items-center text-2xl">📣</div>
+                </div>
+                <div className="px-3.5 pb-3.5 flex flex-col gap-1 flex-1">
+                  <p className="font-display text-sm uppercase leading-tight text-buzz-accent">{s.name}</p>
+                  {s.blurb && <p className="text-[11px] text-buzz-mute line-clamp-2 leading-snug">{s.blurb}</p>}
+                  <p className="mt-auto pt-1.5 text-[11px] font-bold uppercase tracking-wider text-buzz-accent inline-flex items-center gap-1 group-hover:gap-2 transition-all">
+                    Get prices <span aria-hidden>→</span>
+                  </p>
                 </div>
               </a>
             );
           }
+          // The logo already carries the brand name, so only show a caption
+          // (the blurb) below — avoids the "logo + NAME repeated" redundancy.
+          // Falls back to the name only when there's no blurb / no logo.
+          const caption = s.blurb ?? (s.image_url ? s.name : null);
           return (
-          <a
-            key={s.id}
-            href={`/api/sponsor-click/${s.id}`}
-            target="_blank"
-            rel="noopener sponsored"
-            className="group flex flex-col rounded-xl border border-buzz-border bg-buzz-card hover:border-buzz-accent hover:shadow-sm transition overflow-hidden"
-          >
-            {/* Dark logo tile — keeps white / pale wordmarks visible. Padding
-                keeps the logo off the edges so nothing gets clipped. */}
-            <div className="h-20 bg-gradient-to-br from-slate-700 to-slate-900 grid place-items-center overflow-hidden p-3">
-              {s.image_url ? (
-                <div
-                  className="w-full h-full"
-                  style={{
-                    backgroundImage: `url(${s.image_url})`,
-                    backgroundSize: "contain",
-                    backgroundPosition: "center",
-                    backgroundRepeat: "no-repeat",
-                  }}
-                />
-              ) : (
-                <span className="text-white font-bold text-xs text-center px-2 leading-tight line-clamp-2">{s.name}</span>
-              )}
-            </div>
-            <div className="p-2.5 min-w-0">
-              <p className="font-display text-sm uppercase leading-tight truncate group-hover:text-buzz-accent transition">
-                {s.name}
-              </p>
-              {s.blurb && <p className="text-[11px] text-buzz-mute line-clamp-2 leading-snug mt-0.5">{s.blurb}</p>}
-            </div>
-          </a>
+            <a
+              key={s.id}
+              href={`/api/sponsor-click/${s.id}`}
+              target="_blank"
+              rel="noopener sponsored"
+              className="group flex flex-col h-full rounded-2xl border border-buzz-border bg-buzz-card hover:border-buzz-accent hover:shadow-lg hover:-translate-y-0.5 transition-all overflow-hidden"
+            >
+              {/* Dark logo tile — keeps white / pale wordmarks visible. Padding
+                  keeps the logo off the edges so nothing gets clipped. */}
+              <div className="h-24 bg-gradient-to-br from-slate-800 to-slate-950 ring-1 ring-inset ring-white/5 grid place-items-center overflow-hidden p-4">
+                {s.image_url ? (
+                  <div
+                    className="w-full h-full"
+                    style={{
+                      backgroundImage: `url(${s.image_url})`,
+                      backgroundSize: "contain",
+                      backgroundPosition: "center",
+                      backgroundRepeat: "no-repeat",
+                    }}
+                  />
+                ) : (
+                  <span className="text-white font-display text-sm uppercase text-center leading-tight line-clamp-2">{s.name}</span>
+                )}
+              </div>
+              <div className="px-3.5 py-2.5 flex-1 flex items-start">
+                {caption && <p className="text-[11px] text-buzz-mute line-clamp-2 leading-snug">{caption}</p>}
+              </div>
+            </a>
           );
         })}
       </div>
