@@ -79,7 +79,31 @@ export default async function SponsorBanner({
     <section className="container-page py-6">
       <p className="eyebrow text-[10px] text-buzz-accent mb-2">Sponsored</p>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        {picked.map((s) => (
+        {picked.map((s) => {
+          // "House ad" — a sponsor that promotes the ad space itself (links to
+          // our /advertise page). Rendered as an accent CTA instead of a brand
+          // logo card so it reads as an invitation, not a fake sponsor. Manage
+          // it like any sponsor in /admin/sponsors (pause to hide it).
+          const isHouse = (s.link_url || "").includes("/advertise");
+          if (isHouse) {
+            return (
+              <a
+                key={s.id}
+                href={`/api/sponsor-click/${s.id}`}
+                target="_blank"
+                rel="noopener"
+                className="group flex flex-col rounded-xl border border-dashed border-buzz-accent/50 bg-buzz-accent/5 hover:border-buzz-accent hover:bg-buzz-accent/10 transition overflow-hidden"
+              >
+                <div className="h-20 grid place-items-center text-3xl">📣</div>
+                <div className="p-2.5 min-w-0">
+                  <p className="font-display text-sm uppercase leading-tight text-buzz-accent truncate">{s.name}</p>
+                  {s.blurb && <p className="text-[11px] text-buzz-mute line-clamp-2 leading-snug mt-0.5">{s.blurb}</p>}
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-buzz-accent mt-1 group-hover:translate-x-0.5 transition">Get prices →</p>
+                </div>
+              </a>
+            );
+          }
+          return (
           <a
             key={s.id}
             href={`/api/sponsor-click/${s.id}`}
@@ -111,7 +135,8 @@ export default async function SponsorBanner({
               {s.blurb && <p className="text-[11px] text-buzz-mute line-clamp-2 leading-snug mt-0.5">{s.blurb}</p>}
             </div>
           </a>
-        ))}
+          );
+        })}
       </div>
     </section>
   );
