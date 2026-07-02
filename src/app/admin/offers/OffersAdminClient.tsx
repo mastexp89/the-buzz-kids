@@ -15,6 +15,32 @@ type Offer = {
 };
 type City = { id: string; name: string; slug: string };
 
+// Mirrors the public card's image logic so admins can see the icon that will
+// show: uploaded image_url first, else the auto brand logo (icon.horse →
+// Google favicon), else the category emoji.
+function OfferThumb({ o }: { o: Offer }) {
+  const domain = (() => {
+    const u = o.business_url || o.url;
+    if (!u) return null;
+    try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return null; }
+  })();
+  const sources = [
+    ...(o.image_url ? [o.image_url] : []),
+    ...(domain ? [`https://icon.horse/icon/${domain}`, `https://www.google.com/s2/favicons?domain=${domain}&sz=128`] : []),
+  ];
+  const [idx, setIdx] = useState(0);
+  const box = "w-12 h-12 rounded-lg bg-buzz-surface border border-buzz-border shrink-0 grid place-items-center overflow-hidden";
+  if (idx >= sources.length) {
+    return <div className={box + " text-xl"} title="No image — will show this emoji">{o.category === "food" ? "🍽️" : "🎟️"}</div>;
+  }
+  return (
+    <div className={box}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={sources[idx]} alt="" onError={() => setIdx((i) => i + 1)} className="w-full h-full object-contain" />
+    </div>
+  );
+}
+
 export default function OffersAdminClient({ offers, cities, canManage = true }: { offers: Offer[]; cities: City[]; canManage?: boolean }) {
   const router = useRouter();
   const [scope, setScope] = useState("national");
@@ -133,7 +159,9 @@ export default function OffersAdminClient({ offers, cities, canManage = true }: 
         <ul className="card divide-y divide-buzz-border/60">
           {items.map((o) => (
             <li key={o.id} className="p-4 flex items-start justify-between gap-3">
-              <div className="min-w-0">
+              <div className="flex items-start gap-3 min-w-0">
+                <OfferThumb o={o} />
+                <div className="min-w-0">
                 <div className="font-medium flex items-center gap-2 flex-wrap">
                   {o.title}
                   {!o.approved && <span className="text-[10px] uppercase bg-amber-500/15 text-amber-600 px-1.5 py-0.5 rounded">hidden</span>}
@@ -148,6 +176,7 @@ export default function OffersAdminClient({ offers, cities, canManage = true }: 
                 </div>
                 {o.terms && <div className="text-xs text-buzz-mute/80 mt-0.5 line-clamp-1">{o.terms}</div>}
                 {o.submitted_email && <div className="text-xs text-buzz-mute/80 mt-0.5">✉️ {o.submitted_email}</div>}
+                </div>
               </div>
               <div className="flex gap-2 shrink-0">
                 {!o.approved && (
