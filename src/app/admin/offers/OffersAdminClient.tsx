@@ -173,12 +173,29 @@ export default function OffersAdminClient({ offers, cities, canManage = true }: 
       <form ref={formRef} onSubmit={onSubmit} className="card p-6 grid sm:grid-cols-2 gap-4 mb-10">
         <h2 className="sm:col-span-2 font-display text-2xl uppercase">{editingId ? "Edit offer" : "Add an offer"}</h2>
 
-        {/* Poster autofill */}
+        {/* Poster autofill + image / logo override */}
         <div className="sm:col-span-2 rounded-xl border border-buzz-accent/30 bg-buzz-accent/5 p-3">
-          <label className="label !mb-1">📸 Got a poster? Drop it here</label>
-          <p className="help !mt-0 mb-2">Upload a deal poster and AI fills the form below — check it before saving.</p>
+          <label className="label !mb-1">📸 Poster or logo</label>
+          <p className="help !mt-0 mb-2">
+            Upload a poster (AI fills the form), or paste an image/logo URL below. Any image here
+            <strong className="text-buzz-text"> overrides the auto brand logo</strong> on the card —
+            clear it to go back to the auto logo.
+          </p>
           <input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) onPoster(f); }} className="text-sm" />
           {extracting && <span className="text-xs text-buzz-accent ml-2">Reading the poster…</span>}
+          <div className="flex items-center gap-2 mt-2">
+            <input
+              type="url"
+              name="image_url"
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              placeholder="…or paste an image / logo URL"
+              className="input text-sm flex-1"
+            />
+            {imageUrl && (
+              <button type="button" onClick={() => setImageUrl("")} className="btn-secondary text-sm shrink-0">Clear</button>
+            )}
+          </div>
           {imageUrl && <img src={imageUrl} alt="" className="mt-2 h-24 rounded-lg border border-buzz-border object-contain bg-buzz-surface" />}
         </div>
 
@@ -208,7 +225,6 @@ export default function OffersAdminClient({ offers, cities, canManage = true }: 
           )}
         </div>
         <input type="hidden" name="venue_id" value={venue?.id ?? ""} />
-        <input type="hidden" name="image_url" value={imageUrl} />
 
         <div>
           <label className="label">Type *</label>
