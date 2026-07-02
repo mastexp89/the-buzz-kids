@@ -2,11 +2,15 @@
 
 import { useState, useTransition, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createOffer, deleteOffer, approveOffer, searchOfferVenues, extractOfferFromImage } from "./actions";
+import { createOffer, updateOffer, deleteOffer, approveOffer, searchOfferVenues, extractOfferFromImage } from "./actions";
 
 type Offer = {
   id: string; category: string; title: string; provider: string | null;
-  terms: string | null; url: string | null; scope: string; city_id: string | null; approved: boolean;
+  description?: string | null; terms: string | null; url: string | null;
+  business_url?: string | null; image_url?: string | null;
+  scope: string; city_id: string | null; venue_id?: string | null;
+  venue?: { name: string | null } | null;
+  approved: boolean;
   reports?: number; submitted_email?: string | null;
 };
 type City = { id: string; name: string; slug: string };
@@ -14,18 +18,22 @@ type City = { id: string; name: string; slug: string };
 export default function OffersAdminClient({ offers, cities, canManage = true }: { offers: Offer[]; cities: City[]; canManage?: boolean }) {
   const router = useRouter();
   const [scope, setScope] = useState("national");
+  const [cityId, setCityId] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyT, start] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
 
   // Poster autofill + venue attach.
+  const formRef = useRef<HTMLFormElement>(null);
   const categoryRef = useRef<HTMLSelectElement>(null);
   const providerRef = useRef<HTMLInputElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   const descRef = useRef<HTMLInputElement>(null);
   const termsRef = useRef<HTMLTextAreaElement>(null);
   const urlRef = useRef<HTMLInputElement>(null);
+  const businessUrlRef = useRef<HTMLInputElement>(null);
   const [imageUrl, setImageUrl] = useState("");
   const [extracting, setExtracting] = useState(false);
   const [venue, setVenue] = useState<{ id: string; name: string } | null>(null);
@@ -52,16 +60,41 @@ export default function OffersAdminClient({ offers, cities, canManage = true }: 
     if (f.scope === "local" || f.scope === "national") setScope(f.scope);
   }
 
+  function resetForm() {
+    formRef.current?.reset();
+    setEditingId(null);
+    setScope("national"); setCityId(""); setVenue(null); setVq(""); setImageUrl(""); setError(null);
+  }
+
+  function startEdit(o: Offer) {
+    setEditingId(o.id);
+    setError(null);
+    if (categoryRef.current) categoryRef.current.value = o.category;
+    if (providerRef.current) providerRef.current.value = o.provider ?? "";
+    if (titleRef.current) titleRef.current.value = o.title ?? "";
+    if (descRef.current) descRef.current.value = o.description ?? "";
+    if (termsRef.current) termsRef.current.value = o.terms ?? "";
+    if (urlRef.current) urlRef.current.value = o.url ?? "";
+    if (businessUrlRef.current) businessUrlRef.current.value = o.business_url ?? "";
+    setScope(o.scope === "local" ? "local" : "national");
+    setCityId(o.city_id ?? "");
+    setImageUrl(o.image_url ?? "");
+    setVenue(o.venue_id ? { id: o.venue_id, name: o.venue?.name ?? "Attached place" } : null);
+    setVq("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     setBusy(true);
     const form = e.currentTarget;
-    const r = await createOffer(new FormData(form));
+    const r = editingId
+      ? await updateOffer(editingId, new FormData(form))
+      : await createOffer(new FormData(form));
     setBusy(false);
     if (r.error) { setError(r.error); return; }
-    form.reset();
-    setScope("national"); setVenue(null); setVq(""); setImageUrl("");
+    resetForm();
     router.refresh();
   }
 
@@ -122,6 +155,7 @@ export default function OffersAdminClient({ offers, cities, canManage = true }: 
                     {busyT && busyId === o.id ? "…" : "Approve"}
                   </button>
                 )}
+                <button onClick={() => startEdit(o)} className="btn-secondary text-sm">Edit</button>
                 <button onClick={() => destroy(o)} disabled={busyT && busyId === o.id} className="btn-danger text-sm">
                   {busyT && busyId === o.id ? "…" : "Delete"}
                 </button>
@@ -135,9 +169,9 @@ export default function OffersAdminClient({ offers, cities, canManage = true }: 
 
   return (
     <div>
-      {/* Add form */}
-      <form onSubmit={onSubmit} className="card p-6 grid sm:grid-cols-2 gap-4 mb-10">
-        <h2 className="sm:col-span-2 font-display text-2xl uppercase">Add an offer</h2>
+      {/* Add / edit form */}
+      <form ref={formRef} onSubmit={onSubmit} className="card p-6 grid sm:grid-cols-2 gap-4 mb-10">
+        <h2 className="sm:col-span-2 font-display text-2xl uppercase">{editingId ? "Edit offer" : "Add an offer"}</h2>
 
         {/* Poster autofill */}
         <div className="sm:col-span-2 rounded-xl border border-buzz-accent/30 bg-buzz-accent/5 p-3">
@@ -205,7 +239,7 @@ export default function OffersAdminClient({ offers, cities, canManage = true }: 
         </div>
         <div>
           <label className="label">Business website</label>
-          <input name="business_url" type="url" className="input" placeholder="https://…" />
+          <input ref={businessUrlRef} name="business_url" type="url" className="input" placeholder="https://…" />
         </div>
         <div>
           <label className="label">Scope</label>
@@ -217,15 +251,20 @@ export default function OffersAdminClient({ offers, cities, canManage = true }: 
         {scope === "local" && (
           <div>
             <label className="label">Area</label>
-            <select name="city_id" className="input" defaultValue="">
+            <select name="city_id" className="input" value={cityId} onChange={(e) => setCityId(e.target.value)}>
               <option value="" disabled>Pick an area…</option>
               {cities.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
         )}
         {error && <div className="sm:col-span-2 text-sm text-rose-400">{error}</div>}
-        <div className="sm:col-span-2">
-          <button type="submit" className="btn-primary" disabled={busy}>{busy ? "Adding…" : "Add offer"}</button>
+        <div className="sm:col-span-2 flex items-center gap-2">
+          <button type="submit" className="btn-primary" disabled={busy}>
+            {busy ? (editingId ? "Saving…" : "Adding…") : (editingId ? "Save changes" : "Add offer")}
+          </button>
+          {editingId && (
+            <button type="button" onClick={resetForm} className="btn-secondary" disabled={busy}>Cancel</button>
+          )}
         </div>
       </form>
 

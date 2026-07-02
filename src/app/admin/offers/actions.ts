@@ -56,6 +56,42 @@ export async function createOffer(formData: FormData): Promise<OfferResult> {
   return { ok: true };
 }
 
+export async function updateOffer(id: string, formData: FormData): Promise<OfferResult> {
+  if (!(await requireAdmin())) return { error: "Admins only." };
+  if (!id) return { error: "Missing offer." };
+
+  const category = String(formData.get("category") ?? "");
+  if (!["food", "days-out"].includes(category)) return { error: "Pick a category." };
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) return { error: "Give the offer a title." };
+
+  const scope = String(formData.get("scope") ?? "national") === "local" ? "local" : "national";
+  const cityId = String(formData.get("city_id") ?? "").trim() || null;
+
+  const sb = createServiceClient();
+  const { error } = await sb
+    .from("offers")
+    .update({
+      category,
+      title,
+      provider: String(formData.get("provider") ?? "").trim() || null,
+      description: String(formData.get("description") ?? "").trim() || null,
+      terms: String(formData.get("terms") ?? "").trim() || null,
+      url: String(formData.get("url") ?? "").trim() || null,
+      business_url: String(formData.get("business_url") ?? "").trim() || null,
+      scope,
+      city_id: scope === "local" ? cityId : null,
+      venue_id: String(formData.get("venue_id") ?? "").trim() || null,
+      image_url: String(formData.get("image_url") ?? "").trim() || null,
+    })
+    .eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin/offers");
+  revalidatePath("/browse");
+  return { ok: true };
+}
+
 // Search live places to attach an offer to.
 export async function searchOfferVenues(query: string) {
   if (!(await requireContributor())) return { results: [] as any[] };
