@@ -18,12 +18,48 @@ type Offer = {
   terms: string | null;
   url: string | null;
   business_url?: string | null;
+  image_url?: string | null;
   scope: string;
 };
 
 // Trim to a tidy host label for the "visit website" link.
 function host(u: string): string {
   try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return "website"; }
+}
+
+// The brand's root domain, preferring the business site over the deep offer
+// link (so a "my.morrisons.com/cafe" offer still resolves to morrisons.com).
+function brandDomain(o: Offer): string | null {
+  const u = o.business_url || o.url;
+  if (!u) return null;
+  try {
+    const h = new URL(u).hostname.replace(/^www\./, "");
+    return h || null;
+  } catch {
+    return null;
+  }
+}
+
+// Pull the company logo from its domain — no upload needed. Tries icon.horse
+// (fetches the site's real logo/favicon) first, falls back to Google's favicon
+// service, then to nothing. Plain <img> so onError can walk the fallbacks.
+function BrandLogo({ domain, name }: { domain: string; name: string | null }) {
+  const [idx, setIdx] = useState(0);
+  const sources = [
+    `https://icon.horse/icon/${domain}`,
+    `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
+  ];
+  if (idx >= sources.length) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={sources[idx]}
+      alt={name ? `${name} logo` : ""}
+      onError={() => setIdx((i) => i + 1)}
+      loading="lazy"
+      className="h-10 w-auto max-w-[150px] object-contain object-left"
+    />
+  );
 }
 
 export default function OffersView({ offers, category, isAdmin }: { offers: Offer[]; category: "food" | "days-out"; isAdmin?: boolean }) {
@@ -49,8 +85,16 @@ export default function OffersView({ offers, category, isAdmin }: { offers: Offe
           : "Ways to do family days out for less. Most are national schemes that work across Scotland — check the details before you book."}
       </p>
       <div className="grid sm:grid-cols-2 gap-4">
-        {shown.map((o) => (
+        {shown.map((o) => {
+          const domain = brandDomain(o);
+          return (
           <div key={o.id} className="card p-5 flex flex-col gap-2">
+            {o.image_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={o.image_url} alt="" loading="lazy" className="h-28 w-full object-contain rounded-lg bg-buzz-surface border border-buzz-border" />
+            ) : domain ? (
+              <div className="h-10 mb-0.5 flex items-center"><BrandLogo domain={domain} name={o.provider} /></div>
+            ) : null}
             <div className="flex items-start gap-2 flex-wrap">
               <span className="inline-flex items-center rounded-full bg-buzz-accent/15 text-buzz-accent text-[11px] font-bold uppercase tracking-wider px-2.5 py-1">
                 {category === "food" ? "🍽️ Eating out" : "🎟️ Days out"}
@@ -86,7 +130,8 @@ export default function OffersView({ offers, category, isAdmin }: { offers: Offe
               {isAdmin && <AdminDeleteButton kind="offer" id={o.id} name={o.title} className="mt-1" />}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {offers.length > INITIAL_CAP && (
