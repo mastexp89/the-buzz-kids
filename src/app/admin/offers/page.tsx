@@ -24,7 +24,7 @@ export default async function OffersAdminPage() {
 
   const [{ data: offers }, { data: cities }] = await Promise.all([
     canManage
-      ? supabase.from("offers").select("*").order("approved").order("category").order("sort_order")
+      ? supabase.from("offers").select("*, venue:venues(name)").order("approved").order("category").order("sort_order")
       : Promise.resolve({ data: [] as any[] }),
     supabase.from("cities").select("id, name, slug").order("name"),
   ]);
