@@ -28,7 +28,10 @@ export type RowVenue =
       // Fife/Angus venues don't get filed as Dundee.
       cityId?: string | null;
       cityName?: string | null;
-    };
+    }
+  // No venue — a standalone / townwide event (e.g. a gala). Just a city +
+  // an optional location label; the event isn't tied to a place listing.
+  | { kind: "none"; cityId?: string | null; cityName?: string | null; locationName?: string | null };
 
 export type Row = {
   key: string;
@@ -145,7 +148,10 @@ export default function QuickImportReview({
   // structure for both pre-flight detection and final publish.
   type Group = {
     key: string;
-    venueRef: { id: string } | { name: string; cityId?: string | null };
+    venueRef:
+      | { id: string }
+      | { name: string; cityId?: string | null }
+      | { standalone: true; cityId?: string | null; locationName?: string | null };
     venueKind: "existing" | "new";
     venueId?: string;
     rows: { row: Row; panelIdx: number; groupIdx: number }[];
@@ -158,6 +164,18 @@ export default function QuickImportReview({
       if (r.state === "ok") continue;
       if (!r.venue) {
         missingVenue.push(i);
+        continue;
+      }
+      // No-venue (standalone) rows each get their own group — city + location
+      // are per-row, and there's no venue to dedupe or conflict-check against.
+      if (r.venue.kind === "none") {
+        const key = `none:${i}`;
+        groups.set(key, {
+          key,
+          venueRef: { standalone: true, cityId: r.venue.cityId ?? null, locationName: r.venue.locationName ?? null },
+          venueKind: "new",
+          rows: [{ row: r, panelIdx: i, groupIdx: 0 }],
+        });
         continue;
       }
       // Include the chosen cityId in the dedup key so two "new" rows
@@ -203,7 +221,7 @@ export default function QuickImportReview({
     setPhase("checking");
 
     const { groups, missingVenue } = buildGroups();
-    for (const idx of missingVenue) updateRow(idx, { state: "error", message: "Pick a venue" });
+    for (const idx of missingVenue) updateRow(idx, { state: "error", message: "Pick a place, or choose “No specific place”" });
 
     // Pre-flight: only existing-venue groups can have conflicts (new venues
     // don't exist yet so nothing to clash with).
@@ -795,6 +813,46 @@ function VenuePicker({
     );
   }
 
+  if (value?.kind === "none") {
+    return (
+      <div className="rounded-lg border border-buzz-border bg-buzz-surface/40 px-3 py-2 flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <div className="text-sm font-medium">No specific place</div>
+            <div className="text-xs text-buzz-mute">Standalone / townwide event — not tied to a venue</div>
+          </div>
+          <button type="button" onClick={() => onChange(null)} className="text-xs text-buzz-mute hover:text-buzz-accent">Change</button>
+        </div>
+        <input
+          className="input text-xs py-1"
+          placeholder="Location label (optional) — e.g. Slessor Gardens"
+          value={value.locationName ?? ""}
+          onChange={(e) => onChange({ ...value, kind: "none", locationName: e.target.value || null })}
+          maxLength={200}
+        />
+        {cities.length > 0 && (
+          <label className="flex items-center gap-2 text-xs text-buzz-mute">
+            <span className="shrink-0">Area:</span>
+            <select
+              className="input text-xs py-1 flex-1"
+              value={value.cityId ?? ""}
+              onChange={(e) => {
+                const cityId = e.target.value || null;
+                const city = cities.find((c) => c.id === cityId) ?? null;
+                onChange({ kind: "none", cityId, cityName: city?.name ?? null, locationName: value.locationName ?? null });
+              }}
+            >
+              <option value="">Dundee (default)</option>
+              {cities.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}{!c.active ? " (hidden)" : ""}</option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+    );
+  }
+
   const trimmed = query.trim();
   const hasResults = results.length > 0;
   const exact = results.find((r) => r.name.toLowerCase() === trimmed.toLowerCase());
@@ -809,6 +867,13 @@ function VenuePicker({
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         placeholder="Search venue name… or type a new one"
       />
+      <button
+        type="button"
+        onClick={() => onChange({ kind: "none", cityId: null, locationName: trimmed || null })}
+        className="mt-1 text-[11px] text-buzz-mute hover:text-buzz-accent"
+      >
+        📍 No specific place (standalone / townwide event)
+      </button>
       {open && trimmed.length > 0 && (
         <div className="absolute z-20 mt-1 w-full rounded-lg bg-buzz-card border border-buzz-border shadow-lg overflow-hidden">
           {hasResults &&
