@@ -72,9 +72,9 @@ export default function AdminToolGroups({ pendingCount, suggestionsCount = 0 }: 
         },
         {
           href: "/admin/quick-import",
-          label: "Quick import",
-          emoji: "⚡",
-          description: "Drop a poster, AI extracts the session",
+          label: "Add from poster",
+          emoji: "📸",
+          description: "Drop a poster → AI fills the event; adds the place if new, or leave it with no place",
         },
         {
           href: "/admin/import-site",

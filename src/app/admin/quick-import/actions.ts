@@ -228,7 +228,10 @@ export type QuickConflict = {
 export type QuickConflictResolution = "skip" | "replace" | "keep_both";
 
 export type PublishQuickInput = {
-  venueRef: { id: string } | { name: string; cityId?: string | null };
+  venueRef:
+    | { id: string }
+    | { name: string; cityId?: string | null }
+    | { standalone: true; cityId?: string | null; locationName?: string | null };
   drafts: Array<{
     title: string;
     starts_at: string;
@@ -340,13 +343,28 @@ export async function publishQuickDrafts(input: PublishQuickInput): Promise<Publ
 
   const sb = createServiceClient();
 
-  // Resolve venue: either an existing ID or a new venue we create on the fly.
-  let venueId: string;
+  // Resolve venue: an existing ID, a new venue we create on the fly, or none
+  // (a standalone / townwide event — no venue, just a city + location name).
+  let venueId: string | null = null;
   let cityId: string | null = null;
+  let locationName: string | null = null;
   let venueSlug = "";
   let citySlug = "dundee";
 
-  if ("id" in input.venueRef) {
+  if ("standalone" in input.venueRef) {
+    let cid = input.venueRef.cityId ?? null;
+    if (!cid) {
+      const { data: dundee } = await sb.from("cities").select("id, slug").eq("slug", "dundee").maybeSingle();
+      cid = dundee?.id ?? null;
+      citySlug = dundee?.slug ?? "dundee";
+    } else {
+      const { data: city } = await sb.from("cities").select("slug").eq("id", cid).maybeSingle();
+      citySlug = city?.slug ?? "dundee";
+    }
+    cityId = cid;
+    locationName = input.venueRef.locationName?.trim().slice(0, 200) || null;
+    venueId = null;
+  } else if ("id" in input.venueRef) {
     const { data: v } = await sb
       .from("venues")
       .select("id, slug, city_id, city:cities(slug)")
@@ -404,11 +422,15 @@ export async function publishQuickDrafts(input: PublishQuickInput): Promise<Publ
 
   // Conflict detection — same venue + same hour. Also flag when titles overlap
   // (existing behaviour); generic-vs-specific is caught here too.
-  const { data: existingFull } = await sb
-    .from("events")
-    .select("id, title, start_time, image_url, description, auto_imported_from")
-    .eq("venue_id", venueId)
-    .neq("status", "rejected");
+  // Standalone events (no venue) can't clash with a venue's schedule, so skip
+  // the conflict check entirely for them.
+  const { data: existingFull } = venueId
+    ? await sb
+        .from("events")
+        .select("id, title, start_time, image_url, description, auto_imported_from")
+        .eq("venue_id", venueId)
+        .neq("status", "rejected")
+    : { data: [] as QuickConflictExisting[] };
   const byHour = new Map<string, QuickConflictExisting[]>();
   for (const e of existingFull ?? []) {
     const hk = quickHourKey(e.start_time);
@@ -458,7 +480,7 @@ export async function publishQuickDrafts(input: PublishQuickInput): Promise<Publ
         draftStart: input.drafts[c.draftIdx].starts_at,
         existing: c.existing,
       })),
-      venueId,
+      venueId: venueId ?? "",
     };
   }
 
@@ -491,7 +513,7 @@ export async function publishQuickDrafts(input: PublishQuickInput): Promise<Publ
   const skipped = skipIdxs.size;
 
   if (dedupedDrafts.length === 0) {
-    return { ok: true, published: 0, skipped, replaced: replaceIds.length, venueId };
+    return { ok: true, published: 0, skipped, replaced: replaceIds.length, venueId: venueId ?? "" };
   }
 
   // Insert events (auto-approved — admin is publishing). Normalise empty
@@ -501,6 +523,8 @@ export async function publishQuickDrafts(input: PublishQuickInput): Promise<Publ
     const poster = d.posterImageUrl?.trim() || null;
     return {
       venue_id: venueId,
+      city_id: cityId,
+      location_name: locationName,
       title: d.title.trim().slice(0, 200),
       start_time: d.starts_at,
       end_time: d.ends_at,
@@ -593,9 +617,9 @@ export async function publishQuickDrafts(input: PublishQuickInput): Promise<Publ
     });
   }
 
-  revalidatePath(`/${citySlug}/venues/${venueSlug}`);
+  if (venueSlug) revalidatePath(`/${citySlug}/venues/${venueSlug}`);
   revalidatePath(`/${citySlug}`);
-  revalidatePath("/artists");
+  revalidatePath("/browse");
 
-  return { ok: true, published: created.length, skipped, replaced: replaceIds.length, venueId };
+  return { ok: true, published: created.length, skipped, replaced: replaceIds.length, venueId: venueId ?? "" };
 }
