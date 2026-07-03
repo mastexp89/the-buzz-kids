@@ -15,6 +15,7 @@ type Tool = {
   emoji: string;
   description?: string;
   badge?: number; // when > 0, rendered as an orange pill on the tile
+  paid?: boolean; // renders a £ chip — this tool calls a paid API (Google/Apify/AI)
 };
 
 type Group = {
@@ -69,18 +70,21 @@ export default function AdminToolGroups({ pendingCount, suggestionsCount = 0 }: 
           label: "Paste from Facebook",
           emoji: "📋",
           description: "Paste a group post → AI pulls out the event to check & publish",
+          paid: true,
         },
         {
           href: "/admin/quick-import",
           label: "Add from poster",
           emoji: "📸",
           description: "Drop a poster → AI fills the event; adds the place if new, or leave it with no place",
+          paid: true,
         },
         {
           href: "/admin/import-site",
           label: "Import from website",
           emoji: "🌐",
           description: "Paste a URL or screenshots",
+          paid: true,
         },
       ],
     },
@@ -104,24 +108,14 @@ export default function AdminToolGroups({ pendingCount, suggestionsCount = 0 }: 
           label: "Offers & deals",
           emoji: "🎟️",
           description: "Kids-eat-free & days-out deals for the Deals/Food tabs (no places added)",
+          paid: true,
         },
         {
           href: "/admin/venues/new",
           label: "Add venue",
           emoji: "➕",
           description: "Manually create one venue (when Maps / OSM don't have it)",
-        },
-        {
-          href: "/admin/discover-venues",
-          label: "Discover venues",
-          emoji: "🗺️",
-          description: "Auto-find places across a region via Google Maps",
-        },
-        {
-          href: "/admin/venues-enrich",
-          label: "Enrich venues",
-          emoji: "🌍",
-          description: "Fill missing address / coords / website from OSM",
+          paid: true,
         },
         {
           href: "/admin/venues-dedupe",
@@ -140,12 +134,6 @@ export default function AdminToolGroups({ pendingCount, suggestionsCount = 0 }: 
     {
       title: "Ops",
       tools: [
-        {
-          href: "/admin/favourites",
-          label: "Favourites",
-          emoji: "♥",
-          description: "Who's loved what — top places and sessions",
-        },
         {
           href: "/admin/signups",
           label: "Coming-soon signups",
@@ -175,12 +163,6 @@ export default function AdminToolGroups({ pendingCount, suggestionsCount = 0 }: 
           label: "Analytics",
           emoji: "📊",
           description: "Page views & top venues",
-        },
-        {
-          href: "/admin/promotions",
-          label: "Promotions",
-          emoji: "🚀",
-          description: "Spotlight places and boost sessions in search",
         },
         {
           href: "/admin/sponsors",
@@ -216,6 +198,14 @@ export default function AdminToolGroups({ pendingCount, suggestionsCount = 0 }: 
                       {t.badge}
                     </span>
                   ) : null}
+                  {t.paid && (
+                    <span
+                      className={`${t.badge && t.badge > 0 ? "" : "ml-auto "}text-[10px] font-bold bg-amber-400/20 text-amber-600 rounded-full px-1.5 py-0.5 shrink-0`}
+                      title="Uses a paid API (Google / AI) — small cost each time you use it"
+                    >
+                      £
+                    </span>
+                  )}
                 </div>
                 {t.description && (
                   <p className="text-xs text-buzz-mute truncate">{t.description}</p>
