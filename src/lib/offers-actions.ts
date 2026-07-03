@@ -49,17 +49,21 @@ export async function submitOffer(input: {
     return { error: "Something went wrong. Please try again." };
   }
 
-  // Best-effort admin notification.
+  // Best-effort admin notification. Falls back to hello@thebuzzkids.co.uk so it
+  // still fires even if ADMIN_NOTIFY_EMAIL isn't set (matches the listings /
+  // edit-suggestion path), and sets reply-to the suggester when they leave one.
   const key = process.env.RESEND_API_KEY;
-  const to = process.env.ADMIN_NOTIFY_EMAIL;
+  const to = process.env.ADMIN_NOTIFY_EMAIL ?? "hello@thebuzzkids.co.uk";
   const from = process.env.ADMIN_NOTIFY_FROM ?? "The Buzz Kids <noreply@thebuzzkids.co.uk>";
-  if (key && to) {
+  const replyTo = (input.email ?? "").trim() || null;
+  if (key) {
     try {
       await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
         body: JSON.stringify({
           from, to: [to],
+          ...(replyTo ? { reply_to: replyTo } : {}),
           subject: `New deal suggestion: ${title}`,
           text: `Someone suggested a deal for The Buzz Kids:\n\n${title}\n${input.provider ?? ""}\n${input.description ?? ""}\n${input.url ?? ""}\n\nFrom: ${input.email || "no email given"}\n\nReview it: ${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/admin/offers`,
         }),
