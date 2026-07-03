@@ -34,6 +34,9 @@ export const metadata: Metadata = {
     title: "The Buzz Kids — Things to do with the kids in Scotland",
     description: "Kid-friendly things to do near you — filter by age, price and what they're into.",
     type: "website",
+    url: "/",
+    siteName: "The Buzz Kids",
+    locale: "en_GB",
     images: [{ url: "/og-image.png", width: 1200, height: 630 }],
   },
   twitter: {
