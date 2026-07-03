@@ -1,16 +1,13 @@
-// Shared HTML email wrapper for The Buzz Guide.
+// Shared HTML email wrapper for The Buzz Kids.
 //
 // Email clients are notoriously picky:
-//   - Stick to inline styles (no <style> blocks rely on; we still include one
-//     for clients that DO support it as a progressive enhancement, but every
-//     critical style is also inlined on its element).
+//   - Inline styles (a <style> block is progressive enhancement only).
 //   - Tables, not flexbox / grid (Outlook ignores most modern CSS).
-//   - 600px max width.
-//   - No external CSS.
+//   - 600px max width. No external CSS.
 //
-// Brand:
-//   bg     #000000   honey-gold accent #fdb913   text #f5f5f0
-//   card   #161618   border           #26262a   mute #8a8a92
+// Brand (bright / family):
+//   page #eaf4fb  card #ffffff  border #dbebf5  text #16202A
+//   mute #647682  accent #1FA9E0
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.thebuzzkids.co.uk";
 const LOGO_URL = `${SITE}/logo.png`;
@@ -23,58 +20,61 @@ export type EmailBlock =
   | { kind: "small"; text: string };
 
 /**
- * Wrap a list of blocks in the standard Buzz email shell (logo header +
- * dark body + footer). Returns ready-to-send HTML.
+ * Wrap a list of blocks in the standard Buzz Kids email shell (logo header +
+ * bright body + footer). Returns ready-to-send HTML. Pass `unsubscribeUrl` for
+ * marketing / newsletter sends so recipients get a one-click unsubscribe.
  */
 export function buildEmailHtml(opts: {
   preheader?: string;
   blocks: EmailBlock[];
+  unsubscribeUrl?: string;
 }): string {
-  const { preheader = "", blocks } = opts;
+  const { preheader = "", blocks, unsubscribeUrl } = opts;
 
   const bodyHtml = blocks.map(renderBlock).join("\n");
+
+  const footerNote = unsubscribeUrl
+    ? `You're receiving this because you signed up to The Buzz Kids.<br />
+       <a href="${escapeAttr(unsubscribeUrl)}" style="color:#647682;text-decoration:underline;">Unsubscribe</a> ·
+       <a href="${SITE}" style="color:#1FA9E0;text-decoration:none;">thebuzzkids.co.uk</a>`
+    : `You're receiving this because of activity on your account at
+       <a href="${SITE}" style="color:#1FA9E0;text-decoration:none;">thebuzzkids.co.uk</a>.`;
 
   return `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="dark light" />
-    <meta name="supported-color-schemes" content="dark light" />
-    <title>The Buzz Guide</title>
+    <meta name="color-scheme" content="light" />
+    <meta name="supported-color-schemes" content="light" />
+    <title>The Buzz Kids</title>
   </head>
-  <body style="margin:0;padding:0;background:#000000;color:#f5f5f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-    <!-- Preheader (preview text in inbox lists). -->
-    <div style="display:none;max-height:0;overflow:hidden;font-size:1px;line-height:1px;color:#000;opacity:0;">${escapeHtml(preheader)}</div>
+  <body style="margin:0;padding:0;background:#eaf4fb;color:#16202A;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+    <div style="display:none;max-height:0;overflow:hidden;font-size:1px;line-height:1px;color:#eaf4fb;opacity:0;">${escapeHtml(preheader)}</div>
 
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#000000;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#eaf4fb;">
       <tr>
         <td align="center" style="padding:32px 16px;">
-          <!-- Container -->
-          <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#161618;border:1px solid #26262a;border-radius:16px;overflow:hidden;">
+          <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#ffffff;border:1px solid #dbebf5;border-radius:16px;overflow:hidden;">
             <!-- Header / logo -->
             <tr>
-              <td align="center" style="padding:28px 24px 20px 24px;background:#000000;border-bottom:1px solid #26262a;">
-                <a href="${SITE}" style="text-decoration:none;color:#fdb913;">
-                  <img src="${LOGO_URL}" alt="The Buzz Guide" width="64" height="64" style="display:block;border:0;outline:none;text-decoration:none;height:64px;width:64px;border-radius:14px;" />
+              <td align="center" style="padding:26px 24px 18px 24px;background:#ffffff;border-bottom:1px solid #eef6fb;">
+                <a href="${SITE}" style="text-decoration:none;">
+                  <img src="${LOGO_URL}" alt="The Buzz Kids" width="72" height="72" style="display:block;border:0;outline:none;text-decoration:none;height:72px;width:72px;" />
                 </a>
-                <div style="margin-top:10px;font-family:Impact,'Helvetica Neue',sans-serif;font-size:24px;letter-spacing:0.04em;color:#f5f5f0;text-transform:uppercase;">
-                  The Buzz Guide<span style="color:#fdb913;">.</span>
-                </div>
+                <div style="margin-top:8px;color:#647682;font-size:12px;letter-spacing:0.02em;">Things to do with the kids across Scotland</div>
               </td>
             </tr>
             <!-- Body -->
             <tr>
-              <td style="padding:28px 28px 20px 28px;color:#f5f5f0;font-size:15px;line-height:1.55;">
+              <td style="padding:26px 28px 20px 28px;color:#16202A;font-size:15px;line-height:1.55;">
                 ${bodyHtml}
               </td>
             </tr>
             <!-- Footer -->
             <tr>
-              <td style="padding:18px 24px 22px 24px;background:#0e0e10;border-top:1px solid #26262a;color:#8a8a92;font-size:12px;line-height:1.5;text-align:center;">
-                You're receiving this because of activity on your account at
-                <a href="${SITE}" style="color:#fdb913;text-decoration:none;">thebuzzkids.co.uk</a>.<br />
-                <span style="color:#5a5a62;">Things to do with the kids across Scotland.</span>
+              <td style="padding:18px 24px 22px 24px;background:#f4f9fc;border-top:1px solid #dbebf5;color:#647682;font-size:12px;line-height:1.6;text-align:center;">
+                ${footerNote}
               </td>
             </tr>
           </table>
@@ -88,29 +88,29 @@ export function buildEmailHtml(opts: {
 function renderBlock(block: EmailBlock): string {
   switch (block.kind) {
     case "h":
-      return `<h2 style="margin:0 0 14px 0;font-family:Impact,'Helvetica Neue',sans-serif;font-size:22px;line-height:1.2;color:#f5f5f0;">${escapeHtml(block.text)}</h2>`;
+      return `<h2 style="margin:0 0 14px 0;font-family:Impact,'Helvetica Neue',sans-serif;font-size:24px;line-height:1.15;color:#16202A;text-transform:uppercase;letter-spacing:0.01em;">${escapeHtml(block.text)}</h2>`;
     case "p":
-      return `<p style="margin:0 0 14px 0;color:#f5f5f0;font-size:15px;line-height:1.55;">${escapeHtml(block.text)}</p>`;
+      return `<p style="margin:0 0 14px 0;color:#16202A;font-size:15px;line-height:1.6;">${escapeHtml(block.text)}</p>`;
     case "small":
-      return `<p style="margin:0 0 12px 0;color:#8a8a92;font-size:13px;line-height:1.5;">${escapeHtml(block.text)}</p>`;
+      return `<p style="margin:0 0 12px 0;color:#647682;font-size:13px;line-height:1.5;">${escapeHtml(block.text)}</p>`;
     case "kv": {
       const rows = block.pairs
         .filter(([, v]) => v != null && String(v).length > 0)
         .map(
           ([k, v]) => `
         <tr>
-          <td style="padding:6px 12px 6px 0;color:#8a8a92;font-size:13px;width:120px;vertical-align:top;">${escapeHtml(k)}</td>
-          <td style="padding:6px 0;color:#f5f5f0;font-size:14px;vertical-align:top;">${escapeHtml(String(v))}</td>
+          <td style="padding:6px 12px 6px 0;color:#647682;font-size:13px;width:120px;vertical-align:top;">${escapeHtml(k)}</td>
+          <td style="padding:6px 0;color:#16202A;font-size:14px;vertical-align:top;">${escapeHtml(String(v))}</td>
         </tr>`,
         )
         .join("");
-      return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px 0;border-collapse:collapse;width:100%;border-top:1px solid #26262a;border-bottom:1px solid #26262a;">${rows}</table>`;
+      return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px 0;border-collapse:collapse;width:100%;border-top:1px solid #dbebf5;border-bottom:1px solid #dbebf5;">${rows}</table>`;
     }
     case "button":
       return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 18px 0;">
         <tr>
           <td align="left">
-            <a href="${escapeAttr(block.href)}" style="display:inline-block;background:#fdb913;color:#000000;font-weight:600;font-size:14px;text-decoration:none;padding:11px 20px;border-radius:10px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">${escapeHtml(block.text)} →</a>
+            <a href="${escapeAttr(block.href)}" style="display:inline-block;background:#1FA9E0;color:#ffffff;font-weight:700;font-size:14px;text-decoration:none;padding:12px 22px;border-radius:10px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">${escapeHtml(block.text)} →</a>
           </td>
         </tr>
       </table>`;
@@ -118,10 +118,9 @@ function renderBlock(block: EmailBlock): string {
 }
 
 /**
- * Helper: render the same blocks as plain text, used as the text/plain
- * fallback so spam filters and text-only clients still get the message.
+ * Render the same blocks as plain text for the text/plain fallback.
  */
-export function buildEmailText(blocks: EmailBlock[]): string {
+export function buildEmailText(blocks: EmailBlock[], unsubscribeUrl?: string): string {
   const lines: string[] = [];
   for (const block of blocks) {
     if (block.kind === "h") {
@@ -139,6 +138,7 @@ export function buildEmailText(blocks: EmailBlock[]): string {
     }
   }
   lines.push("— The Buzz Kids");
+  if (unsubscribeUrl) lines.push(`Unsubscribe: ${unsubscribeUrl}`);
   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 

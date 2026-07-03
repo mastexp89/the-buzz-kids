@@ -153,6 +153,12 @@ export default function AdminToolGroups({ pendingCount, suggestionsCount = 0 }: 
           description: "Pre-launch waitlist emails — copy or export to CSV",
         },
         {
+          href: "/admin/broadcast",
+          label: "Send a newsletter",
+          emoji: "📣",
+          description: "Email the waitlist / parents — launch news, updates (with unsubscribe)",
+        },
+        {
           href: "/admin/cities",
           label: "Cities",
           emoji: "🏙️",
