@@ -147,6 +147,12 @@ export default function AdminToolGroups({ pendingCount, suggestionsCount = 0 }: 
           description: "Who's loved what — top places and sessions",
         },
         {
+          href: "/admin/signups",
+          label: "Coming-soon signups",
+          emoji: "📧",
+          description: "Pre-launch waitlist emails — copy or export to CSV",
+        },
+        {
           href: "/admin/cities",
           label: "Cities",
           emoji: "🏙️",
