@@ -1,0 +1,68 @@
+# Mobile app sync — The Buzz Kids
+
+Running contract between the **web** app (this repo) and the **Buzz Kids mobile app**
+(`the-buzz-kids-app`). They share the same Supabase project, so backend/model changes
+here must be reflected in the app. Web and app releases go out in pairs.
+
+Add a dated entry at the top whenever a change lands that the app needs to know about.
+Keep entries to what the app must **mirror** (feature parity) or **handle** (schema).
+
+---
+
+## 2026-07-03 — accounts-lite, edit suggestions, offers & sponsors
+
+Migrations already applied to the shared DB (`sql/085`, `086`, `087`). The app just
+needs to be aware of the schema + model.
+
+### 1. Accounts model changed — business self-service is RETIRED
+- No more venue-owner / organiser signup, claim flow, or owner dashboards.
+- **Parent/fan accounts are KEPT** (bucket list, reviews, alerts) — leave those as-is.
+- Replaced with a **suggest-an-edit / lead** model. App should mirror:
+  - A **"Suggest an edit"** action on every place and event: reason + free text +
+    optional contact + an "I run this place/activity" toggle.
+  - **"List your activity"** = a simple *tell-us-about-your-place* lead form,
+    **not** an account signup.
+  - Both write to the new `edit_suggestions` table.
+
+### 2. New table: `edit_suggestions`
+| column | notes |
+| --- | --- |
+| `target_type` | `'venue'` \| `'event'` \| `'new_place'` |
+| `target_id` | uuid; null for `new_place` |
+| `target_name` | denormalised label for the admin list |
+| `city_slug` | optional |
+| `reason` | short category (Closed / Wrong details / …) |
+| `details` | free-text correction / message |
+| `contact_name`, `contact_email` | optional |
+| `is_owner` | bool — "runs this place" |
+| `status` | `'new'` \| `'reviewed'` \| `'done'` (default `new`) |
+| `image_url` | optional poster/photo attached to the suggestion |
+| `created_at` | timestamptz |
+
+Writes go through the service role server-side (anon can submit; no insert RLS policy).
+Staff (`admin`/`editor`) can read.
+
+### 3. Offers/deals: `image_url` + `venue_id`
+- `offers.image_url` (uploaded poster) and `offers.venue_id` (attach a deal to a place) exist.
+- **Auto brand logos:** when a deal has no `image_url`, derive the brand logo from its
+  `business_url` domain: `https://icon.horse/icon/{domain}` with fallback
+  `https://www.google.com/s2/favicons?domain={domain}&sz=128`. Mirror this so deal cards
+  aren't blank. An uploaded `image_url` always wins.
+
+### 4. Events can be standalone (no venue)
+- Events may have `venue_id = null` with `city_id` + `location_name` set (townwide / gala
+  events). **Event views must handle no-venue events** — fall back to `location_name` /
+  city for the location; don't assume a venue is present.
+
+### 5. Sponsors / ads — "house ad" convention
+- If the app renders the `sponsors` table: show up to 4 active `popular`/`premium`
+  sponsors, premium weighted 2×.
+- There's a **house ad** row (slug `advertise-with-us`) whose `link_url` is a
+  mailto/advertise URL. Web renders it as an "Advertise here → Get prices" CTA card, not a
+  brand logo. The app should render it as a CTA **or** skip it — never show it as a fake
+  brand sponsor.
+
+### 6. Submissions email the admin (server-side)
+- Place, edit, and deal submissions all email `hello@thebuzzkids.co.uk` via Resend.
+- If the app calls its own endpoints (instead of the shared server actions), make sure
+  those notify too.
