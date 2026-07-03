@@ -534,8 +534,8 @@ function normalizeExtractedEvent(raw: any): ExtractedEvent {
 
   return {
     title: str(raw?.title) ?? "",
-    starts_at: str(raw?.starts_at) ?? "",
-    ends_at: str(raw?.ends_at),
+    starts_at: londonWallClockToUtc(str(raw?.starts_at)),
+    ends_at: str(raw?.ends_at) ? londonWallClockToUtc(str(raw?.ends_at)) : null,
     end_date: isoDate(raw?.end_date),
     recurring: pattern ? { pattern, until: isoDate(raw?.recurring?.until) } : null,
     categories: Array.isArray(raw?.categories)
@@ -558,6 +558,34 @@ function normalizeExtractedEvent(raw: any): ExtractedEvent {
     poster_image_index: Number.isInteger(raw?.poster_image_index) ? raw.poster_image_index : null,
     venue_hint: str(raw?.venue_hint),
   };
+}
+
+// Claude is asked to return Europe/London ISO with a +01:00/+00:00 offset, but
+// it's unreliable about the offset (it often tags a 10am poster time as `Z`,
+// which then reads as 11am in the UK and stores an hour off). So we IGNORE the
+// offset it gave and treat the wall-clock time printed on the poster as
+// Europe/London local, converting to the correct UTC instant deterministically.
+// Whether Claude said "10:00+01:00", "10:00Z" or "10:00", the stored time is the
+// same correct instant — which also stops the timezone-drift duplicates.
+function londonOffsetMinutes(atUtcMs: number): number {
+  const dtf = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London", hour12: false,
+    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
+  });
+  const p = dtf.formatToParts(new Date(atUtcMs));
+  const g = (t: string) => Number(p.find((x) => x.type === t)?.value);
+  const localAsUtc = Date.UTC(g("year"), g("month") - 1, g("day"), g("hour"), g("minute"));
+  return Math.round((localAsUtc - atUtcMs) / 60000);
+}
+
+function londonWallClockToUtc(isoish: string | null | undefined): string {
+  if (!isoish) return "";
+  const m = /(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/.exec(String(isoish));
+  if (!m) return String(isoish); // not a datetime we recognise — leave untouched
+  const y = +m[1], mo = +m[2], d = +m[3], h = +m[4], mi = +m[5];
+  let utcMs = Date.UTC(y, mo - 1, d, h, mi); // first guess: wall clock as if UTC
+  utcMs -= londonOffsetMinutes(utcMs) * 60000; // wall clock is London-local → true UTC is earlier
+  return new Date(utcMs).toISOString();
 }
 
 export async function extractEvents(input: ExtractionInput): Promise<ExtractionResult> {
