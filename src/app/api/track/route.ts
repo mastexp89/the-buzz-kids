@@ -26,7 +26,11 @@ const ALLOWED_KINDS = new Set([
   "click_ticket",
   "click_artist",
   "click_venue",
+  "click_buzzguide",
 ]);
+
+// Site-level clicks (no venue/event target) — e.g. the sister-site cross-promo.
+const SITE_LEVEL_KINDS = new Set(["click_buzzguide"]);
 
 const BOT_PATTERNS =
   /bot\b|crawl|spider|preview|facebookexternalhit|whatsapp|telegram|slackbot|discordbot|linkedinbot|twitterbot|skypeuripreview|googlebot|bingbot|yandexbot|duckduckbot|baiduspider|ahrefsbot|semrushbot|petalbot|applebot|gptbot|claude|chatgpt|perplexity|headlesschrome|puppeteer|playwright|phantomjs|selenium/i;
@@ -47,7 +51,7 @@ export async function POST(req: Request) {
     const venueId = typeof body?.venueId === "string" ? body.venueId : null;
     const artistId = typeof body?.artistId === "string" ? body.artistId : null;
     const eventId = typeof body?.eventId === "string" ? body.eventId : null;
-    if (!venueId && !artistId && !eventId) {
+    if (!venueId && !artistId && !eventId && !SITE_LEVEL_KINDS.has(kind)) {
       return NextResponse.json({ error: "Missing target" }, { status: 400 });
     }
 
@@ -57,6 +61,7 @@ export async function POST(req: Request) {
       venue_id: venueId,
       artist_id: artistId,
       event_id: eventId,
+      source: typeof body?.source === "string" ? body.source.slice(0, 60) : null,
     });
     return NextResponse.json({ ok: true });
   } catch {

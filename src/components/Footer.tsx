@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import TrackedLink from "@/components/TrackedLink";
 
 export default async function Footer() {
   const supabase = await createClient();
@@ -35,14 +36,16 @@ export default async function Footer() {
             Need a night off? <strong className="text-buzz-text">The Buzz Guide</strong>{" "}
             is our grown-ups' sister site — live music, nights out and events across Scotland.
           </span>
-          <a
+          <TrackedLink
             href="https://www.thebuzzguide.co.uk"
+            kind="click_buzzguide"
+            source="footer_banner"
             target="_blank"
             rel="noopener"
             className="btn-secondary !py-1.5 !px-4 whitespace-nowrap shrink-0"
           >
             Visit The Buzz Guide →
-          </a>
+          </TrackedLink>
         </div>
       </div>
 
@@ -58,9 +61,9 @@ export default async function Footer() {
           <div className="text-xs text-buzz-mute">© {new Date().getFullYear()} The Buzz Kids. Things to do with the kids.</div>
           <div className="text-xs text-buzz-mute text-center sm:text-left">
             A sister site to{" "}
-            <a href="https://www.thebuzzguide.co.uk" target="_blank" rel="noopener" className="text-buzz-accent hover:underline underline-offset-2 transition">
+            <TrackedLink href="https://www.thebuzzguide.co.uk" kind="click_buzzguide" source="footer_credit" target="_blank" rel="noopener" className="text-buzz-accent hover:underline underline-offset-2 transition">
               The Buzz Guide
-            </a>
+            </TrackedLink>
             .<br />
             Designed by{" "}
             <a href="https://www.forthhost.com" target="_blank" rel="noopener" className="text-buzz-accent hover:underline underline-offset-2 transition">
