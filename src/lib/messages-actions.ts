@@ -237,7 +237,7 @@ export async function sendAdminMessage(opts: {
   // ~120 chars (Expo will truncate anyway, but doing it cleanly here
   // avoids mid-word cuts).
   void sendPushToUser(opts.userId, {
-    title: "New message from The Buzz Guide",
+    title: "New message from The Buzz Kids",
     body: trimmed.length > 120 ? `${trimmed.slice(0, 117).trim()}…` : trimmed,
     data: { type: "admin_message" },
   });
@@ -348,6 +348,10 @@ export async function broadcastMessage(opts: {
   // yet. Anonymous devices have no inbox so they don't receive the
   // in-app message — push only.
   includeAnonymous?: boolean;
+  // App-only mode: a push notification to EVERY device with the app
+  // (signed-in and anonymous alike) and nothing else — no inbox rows,
+  // no emails. For app announcements ("we've launched X").
+  appOnly?: boolean;
 }): Promise<BroadcastResult> {
   const ctx = await requireDylanAdmin();
   if (!ctx) return { error: "Not authorised." };
@@ -355,6 +359,20 @@ export async function broadcastMessage(opts: {
   const trimmed = (opts.body ?? "").trim();
   if (!trimmed) return { error: "Message can't be empty." };
   if (trimmed.length > 5000) return { error: "Message too long." };
+
+  if (opts.appOnly) {
+    const { sendPushToAllDevices } = await import("@/lib/push");
+    const result = await sendPushToAllDevices(
+      {
+        title: opts.pushTitle?.trim() || "The Buzz Kids",
+        body: trimmed.length > 120 ? `${trimmed.slice(0, 117).trim()}…` : trimmed,
+        data: { type: "admin_message" },
+      },
+      { includeAnonymous: true },
+    );
+    revalidatePath("/admin/messages");
+    return { ok: true, sent: 0, emailed: 0, pushed: result.sent, skipped: 0 };
+  }
 
   const sb = createServiceClient();
   let q = sb.from("profiles").select("id, email, display_name, role");
@@ -403,7 +421,7 @@ export async function broadcastMessage(opts: {
   let pushed = 0;
   if (opts.push) {
     const pushPayload = {
-      title: opts.pushTitle?.trim() || "Message from The Buzz Guide",
+      title: opts.pushTitle?.trim() || "Message from The Buzz Kids",
       body: trimmed.length > 120 ? `${trimmed.slice(0, 117).trim()}…` : trimmed,
       data: { type: "admin_message" },
     };
