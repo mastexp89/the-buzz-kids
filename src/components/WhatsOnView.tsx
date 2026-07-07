@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import EventCard from "@/components/EventCard";
 import AdminDeleteButton from "@/components/AdminDeleteButton";
+import WeatherStrip, { type WeatherArea } from "@/components/WeatherStrip";
 import type { EventWithVenue } from "@/lib/types";
 import { isRecurring, recurrenceOccursInWindow } from "@/lib/recurrence";
 
@@ -58,8 +59,15 @@ export default function WhatsOnView({ events, cities, isAdmin }: { events: Event
     initIsDate ? "date" : (WHEN_FILTERS.includes(initWhen as DateFilter) ? (initWhen as DateFilter) : "today"),
   );
   const [picked, setPicked] = useState(initIsDate ? initWhen : "");
-  const [area, setArea] = useState(searchParams.get("area") ?? "");
+  // Multi-select areas (comma-separated in the URL). Empty = everywhere.
+  const [areas, setAreas] = useState<string[]>(
+    () => (searchParams.get("area") ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+  );
   const [openPanel, setOpenPanel] = useState<"when" | "area" | null>(null);
+
+  function toggleArea(slug: string) {
+    setAreas((prev) => (prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug]));
+  }
 
   // Mirror the current filters into the URL (query only, no navigation/refetch)
   // so back/forward and shared links preserve them.
@@ -69,12 +77,12 @@ export default function WhatsOnView({ events, cities, isAdmin }: { events: Event
     const whenVal = filter === "date" ? picked : filter;
     if (whenVal && whenVal !== "today") params.set("when", whenVal);
     else params.delete("when");
-    if (area) params.set("area", area);
+    if (areas.length) params.set("area", areas.join(","));
     else params.delete("area");
     const qs = params.toString();
     const url = `${window.location.pathname}${qs ? `?${qs}` : ""}`;
     window.history.replaceState(window.history.state, "", url);
-  }, [filter, picked, area]);
+  }, [filter, picked, areas]);
 
   const filtered = useMemo(() => {
     const todayStart = startOfDay(new Date());
@@ -83,7 +91,7 @@ export default function WhatsOnView({ events, cities, isAdmin }: { events: Event
       .filter((e) => {
         const start = new Date(e.start_time);
         const evCitySlug = (e.venue as any)?.city?.slug ?? (e as any).city?.slug;
-        if (area && evCitySlug !== area) return false;
+        if (areas.length && !areas.includes(evCitySlug)) return false;
 
         // Recurring series (e.g. "every Friday"): show it on every day its
         // pattern lands on, not just the start date. The window is always set
@@ -116,7 +124,47 @@ export default function WhatsOnView({ events, cities, isAdmin }: { events: Event
         return true;
       })
       .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
-  }, [events, filter, picked, area]);
+  }, [events, filter, picked, areas]);
+
+  // Weather: centre of each selected area, averaged from its events' venue
+  // coords (cities don't store coords). Shown only when 1–3 areas are picked —
+  // "Everywhere" has no meaningful single forecast.
+  const weatherAreas: WeatherArea[] = useMemo(() => {
+    if (areas.length === 0) return [];
+    const sums = new Map<string, { lat: number; lon: number; n: number }>();
+    for (const e of events) {
+      const v = e.venue as any;
+      const slug = v?.city?.slug ?? (e as any).city?.slug;
+      if (!slug || !areas.includes(slug)) continue;
+      const lat = Number(v?.latitude), lon = Number(v?.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+      const s = sums.get(slug) ?? { lat: 0, lon: 0, n: 0 };
+      s.lat += lat; s.lon += lon; s.n++;
+      sums.set(slug, s);
+    }
+    return areas
+      .map((slug) => {
+        const s = sums.get(slug);
+        if (!s || s.n === 0) return null;
+        return {
+          label: cities.find((c) => c.slug === slug)?.name ?? slug,
+          lat: s.lat / s.n,
+          lon: s.lon / s.n,
+        };
+      })
+      .filter(Boolean) as WeatherArea[];
+  }, [areas, events, cities]);
+
+  // The date window being browsed, as local YYYY-MM-DD, for the forecast.
+  const fmtDay = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+  const weatherRange = useMemo(() => {
+    const r = rangeFor(filter, picked);
+    if (r) return { start: fmtDay(r.start), end: fmtDay(r.end) };
+    // "Any date" (or no date picked yet): show the next 5 days.
+    const today = new Date();
+    const end = new Date(today); end.setDate(today.getDate() + 4);
+    return { start: fmtDay(today), end: fmtDay(end) };
+  }, [filter, picked]);
 
   const pill = (active: boolean) => `filter-pill ${active ? "filter-pill-active" : ""}`;
 
@@ -127,7 +175,10 @@ export default function WhatsOnView({ events, cities, isAdmin }: { events: Event
     : filter === "weekend" ? "This weekend"
     : filter === "date" && picked ? new Date(`${picked}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
     : "Today";
-  const areaLabel = area ? (cities.find((c) => c.slug === area)?.name ?? "Area") : "Area";
+  const areaLabel =
+    areas.length === 0 ? "Area"
+    : areas.length === 1 ? (cities.find((c) => c.slug === areas[0])?.name ?? "Area")
+    : `${areas.length} areas`;
 
   return (
     <div>
@@ -145,10 +196,10 @@ export default function WhatsOnView({ events, cities, isAdmin }: { events: Event
             <button
               onClick={() => setOpenPanel(openPanel === "area" ? null : "area")}
               className={"shrink-0 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium border whitespace-nowrap " +
-                (area ? "" : "bg-transparent border-buzz-border text-buzz-text hover:border-buzz-accent")}
-              style={area ? { backgroundColor: PINK, color: "#fff", borderColor: PINK } : undefined}
+                (areas.length ? "" : "bg-transparent border-buzz-border text-buzz-text hover:border-buzz-accent")}
+              style={areas.length ? { backgroundColor: PINK, color: "#fff", borderColor: PINK } : undefined}
             >
-              {area ? areaLabel : "Area"} <span className={`text-xs ${area ? "opacity-80" : "text-buzz-mute"}`}>▾</span>
+              {areaLabel} <span className={`text-xs ${areas.length ? "opacity-80" : "text-buzz-mute"}`}>▾</span>
             </button>
           )}
         </div>
@@ -180,9 +231,9 @@ export default function WhatsOnView({ events, cities, isAdmin }: { events: Event
                   </>
                 ) : (
                   <>
-                    <button onClick={() => setArea("")} className={pill(area === "")}>Everywhere</button>
+                    <button onClick={() => setAreas([])} className={pill(areas.length === 0)}>Everywhere</button>
                     {cities.map((c) => (
-                      <button key={c.slug} onClick={() => setArea(area === c.slug ? "" : c.slug)} className={pill(area === c.slug)}>
+                      <button key={c.slug} onClick={() => toggleArea(c.slug)} className={pill(areas.includes(c.slug))}>
                         {c.name}
                       </button>
                     ))}
@@ -196,6 +247,11 @@ export default function WhatsOnView({ events, cities, isAdmin }: { events: Event
           </>
         )}
       </div>
+
+      {/* Weather for the browsed dates — one row per selected area (max 3). */}
+      {weatherAreas.length > 0 && (
+        <WeatherStrip areas={weatherAreas} startDate={weatherRange.start} endDate={weatherRange.end} />
+      )}
 
       {filtered.length === 0 ? (
         <div className="card p-12 text-center">

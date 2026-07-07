@@ -8,6 +8,7 @@ type Props = {
   venueId?: string;
   artistId?: string;
   eventId?: string;
+  source?: string; // where on the site the link lives (e.g. "footer")
   children: ReactNode;
   className?: string;
   target?: string;
@@ -28,6 +29,7 @@ export default function TrackedLink({
   venueId,
   artistId,
   eventId,
+  source,
   children,
   className,
   target,
@@ -38,7 +40,7 @@ export default function TrackedLink({
 }: Props) {
   function fire() {
     try {
-      const payload = JSON.stringify({ kind, venueId, artistId, eventId });
+      const payload = JSON.stringify({ kind, venueId, artistId, eventId, source });
       if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
         const blob = new Blob([payload], { type: "application/json" });
         navigator.sendBeacon("/api/track", blob);
