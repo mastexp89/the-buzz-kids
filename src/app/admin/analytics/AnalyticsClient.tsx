@@ -39,6 +39,7 @@ export default function AnalyticsClient({
   windowLabel,
   totalViews,
   totalClicks,
+  buzzGuideClicks = 0,
   daily,
   venueRows,
   eventRows,
@@ -47,6 +48,7 @@ export default function AnalyticsClient({
   windowLabel: string;
   totalViews: number;
   totalClicks: number;
+  buzzGuideClicks?: number;
   daily: DailyRow[];
   venueRows: VenueRow[];
   eventRows: EventRow[];
@@ -69,7 +71,11 @@ export default function AnalyticsClient({
         <Pill label="All time"     active={windowKey === "all"} onClick={() => setWindow("all")} />
         <span className="ml-auto text-sm text-buzz-mute">
           <strong className="text-buzz-text">{totalViews.toLocaleString()}</strong> views ·{" "}
-          <strong className="text-buzz-text">{totalClicks.toLocaleString()}</strong> clicks ({windowLabel})
+          <strong className="text-buzz-text">{totalClicks.toLocaleString()}</strong> clicks ·{" "}
+          <span title="Clicks on the sister-site links in the footer">
+            🐝 <strong className="text-buzz-text">{buzzGuideClicks.toLocaleString()}</strong> Buzz Guide
+          </span>{" "}
+          ({windowLabel})
         </span>
       </div>
 
