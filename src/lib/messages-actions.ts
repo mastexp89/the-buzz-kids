@@ -239,7 +239,11 @@ export async function sendAdminMessage(opts: {
   void sendPushToUser(opts.userId, {
     title: "New message from The Buzz Kids",
     body: trimmed.length > 120 ? `${trimmed.slice(0, 117).trim()}…` : trimmed,
-    data: { type: "admin_message" },
+    // NOTE: the kids app has no /inbox screen (music-era leftover), and its
+    // tap handler routes type "admin_message" there → a "screen doesn't
+    // exist" page. "broadcast" is unmapped, so tapping just opens the app.
+    // Revisit when the app grows an inbox (see mobile-app-sync.md).
+    data: { type: "broadcast" },
   });
 
   revalidatePath("/admin/messages");
@@ -366,7 +370,7 @@ export async function broadcastMessage(opts: {
       {
         title: opts.pushTitle?.trim() || "The Buzz Kids",
         body: trimmed.length > 120 ? `${trimmed.slice(0, 117).trim()}…` : trimmed,
-        data: { type: "admin_message" },
+    data: { type: "broadcast" },
       },
       { includeAnonymous: true },
     );
@@ -423,7 +427,7 @@ export async function broadcastMessage(opts: {
     const pushPayload = {
       title: opts.pushTitle?.trim() || "Message from The Buzz Kids",
       body: trimmed.length > 120 ? `${trimmed.slice(0, 117).trim()}…` : trimmed,
-      data: { type: "admin_message" },
+    data: { type: "broadcast" },
     };
     if (opts.includeAnonymous) {
       // "Everyone with the app" — both signed-in (filtered by role

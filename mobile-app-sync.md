@@ -9,6 +9,22 @@ Keep entries to what the app must **mirror** (feature parity) or **handle** (sch
 
 ---
 
+## 2026-07-07 (later) — broadcast pushes: payload type changed to avoid dead route
+
+Tapping an admin broadcast push opened the app's 404 ("screen doesn't exist"):
+the app maps `data.type === "admin_message"` → `/inbox`, but the kids app has
+no inbox screen (music-era leftover in `lib/push.ts`).
+
+- **Web now sends `data: { type: "broadcast" }`** for all admin message/broadcast
+  pushes (unmapped in the app → tap just opens the app at home). Interim fix, no
+  app rebuild needed.
+- **App to-do:** either build an inbox/messages screen and map `broadcast` (and
+  `admin_message`) to it, or explicitly map both to `/` — then tell web to switch
+  back to a routed type.
+- Web also gained an **app-only broadcast mode** (`/admin/messages/broadcast` →
+  "App push only"): pushes to every device incl. anonymous, no inbox rows/emails.
+  Push titles now default to "The Buzz Kids" (was "The Buzz Guide").
+
 ## 2026-07-07 — app caught up; two web endpoints wanted
 
 App now mirrors: multi-area What's On (client-side filtering with `end_date`
