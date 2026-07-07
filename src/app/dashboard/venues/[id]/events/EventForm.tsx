@@ -45,6 +45,8 @@ export default function EventForm({
   const [duping, setDuping] = useTransition();
   const [repeating, setRepeating] = useTransition();
   const [repeatWeeks, setRepeatWeeks] = useState(4);
+  // Edit mode: optional target date for "Duplicate" (empty = next week).
+  const [dupDate, setDupDate] = useState("");
   // Create mode only: whether to also bulk-create copies on submit. The
   // edit mode "Repeat weekly" widget is a separate, manually-triggered
   // action below — they don't share state.
@@ -113,6 +115,22 @@ export default function EventForm({
       <div>
         <label className="label">End (optional)</label>
         <input className="input" name="end_time" type="datetime-local" defaultValue={toLocalInput(event?.end_time)} />
+      </div>
+
+      <div className="sm:col-span-2">
+        <label className="label">
+          Runs until <span className="text-buzz-mute font-normal">(optional — last day of a multi-day run)</span>
+        </label>
+        <input
+          className="input sm:max-w-xs"
+          name="end_date"
+          type="date"
+          defaultValue={(event as any)?.end_date ?? ""}
+        />
+        <p className="help">
+          For something on daily or most days — an exhibition, a holiday trail — set the last day and it
+          shows in What&apos;s On on <strong>every day</strong> of its run. No need to create daily copies.
+        </p>
       </div>
 
       <div>
@@ -222,20 +240,30 @@ export default function EventForm({
           <div>
             <p className="eyebrow text-[10px] mb-2">Save time</p>
             <div className="flex flex-wrap gap-2 items-center">
-              <button
-                type="button"
-                disabled={duping}
-                onClick={() => {
-                  setError(null); setInfo(null);
-                  setDuping(async () => {
-                    const r = await duplicateEvent(event.id);
-                    if (r?.error) setError(r.error);
-                  });
-                }}
-                className="btn-secondary"
-              >
-                {duping ? "Duplicating…" : "📄 Duplicate (next week)"}
-              </button>
+              <div className="inline-flex items-center gap-2 rounded-lg bg-buzz-card border border-buzz-border px-3 py-1.5 text-sm">
+                <span className="text-buzz-mute">📄 Copy to</span>
+                <input
+                  type="date"
+                  value={dupDate}
+                  onChange={(e) => setDupDate(e.target.value)}
+                  className="bg-buzz-surface border border-buzz-border rounded px-2 py-0.5"
+                  title="Pick the date for the copy — leave empty for next week"
+                />
+                <button
+                  type="button"
+                  disabled={duping}
+                  onClick={() => {
+                    setError(null); setInfo(null);
+                    setDuping(async () => {
+                      const r = await duplicateEvent(event.id, dupDate || undefined);
+                      if (r?.error) setError(r.error);
+                    });
+                  }}
+                  className="btn-secondary !py-1.5 !px-3"
+                >
+                  {duping ? "Duplicating…" : dupDate ? "Duplicate" : "Duplicate (next week)"}
+                </button>
+              </div>
 
               <div className="inline-flex items-center gap-2 rounded-lg bg-buzz-card border border-buzz-border px-3 py-1.5 text-sm">
                 <span className="text-buzz-mute">Repeat weekly for</span>

@@ -65,6 +65,14 @@ function parseDateTimeLocal(s: string): string | null {
   return new Date(utcMs).toISOString();
 }
 
+// "Runs until" — a plain date (last day of a multi-day run, e.g. a two-week
+// exhibition). Stored in events.end_date; What's On shows the event on every
+// day of the run.
+function parseRunsUntil(s: string): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec((s || "").trim());
+  return m ? m[0] : null;
+}
+
 async function isAdmin(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
   const { data } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle();
   return data?.role === "admin";
@@ -107,6 +115,7 @@ export async function createEvent(venueId: string, formData: FormData) {
   const description = String(formData.get("description") ?? "").trim() || null;
   const start_time = parseDateTimeLocal(String(formData.get("start_time") ?? ""));
   const end_time = parseDateTimeLocal(String(formData.get("end_time") ?? ""));
+  const end_date = parseRunsUntil(String(formData.get("end_date") ?? ""));
   const cover_charge = String(formData.get("cover_charge") ?? "").trim() || null;
   const ticket_url = String(formData.get("ticket_url") ?? "").trim() || null;
   const image_url = String(formData.get("image_url") ?? "").trim() || null;
@@ -122,7 +131,7 @@ export async function createEvent(venueId: string, formData: FormData) {
     .from("events")
     .insert({
       venue_id: venueId,
-      title, description, start_time, end_time, cover_charge, ticket_url, image_url,
+      title, description, start_time, end_time, end_date, cover_charge, ticket_url, image_url,
       status: "approved",
     })
     .select("id")
@@ -169,6 +178,7 @@ export async function updateEvent(eventId: string, formData: FormData) {
   const cover_charge = String(formData.get("cover_charge") ?? "").trim() || null;
   const ticket_url = String(formData.get("ticket_url") ?? "").trim() || null;
   const image_url = String(formData.get("image_url") ?? "").trim() || null;
+  const end_date = parseRunsUntil(String(formData.get("end_date") ?? ""));
   const cancelled = formData.get("cancelled") === "on";
   const genreIds = formData.getAll("genres").map(String).filter(Boolean);
   const existingArtistIds = formData.getAll("artist_ids").map(String).filter(Boolean);
@@ -178,7 +188,7 @@ export async function updateEvent(eventId: string, formData: FormData) {
 
   const { error } = await supabase
     .from("events")
-    .update({ title, description, start_time, end_time, cover_charge, ticket_url, image_url, cancelled })
+    .update({ title, description, start_time, end_time, end_date, cover_charge, ticket_url, image_url, cancelled })
     .eq("id", eventId);
   if (error) return { error: error.message };
 
@@ -214,7 +224,7 @@ export async function deleteEvent(eventId: string) {
   redirect(`/dashboard/venues/${venueId}`);
 }
 
-export async function duplicateEvent(eventId: string) {
+export async function duplicateEvent(eventId: string, targetDate?: string) {
   const ctx = await ownsEvent(eventId);
   if (!ctx) return { error: "Not authorised." };
   const { supabase, venueId } = ctx;
@@ -222,13 +232,27 @@ export async function duplicateEvent(eventId: string) {
   const { data: src } = await supabase.from("events").select("*").eq("id", eventId).single();
   if (!src) return { error: "Event not found." };
 
-  const start = new Date(src.start_time);
-  start.setDate(start.getDate() + 7);
-  let end: Date | null = null;
-  if (src.end_time) {
-    end = new Date(src.end_time);
-    end.setDate(end.getDate() + 7);
+  // Shift by whole days: default +7 (next week), or to a chosen date — the
+  // wall-clock time stays the same, only the day moves. Day delta is computed
+  // on London calendar days so DST can't skew it.
+  let deltaDays = 7;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec((targetDate || "").trim());
+  if (m) {
+    const srcDay = new Date(src.start_time).toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+    const [sy, sm, sd] = srcDay.split("-").map(Number);
+    deltaDays = Math.round((Date.UTC(+m[1], +m[2] - 1, +m[3]) - Date.UTC(sy, sm - 1, sd)) / 86_400_000);
+    if (deltaDays === 0) return { error: "Pick a different date — that's the same day as the original." };
   }
+  const shift = (iso: string) => {
+    const d = new Date(iso);
+    d.setUTCDate(d.getUTCDate() + deltaDays);
+    return d.toISOString();
+  };
+  const shiftDate = (day: string) => {
+    const [y, mo, dd] = day.split("-").map(Number);
+    const d = new Date(Date.UTC(y, mo - 1, dd + deltaDays));
+    return d.toISOString().slice(0, 10);
+  };
 
   const { data: created, error } = await supabase
     .from("events")
@@ -236,11 +260,18 @@ export async function duplicateEvent(eventId: string) {
       venue_id: src.venue_id,
       title: src.title,
       description: src.description,
-      start_time: start.toISOString(),
-      end_time: end?.toISOString() ?? null,
+      start_time: shift(src.start_time),
+      end_time: src.end_time ? shift(src.end_time) : null,
+      end_date: src.end_date ? shiftDate(src.end_date) : null,
       cover_charge: src.cover_charge,
       ticket_url: src.ticket_url,
       image_url: src.image_url,
+      age_min: src.age_min,
+      age_max: src.age_max,
+      is_free: src.is_free,
+      setting: src.setting,
+      accessibility: src.accessibility,
+      status: src.status,
     })
     .select("id")
     .single();
