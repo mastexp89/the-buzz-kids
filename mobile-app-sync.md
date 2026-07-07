@@ -9,6 +9,27 @@ Keep entries to what the app must **mirror** (feature parity) or **handle** (sch
 
 ---
 
+## 2026-07-07 — app caught up; two web endpoints wanted
+
+App now mirrors: multi-area What's On (client-side filtering with `end_date`
+overlap + `recurrence_pattern` occurrence logic ported from WhatsOnView),
+WeatherStrip (Open-Meteo, per-area venue-coord centroid, hidden on
+"everywhere") on What's On + Places, offer brand logos (icon.horse → Google
+favicon), house-ad exclusion, standalone events, direct `edit_suggestions`
+writes (anon INSERT policy applied 2026-07-03 as app migration 088) + DB
+trigger `notify_edit_suggestion` → Resend → hello@.
+
+Sponsor clicks from the app go through `GET /api/sponsor-click/{id}` (counted).
+Sister-link taps post `click_buzzguide` with `source=app_about`.
+
+**Web-side wishlist to fully close the loop:**
+- An impressions endpoint the app can call (`increment_sponsor_impression` RPC
+  is service-role only) — app ad views are currently uncounted.
+- A mobile page-view endpoint (POST /api/track only accepts click kinds;
+  page views are recorded during SSR, which the app never hits). App screen
+  views are currently untracked — `trackScreen()` in the app is a no-op stub
+  waiting on this.
+
 ## 2026-07-03 — accounts-lite, edit suggestions, offers & sponsors
 
 Migrations already applied to the shared DB (`sql/085`, `086`, `087`). The app just

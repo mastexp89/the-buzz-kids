@@ -36,6 +36,8 @@ export default async function CronRunsPage() {
   // Totals across the window for the header
   const totals = days.reduce(
     (acc, d) => ({
+      webVenuesScraped: acc.webVenuesScraped + d.webVenuesScraped,
+      webEventsCreated: acc.webEventsCreated + d.webEventsCreated,
       fbVenuesScraped: acc.fbVenuesScraped + d.fbVenuesScraped,
       fbEventsCreated: acc.fbEventsCreated + d.fbEventsCreated,
       fbEventsSkipped: acc.fbEventsSkipped + d.fbEventsSkipped,
@@ -45,6 +47,8 @@ export default async function CronRunsPage() {
       eventsRejected: acc.eventsRejected + d.eventsRejected,
     }),
     {
+      webVenuesScraped: 0,
+      webEventsCreated: 0,
       fbVenuesScraped: 0,
       fbEventsCreated: 0,
       fbEventsSkipped: 0,
@@ -63,9 +67,9 @@ export default async function CronRunsPage() {
       <p className="eyebrow mt-3 mb-1">Admin</p>
       <h1 className="h-display text-4xl sm:text-5xl mb-2">⏱️ Cron runs</h1>
       <p className="text-buzz-mute mb-8 max-w-2xl">
-        Daily output of the scheduled jobs. FB scraper runs every 5 min from 21:00–23:55 UTC on Mon + Thu,
-        the dedupe pass runs every day at 03:00 UTC. Stats below are derived from
-        the events / venues tables — days with zero activity still show.
+        Daily output of the scheduled jobs. The <strong className="text-buzz-text">website scraper</strong> runs
+        Tue + Sat at 9pm UK — small runs are normal, since each venue is only re-scraped every 30 days.
+        The FB scraper (Mon + Thu evenings) is mostly idle by design; the dedupe pass runs daily at 3am UTC.
       </p>
 
       <CronRunButtons
@@ -79,9 +83,9 @@ export default async function CronRunsPage() {
       {budget && <FbScrapeBudgetPanel budget={budget} />}
 
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-8">
-        <Stat label="FB venues scraped (30d)" value={totals.fbVenuesScraped} />
-        <Stat label="FB events created (30d)" value={totals.fbEventsCreated} />
-        <Stat label="Cover photos pulled (30d)" value={totals.coverPhotosPopulated} />
+        <Stat label="Websites scraped (30d)" value={totals.webVenuesScraped} />
+        <Stat label="Events from websites (30d)" value={totals.webEventsCreated} />
+        <Stat label="Events from FB (30d)" value={totals.fbEventsCreated} />
         <Stat label="Manual events (30d)" value={totals.manualEventsCreated} />
         <Stat label="Rejected events (30d)" value={totals.eventsRejected} />
       </div>
@@ -106,11 +110,10 @@ export default async function CronRunsPage() {
           <thead className="bg-buzz-surface">
             <tr className="text-left">
               <Th>Date</Th>
+              <Th>Website scrape</Th>
+              <Th>Sites scraped</Th>
+              <Th>New events</Th>
               <Th>FB</Th>
-              <Th>Venues scraped</Th>
-              <Th>Events from FB</Th>
-              <Th>Skipped (dedup)</Th>
-              <Th>Errors</Th>
               <Th>Cover photos</Th>
               <Th>Manual events</Th>
               <Th>Rejected</Th>
@@ -119,12 +122,14 @@ export default async function CronRunsPage() {
           <tbody>
             {days.map((d) => {
               const isQuiet =
+                d.webVenuesScraped === 0 &&
+                d.webEventsCreated === 0 &&
                 d.fbVenuesScraped === 0 &&
                 d.fbEventsCreated === 0 &&
                 d.coverPhotosPopulated === 0 &&
                 d.manualEventsCreated === 0 &&
                 d.eventsRejected === 0;
-              const fbExpectedButQuiet = d.fbExpected && d.fbVenuesScraped === 0;
+              const webRan = d.webVenuesScraped > 0 || d.webEventsCreated > 0;
               return (
                 <tr key={d.date} className={`border-t border-buzz-border/60 ${isQuiet ? "text-buzz-mute" : ""}`}>
                   <Td>
@@ -132,27 +137,37 @@ export default async function CronRunsPage() {
                     <div className="text-[10px] text-buzz-mute">{d.date}</div>
                   </Td>
                   <Td>
-                    {d.fbExpected ? (
-                      fbExpectedButQuiet ? (
-                        <span className="text-rose-400 text-[10px] font-bold uppercase">expected · 0 ran</span>
-                      ) : (
-                        <span className="text-emerald-400 text-[10px] font-bold uppercase">scheduled</span>
-                      )
+                    {webRan ? (
+                      <span className="text-emerald-500 text-[10px] font-bold uppercase">✓ ran</span>
+                    ) : d.webExpected ? (
+                      <span
+                        className="text-buzz-mute text-[10px] font-bold uppercase"
+                        title="The cron fired but every venue was still inside its 30-day re-scrape cooldown — nothing due, nothing scraped. Normal."
+                      >
+                        quiet · on cooldown
+                      </span>
                     ) : (
                       <span className="text-buzz-mute text-[10px]">—</span>
                     )}
                   </Td>
-                  <Td>{d.fbVenuesScraped > 0 ? d.fbVenuesScraped : "—"}</Td>
-                  <Td>{d.fbEventsCreated > 0 ? <strong className="text-buzz-accent">{d.fbEventsCreated}</strong> : "—"}</Td>
-                  <Td title="Posts the AI extracted as events, then the dedup filter caught because a similar row already existed at this venue+hour. High here on a 0-events day = the cron ran fine, recurring stuff just already exists.">
-                    {d.fbEventsSkipped > 0
-                      ? <span className="text-amber-400">{d.fbEventsSkipped}</span>
-                      : "—"}
-                  </Td>
-                  <Td title="Per-venue extraction failures — Apify or Anthropic hiccups. Look in fb_scrape_venue_runs.error to see the message.">
-                    {d.fbErrors > 0
-                      ? <span className="text-rose-400 font-bold">{d.fbErrors}</span>
-                      : "—"}
+                  <Td>{d.webVenuesScraped > 0 ? d.webVenuesScraped : "—"}</Td>
+                  <Td>{d.webEventsCreated > 0 ? <strong className="text-buzz-accent">{d.webEventsCreated}</strong> : "—"}</Td>
+                  <Td
+                    title={
+                      "FB scraping is mostly idle by design (venue websites are the main source)." +
+                      (d.fbEventsSkipped > 0 ? ` ${d.fbEventsSkipped} skipped as duplicates.` : "") +
+                      (d.fbErrors > 0 ? ` ${d.fbErrors} errors — check fb_scrape_venue_runs.` : "")
+                    }
+                  >
+                    {d.fbEventsCreated > 0 ? (
+                      <strong className="text-buzz-accent">{d.fbEventsCreated}</strong>
+                    ) : d.fbErrors > 0 ? (
+                      <span className="text-rose-400 font-bold">{d.fbErrors} err</span>
+                    ) : d.fbExpected ? (
+                      <span className="text-buzz-mute text-[10px] uppercase">idle</span>
+                    ) : (
+                      "—"
+                    )}
                   </Td>
                   <Td>{d.coverPhotosPopulated > 0 ? d.coverPhotosPopulated : "—"}</Td>
                   <Td>{d.manualEventsCreated > 0 ? d.manualEventsCreated : "—"}</Td>
@@ -165,7 +180,10 @@ export default async function CronRunsPage() {
       </div>
 
       <p className="text-[11px] text-buzz-mute mt-4">
-        Note: stats are derived from <code>events.created_at</code> and <code>venues.last_facebook_scrape</code>. If the FB cron timed out and didn't update <code>last_facebook_scrape</code>, the row may show "expected · 0 ran" even if some venues were partially processed. Check Vercel logs if a scheduled run looks empty.
+        Note: stats are derived from <code>events.created_at</code>, <code>venues.last_website_scrape</code> and{" "}
+        <code>venues.last_facebook_scrape</code>. A "quiet · on cooldown" website day is normal — venues are only
+        re-scraped every 30 days, so runs are small until a batch comes due. Check Vercel logs if a run that
+        should have found work looks empty.
       </p>
     </div>
   );

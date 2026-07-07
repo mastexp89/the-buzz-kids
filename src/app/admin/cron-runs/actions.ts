@@ -26,6 +26,10 @@ async function requireAdmin() {
 export type CronDayStats = {
   date: string; // YYYY-MM-DD
   weekday: string;
+  // Website scraper output (the main pipeline)
+  webVenuesScraped: number;    // venues with last_website_scrape on this day
+  webEventsCreated: number;    // events created via 'website' source
+  webExpected: boolean;        // website cron scheduled today? (Tue + Sat)
   // FB cron output
   fbVenuesScraped: number;     // venues with last_facebook_scrape on this day
   fbEventsCreated: number;     // events created via 'facebook' source
@@ -66,6 +70,9 @@ export async function getCronDailyStats(days = 30): Promise<CronDayStats[]> {
     out.set(iso, {
       date: iso,
       weekday: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][wd],
+      webVenuesScraped: 0,
+      webEventsCreated: 0,
+      webExpected: wd === 2 || wd === 6, // Tue + Sat (vercel.json)
       fbVenuesScraped: 0,
       fbEventsCreated: 0,
       fbEventsSkipped: 0,
@@ -91,16 +98,23 @@ export async function getCronDailyStats(days = 30): Promise<CronDayStats[]> {
     if (!row) continue;
     row.totalEventsCreated++;
     if (e.auto_imported_from === "facebook") row.fbEventsCreated++;
+    else if (e.auto_imported_from === "website") row.webEventsCreated++;
     else if (e.auto_imported_from === "manual_upload" || !e.auto_imported_from) row.manualEventsCreated++;
     if (e.status === "rejected") row.eventsRejected++;
   }
 
-  // 2. Venues scraped per day (last_facebook_scrape ≈ when the FB cron processed it)
+  // 2. Venues scraped per day (last_website_scrape / last_facebook_scrape ≈
+  // when each cron processed the venue)
   const { data: venues } = await sb
     .from("venues")
-    .select("last_facebook_scrape, cover_photo_last_attempt, cover_photo_url")
-    .or(`last_facebook_scrape.gte.${fromIso},cover_photo_last_attempt.gte.${fromIso}`);
+    .select("last_website_scrape, last_facebook_scrape, cover_photo_last_attempt, cover_photo_url")
+    .or(`last_website_scrape.gte.${fromIso},last_facebook_scrape.gte.${fromIso},cover_photo_last_attempt.gte.${fromIso}`);
   for (const v of venues ?? []) {
+    if (v.last_website_scrape) {
+      const day = v.last_website_scrape.slice(0, 10);
+      const row = out.get(day);
+      if (row) row.webVenuesScraped++;
+    }
     if (v.last_facebook_scrape) {
       const day = v.last_facebook_scrape.slice(0, 10);
       const row = out.get(day);
