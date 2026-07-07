@@ -52,12 +52,16 @@ export async function getCronDailyStats(days = 30): Promise<CronDayStats[]> {
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
 
-  // Build a map of day → stats, prefilled with zero counts so missing days show up
+  // Build a map of day → stats, prefilled with zero counts so missing days show up.
+  // Never show days before the cron jobs first went live — earlier dates are
+  // just confusing empty rows from before the site existed.
+  const CRON_ERA_START = "2026-06-30";
   const out = new Map<string, CronDayStats>();
   for (let i = days - 1; i >= 0; i--) {
     const d = new Date(today);
     d.setUTCDate(d.getUTCDate() - i);
     const iso = d.toISOString().slice(0, 10);
+    if (iso < CRON_ERA_START) continue;
     const wd = d.getUTCDay(); // 0=Sun
     out.set(iso, {
       date: iso,
