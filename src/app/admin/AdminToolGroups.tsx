@@ -49,6 +49,12 @@ export default function AdminToolGroups({ pendingCount, suggestionsCount = 0 }: 
           badge: suggestionsCount,
         },
         {
+          href: "/admin/messages",
+          label: "Messages & push",
+          emoji: "📬",
+          description: "Message users · 📢 broadcast with app push notifications",
+        },
+        {
           href: "/admin/events",
           label: "Sessions search",
           emoji: "🔎",
