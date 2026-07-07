@@ -6,6 +6,7 @@ import PlacesGrid from "@/components/PlacesGrid";
 import PlaceFilterBar from "@/components/PlaceFilterBar";
 import CitySwitcher from "@/components/CitySwitcher";
 import SponsorBanner from "@/components/SponsorBanner";
+import WeatherStrip, { type WeatherArea } from "@/components/WeatherStrip";
 import { fetchPlaces, openDayKeysFor } from "@/lib/places";
 import { trackPageView } from "@/lib/track";
 
@@ -108,6 +109,20 @@ export default async function CityPage({ params, searchParams }: Props) {
         <div className="mb-8">
           <PlaceFilterBar genres={genres ?? []} />
         </div>
+        {/* This week's weather for the area — centre averaged from its places. */}
+        {(() => {
+          let lat = 0, lon = 0, n = 0;
+          for (const p of places as any[]) {
+            const la = Number(p.latitude), lo = Number(p.longitude);
+            if (!Number.isFinite(la) || !Number.isFinite(lo)) continue;
+            lat += la; lon += lo; n++;
+          }
+          if (n === 0) return null;
+          const areas: WeatherArea[] = [{ label: city.name, lat: lat / n, lon: lon / n }];
+          const fmtDay = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+          const end = new Date(); end.setDate(end.getDate() + 4);
+          return <WeatherStrip areas={areas} startDate={fmtDay(new Date())} endDate={fmtDay(end)} />;
+        })()}
         <div className="mb-8">
           <AccessibilityLegend />
         </div>

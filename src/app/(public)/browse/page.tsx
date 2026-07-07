@@ -4,6 +4,7 @@ import PlacesGrid from "@/components/PlacesGrid";
 import PlaceFilterBar from "@/components/PlaceFilterBar";
 import WhatsOnView from "@/components/WhatsOnView";
 import OffersView from "@/components/OffersView";
+import WeatherStrip, { type WeatherArea } from "@/components/WeatherStrip";
 import { AccessibilityLegend } from "@/components/AccessibilityBadges";
 import { fetchPlaces, openDayKeysFor } from "@/lib/places";
 
@@ -123,6 +124,34 @@ export default async function BrowsePage({ searchParams }: Props) {
   if (sp.open) surpriseParams.set("open", sp.open);
   const surpriseQuery = surpriseParams.toString();
 
+  // Weather for the Places tab: one row per selected location (max 3),
+  // centred on the average of that area's place coordinates. Hidden when
+  // browsing everywhere — no single forecast covers all of Scotland.
+  function weatherAreasFor(list: any[]): WeatherArea[] {
+    if (locs.length === 0 || locs.length > 3) return [];
+    const sums = new Map<string, { lat: number; lon: number; n: number }>();
+    for (const p of list) {
+      const slug = p.city?.slug;
+      if (!slug || !locs.includes(slug)) continue;
+      const lat = Number(p.latitude), lon = Number(p.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+      const s = sums.get(slug) ?? { lat: 0, lon: 0, n: 0 };
+      s.lat += lat; s.lon += lon; s.n++;
+      sums.set(slug, s);
+    }
+    return locs
+      .map((slug) => {
+        const s = sums.get(slug);
+        if (!s || s.n === 0) return null;
+        return { label: cities.find((c) => c.slug === slug)?.name ?? slug, lat: s.lat / s.n, lon: s.lon / s.n };
+      })
+      .filter(Boolean) as WeatherArea[];
+  }
+  const fmtDay = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+  const weatherStart = fmtDay(new Date());
+  const weatherEndD = new Date(); weatherEndD.setDate(weatherEndD.getDate() + 4);
+  const weatherEnd = fmtDay(weatherEndD);
+
   const places = await fetchPlaces(supabase, {
     cityIds,
     catSlugs: cats,
@@ -184,6 +213,12 @@ export default async function BrowsePage({ searchParams }: Props) {
             <div className="mb-8">
               <PlaceFilterBar genres={genres ?? []} cities={cities} />
             </div>
+            {(() => {
+              const wa = weatherAreasFor(places);
+              return wa.length > 0 ? (
+                <WeatherStrip areas={wa} startDate={weatherStart} endDate={weatherEnd} />
+              ) : null;
+            })()}
             <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
               <AccessibilityLegend />
               {places.length > 1 && (

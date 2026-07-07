@@ -100,9 +100,7 @@ export default function WeatherStrip({
           </div>
         </div>
       ))}
-      <p className="text-[10px] text-buzz-mute">
-        Forecast for the dates you&apos;re browsing · pick an area to see its weather
-      </p>
+      <p className="text-[10px] text-buzz-mute">Local forecast · Open-Meteo</p>
     </div>
   );
 }
