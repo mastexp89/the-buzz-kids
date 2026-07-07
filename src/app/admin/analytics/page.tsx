@@ -95,6 +95,10 @@ export default async function AnalyticsPage({ searchParams }: Props) {
     if (r.event_id) apply(eventStats, r.event_id);
   }
 
+  // Site-level clicks (no venue/event target) — currently the sister-site
+  // cross-promo in the footer.
+  const buzzGuideClicks = (rows ?? []).filter((r) => r.kind === "click_buzzguide").length;
+
   // Daily bucket — one entry per calendar day in the current window
   // (Europe/London). Pre-fills every day with zero so the chart shows
   // gaps for quiet days instead of skipping them. Cap at 90 days for
@@ -172,6 +176,7 @@ export default async function AnalyticsPage({ searchParams }: Props) {
         windowLabel={WINDOW_LABELS[windowKey]}
         totalViews={totalViews}
         totalClicks={totalClicks}
+        buzzGuideClicks={buzzGuideClicks}
         daily={daily}
         venueRows={venueRows as any}
         eventRows={eventRows as any}
