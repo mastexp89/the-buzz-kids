@@ -52,7 +52,7 @@ export default function BroadcastClient({ counts }: { counts: Counts }) {
   }
 
   const AUD: { key: Audience; label: string; n: number }[] = [
-    { key: "waitlist", label: "Coming-soon waitlist", n: counts.waitlist },
+    { key: "waitlist", label: "Mailing list", n: counts.waitlist },
     { key: "parents", label: "Parent accounts", n: counts.parents },
     { key: "both", label: "Everyone", n: counts.waitlist + counts.parents },
   ];

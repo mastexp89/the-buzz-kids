@@ -27,6 +27,7 @@ export default function SubmitOfferForm({ cities }: { cities: City[] }) {
       scope: String(fd.get("scope") ?? "local"),
       citySlug: String(fd.get("city_slug") ?? ""),
       email: String(fd.get("email") ?? ""),
+      newsletter: fd.get("newsletter") === "on" && !!String(fd.get("email") ?? "").trim(),
     });
     setBusy(false);
     if (r.error) { setError(r.error); return; }
@@ -93,6 +94,10 @@ export default function SubmitOfferForm({ cities }: { cities: City[] }) {
         <label className="label">Your email <span className="text-buzz-mute font-normal">(optional)</span></label>
         <input name="email" type="email" className="input" maxLength={200} placeholder="So we can check back if we need to" />
         <p className="help">We'll only use it to follow up on your suggestion — never shown publicly.</p>
+        <label className="flex items-center gap-2 cursor-pointer select-none mt-2">
+          <input type="checkbox" name="newsletter" />
+          <span className="text-sm">📩 Keep me posted — occasional Buzz Kids news &amp; updates</span>
+        </label>
       </div>
 
       {error && <div className="sm:col-span-2 text-sm text-rose-400">{error}</div>}

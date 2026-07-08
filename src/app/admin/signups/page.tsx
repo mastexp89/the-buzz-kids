@@ -31,12 +31,13 @@ export default async function SignupsPage() {
   return (
     <div className="container-page py-10 max-w-3xl">
       <Link href="/admin" className="text-sm text-buzz-mute hover:text-buzz-accent transition">← Back to admin</Link>
-      <p className="eyebrow mt-4 mb-1">Waitlist</p>
-      <h1 className="h-display text-4xl sm:text-5xl mb-2">Coming-soon signups</h1>
+      <p className="eyebrow mt-4 mb-1">Email</p>
+      <h1 className="h-display text-4xl sm:text-5xl mb-2">Mailing list</h1>
       <p className="text-buzz-mute mb-6 max-w-xl">
-        People who left their email on the pre-launch splash to be notified. Copy them out or
-        export a CSV to send your launch announcement. (These are email captures, not accounts —
-        parent accounts live under <Link href="/admin" className="text-buzz-accent hover:underline">People</Link>.)
+        The pre-launch waitlist plus everyone who ticked "keep me posted" on the suggest-an-edit,
+        list-your-activity and suggest-a-deal forms. This is the list the newsletter tool sends to.
+        (Email captures, not accounts — parent accounts live under{" "}
+        <Link href="/admin" className="text-buzz-accent hover:underline">People</Link>.)
       </p>
       <SignupsClient signups={(signups ?? []) as any} />
     </div>

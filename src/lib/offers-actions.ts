@@ -18,6 +18,7 @@ export async function submitOffer(input: {
   scope?: string;
   citySlug?: string;
   email?: string;
+  newsletter?: boolean; // explicit opt-in to Buzz Kids emails
 }): Promise<{ ok?: true; error?: string }> {
   const category = ["food", "days-out"].includes(input.category) ? input.category : null;
   if (!category) return { error: "Please pick a deal type." };
@@ -47,6 +48,14 @@ export async function submitOffer(input: {
   if (error) {
     if (error.code === "23505") return { error: "Looks like that deal is already on our list — thanks though!" };
     return { error: "Something went wrong. Please try again." };
+  }
+
+  // Consent-based mailing-list signup (same list the newsletter tool uses).
+  const optInEmail = (input.email ?? "").trim().toLowerCase();
+  if (input.newsletter && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(optInEmail)) {
+    try {
+      await sb.from("notify_signups").upsert({ email: optInEmail }, { onConflict: "email", ignoreDuplicates: true });
+    } catch { /* best-effort */ }
   }
 
   // Best-effort admin notification. Falls back to hello@thebuzzkids.co.uk so it
