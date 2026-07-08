@@ -5,7 +5,6 @@
 // dated events). Sits next to the admin delete button on event cards.
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { convertEventToOffer } from "@/app/admin/offers/actions";
 
 export default function ConvertEventToOfferButton({
@@ -15,7 +14,6 @@ export default function ConvertEventToOfferButton({
   eventId: string;
   eventTitle: string;
 }) {
-  const router = useRouter();
   const [busy, start] = useTransition();
   const [open, setOpen] = useState(false);
   const [done, setDone] = useState(false);
@@ -30,12 +28,21 @@ export default function ConvertEventToOfferButton({
     start(async () => {
       const r = await convertEventToOffer(eventId, category);
       if (r.error) { setError(r.error); return; }
+      // Deliberately NO router.refresh(): a refresh removes the card and the
+      // whole grid reflows mid-triage, which is disorienting when converting
+      // several in a row. The card stays put with a "moved" badge; it's gone
+      // on the next page load.
       setDone(true);
-      router.refresh();
     });
   }
 
-  if (done) return <span className="text-xs text-emerald-600">✓ Moved to deals</span>;
+  if (done) {
+    return (
+      <span className="w-full text-center text-xs rounded-lg bg-emerald-500/10 text-emerald-600 px-2 py-1.5">
+        ✓ Moved to deals — gone from What&apos;s On on next reload
+      </span>
+    );
+  }
 
   if (!open) {
     return (
