@@ -65,6 +65,11 @@ export default function WhatsOnView({ events, cities, isAdmin }: { events: Event
     () => (searchParams.get("area") ?? "").split(",").map((s) => s.trim()).filter(Boolean),
   );
   const [openPanel, setOpenPanel] = useState<"when" | "area" | null>(null);
+  // Render the grid a page at a time — painting hundreds of event cards at
+  // once is what made the tab feel slow. Resets when the filters change.
+  const PAGE_SIZE = 21;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [filter, picked, areas]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggleArea(slug: string) {
     setAreas((prev) => (prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug]));
@@ -265,21 +270,30 @@ export default function WhatsOnView({ events, cities, isAdmin }: { events: Event
           </p>
         </div>
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filtered.map((e) => (
-            <div key={e.id} className="flex flex-col gap-1.5 h-full">
-              <div className="flex-1">
-                <EventCard event={e} citySlug={(e.venue as any)?.city?.slug ?? (e as any).city?.slug ?? "dundee"} />
+        <>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {filtered.slice(0, visibleCount).map((e) => (
+              <div key={e.id} className="flex flex-col gap-1.5 h-full">
+                <div className="flex-1">
+                  <EventCard event={e} citySlug={(e.venue as any)?.city?.slug ?? (e as any).city?.slug ?? "dundee"} />
+                </div>
+                {isAdmin && (
+                  <>
+                    <ConvertEventToOfferButton eventId={e.id} eventTitle={e.title} />
+                    <AdminDeleteButton kind="event" id={e.id} name={e.title} />
+                  </>
+                )}
               </div>
-              {isAdmin && (
-                <>
-                  <ConvertEventToOfferButton eventId={e.id} eventTitle={e.title} />
-                  <AdminDeleteButton kind="event" id={e.id} name={e.title} />
-                </>
-              )}
+            ))}
+          </div>
+          {visibleCount < filtered.length && (
+            <div className="mt-8 text-center">
+              <button onClick={() => setVisibleCount((v) => v + PAGE_SIZE)} className="btn-primary">
+                Show more <span className="opacity-80">({filtered.length - visibleCount} to go)</span>
+              </button>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   );
