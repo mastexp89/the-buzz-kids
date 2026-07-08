@@ -7,7 +7,7 @@ import { createOffer, updateOffer, deleteOffer, approveOffer, searchOfferVenues,
 type Offer = {
   id: string; category: string; title: string; provider: string | null;
   description?: string | null; terms: string | null; url: string | null;
-  business_url?: string | null; image_url?: string | null;
+  business_url?: string | null; image_url?: string | null; ends_on?: string | null;
   scope: string; city_id: string | null; venue_id?: string | null;
   venue?: { name: string | null } | null;
   approved: boolean;
@@ -45,6 +45,7 @@ export default function OffersAdminClient({ offers, cities, canManage = true }: 
   const router = useRouter();
   const [scope, setScope] = useState("national");
   const [cityId, setCityId] = useState("");
+  const [endsOn, setEndsOn] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -89,7 +90,7 @@ export default function OffersAdminClient({ offers, cities, canManage = true }: 
   function resetForm() {
     formRef.current?.reset();
     setEditingId(null);
-    setScope("national"); setCityId(""); setVenue(null); setVq(""); setImageUrl(""); setError(null);
+    setScope("national"); setCityId(""); setEndsOn(""); setVenue(null); setVq(""); setImageUrl(""); setError(null);
   }
 
   function startEdit(o: Offer) {
@@ -104,6 +105,7 @@ export default function OffersAdminClient({ offers, cities, canManage = true }: 
     if (businessUrlRef.current) businessUrlRef.current.value = o.business_url ?? "";
     setScope(o.scope === "local" ? "local" : "national");
     setCityId(o.city_id ?? "");
+    setEndsOn(o.ends_on ?? "");
     setImageUrl(o.image_url ?? "");
     setVenue(o.venue_id ? { id: o.venue_id, name: o.venue?.name ?? "Attached place" } : null);
     setVq("");
@@ -173,6 +175,11 @@ export default function OffersAdminClient({ offers, cities, canManage = true }: 
                 </div>
                 <div className="text-xs text-buzz-mute">
                   {o.provider ?? ""}{o.scope === "local" ? " · Local" : " · UK-wide"}
+                  {o.ends_on && (
+                    o.ends_on < new Date().toLocaleDateString("en-CA")
+                      ? <span className="text-rose-500 font-semibold"> · ENDED {o.ends_on} (hidden from site)</span>
+                      : <span className="text-amber-600"> · ⏳ until {o.ends_on}</span>
+                  )}
                 </div>
                 {o.terms && <div className="text-xs text-buzz-mute/80 mt-0.5 line-clamp-1">{o.terms}</div>}
                 {o.submitted_email && <div className="text-xs text-buzz-mute/80 mt-0.5">✉️ {o.submitted_email}</div>}
@@ -292,6 +299,11 @@ export default function OffersAdminClient({ offers, cities, canManage = true }: 
             <option value="national">UK-wide</option>
             <option value="local">Local (one area)</option>
           </select>
+        </div>
+        <div>
+          <label className="label">Ends on <span className="text-buzz-mute font-normal">(optional)</span></label>
+          <input name="ends_on" type="date" className="input" value={endsOn} onChange={(e) => setEndsOn(e.target.value)} />
+          <p className="help">Time-boxed deal? It auto-hides from the site after this date. Leave empty for a standing deal.</p>
         </div>
         {scope === "local" && (
           <div>
