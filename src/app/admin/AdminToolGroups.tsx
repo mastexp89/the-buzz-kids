@@ -36,12 +36,6 @@ export default function AdminToolGroups({ pendingCount, suggestionsCount = 0 }: 
           badge: pendingCount,
         },
         {
-          href: "/admin/reviews",
-          label: "Reviews",
-          emoji: "⭐",
-          description: "Approve or hide parent reviews",
-        },
-        {
           href: "/admin/suggestions",
           label: "Edit suggestions",
           emoji: "✏️",

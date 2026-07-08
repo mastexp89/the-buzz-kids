@@ -16,7 +16,6 @@ import { isFavourited } from "@/lib/favourites";
 import TrackedLink from "@/components/TrackedLink";
 import AdminEditBar from "@/components/AdminEditBar";
 import VenueGallery from "@/components/VenueGallery";
-import ReviewsSection from "@/components/ReviewsSection";
 import { AccessibilityBadges } from "@/components/AccessibilityBadges";
 
 export const dynamic = "force-dynamic";
@@ -468,7 +467,9 @@ export default async function VenuePage({ params }: Props) {
             lands in the admin queue. The old "Claim this listing" flow is kept
             in the codebase but no longer surfaced. */}
 
-        <ReviewsSection venueId={venue.id} venueName={venue.name} />
+        {/* On-site reviews retired (2026-07-08) — Google ratings cover social
+            proof. Components kept dormant in the codebase; restore by
+            re-adding <ReviewsSection venueId venueName /> here. */}
       </div>
     </div>
   );

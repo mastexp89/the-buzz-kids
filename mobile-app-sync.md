@@ -27,6 +27,18 @@ for future deep-link pushes.
 old mapping, but the web's interim `broadcast` type means taps just open home
 there. No action needed web-side.
 
+## 2026-07-08 (later) — on-site reviews RETIRED
+
+Web removed the parent-reviews feature (Google ratings cover social proof):
+ReviewsSection gone from place pages, review copy scrubbed from home/about/
+signup, admin Reviews tile hidden. Components + `/admin/reviews` + the
+`reviews` table stay dormant (disable-not-delete; existing rows kept).
+
+**App: remove/hide all reviews UI (write + display) and ship as an EAS Update
+(OTA)** — JS-only change, no store release needed (runtimeVersion/expo-updates
+already configured). Keep bucket list untouched. If any review screens are
+native-module-dependent (they shouldn't be), flag before assuming OTA works.
+
 ## 2026-07-08 — Deals tabs merged; Places to stay teased
 
 Web changes the app should mirror on its home tiles + browse:
