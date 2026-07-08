@@ -24,22 +24,23 @@ type Props = {
 export default async function BrowsePage({ searchParams }: Props) {
   const supabase = await createClient();
   const sp = await searchParams;
-  const tab = sp.tab === "events" || sp.tab === "deals" || sp.tab === "food" ? sp.tab : "places";
+  // "food" is a legacy alias — food + days-out deals now live under one tab.
+  const tab = sp.tab === "events" ? "events" : sp.tab === "deals" || sp.tab === "food" ? "deals" : "places";
   const isEvents = tab === "events";
-  const isOffers = tab === "deals" || tab === "food";
+  const isOffers = tab === "deals";
 
-  // --- Offers / deals (food & days-out) ---
+  // --- Deals (food + days-out/tickets, one merged list) ---
   let offers: any[] = [];
   if (isOffers) {
-    const category = tab === "food" ? "food" : "days-out";
     const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
     const { data: offerRows } = await supabase
       .from("offers")
       .select("*")
-      .eq("category", category)
       .eq("approved", true)
       // Time-boxed deals auto-hide once their last day passes.
       .or(`ends_on.is.null,ends_on.gte.${todayStr}`)
+      // Food first (the repeat-use deals), then tickets/days out.
+      .order("category", { ascending: false })
       .order("sort_order", { ascending: true });
     offers = offerRows ?? [];
   }
@@ -186,24 +187,21 @@ export default async function BrowsePage({ searchParams }: Props) {
           <p className="eyebrow">Everywhere we cover</p>
           <h1 className="h-display text-5xl sm:text-7xl">
             {tab === "events" ? <>What&apos;s on<span className="text-buzz-accent">.</span></>
-              : tab === "deals" ? <>Deals &amp; days out<span className="text-buzz-accent">.</span></>
-              : tab === "food" ? <>Kids eat for less<span className="text-buzz-accent">.</span></>
+              : tab === "deals" ? <>Deals<span className="text-buzz-accent">.</span></>
               : <>Browse it all<span className="text-buzz-accent">.</span></>}
           </h1>
           <p className="text-buzz-mute mt-2">
             {tab === "events" ? "Galas, fayres, holiday clubs and special days out — by date."
-              : tab === "deals" ? "Money-saving offers for family days out."
-              : tab === "food" ? "Where the kids can eat free or for £1."
+              : tab === "deals" ? "Kids eat free, vouchers, money off tickets — family savings in one place."
               : "Family days out, big and small — filter to find your perfect one."}
           </p>
 
-          {/* Tabs — 2×2 grid on mobile, single row from sm up */}
-          <div className="mt-6 grid grid-cols-2 sm:inline-flex sm:flex-row gap-1 rounded-xl border border-buzz-border bg-buzz-card p-1">
+          {/* Tabs — single row (Deals covers food + tickets now) */}
+          <div className="mt-6 grid grid-cols-3 sm:inline-flex sm:flex-row gap-1 rounded-xl border border-buzz-border bg-buzz-card p-1">
             {[
               { href: "/browse", key: "places", label: "📍 Places" },
               { href: "/browse?tab=events", key: "events", label: "📅 What's on" },
               { href: "/browse?tab=deals", key: "deals", label: "🎟️ Deals" },
-              { href: "/browse?tab=food", key: "food", label: "🍽️ Food" },
             ].map((t) => (
               <Link
                 key={t.key}
@@ -219,7 +217,7 @@ export default async function BrowsePage({ searchParams }: Props) {
 
       <div className="container-page py-8">
         {isOffers ? (
-          <OffersView offers={offers} category={tab === "food" ? "food" : "days-out"} isAdmin={isAdmin} />
+          <OffersView offers={offers} category="all" isAdmin={isAdmin} />
         ) : isEvents ? (
           <WhatsOnView events={events} cities={cities} isAdmin={isAdmin} />
         ) : (

@@ -37,7 +37,7 @@ export default async function OffersAdminPage() {
       <p className="text-buzz-mute mb-6 max-w-xl">
         Standing deals for families — "kids eat for £1", "kids go free" and so on. These are
         deal info only; they don't create place listings. They appear on the
-        <strong className="text-buzz-text"> Deals</strong> and <strong className="text-buzz-text">Food</strong> tabs.
+        <strong className="text-buzz-text"> Deals</strong> tab (food and ticket deals together).
       </p>
       <OffersAdminClient offers={(offers ?? []) as any} cities={(cities ?? []) as any} canManage={canManage} />
     </div>

@@ -7,7 +7,7 @@ import AdminDeleteButton from "@/components/AdminDeleteButton";
 
 // Show this many offers first; the rest sit behind a "show more" button so the
 // Deals / Food tabs load light and don't dump everything at once.
-const INITIAL_CAP = 12;
+const INITIAL_CAP = 24;
 
 type Offer = {
   id: string;
@@ -63,7 +63,7 @@ function BrandLogo({ domain, name }: { domain: string; name: string | null }) {
   );
 }
 
-export default function OffersView({ offers, category, isAdmin }: { offers: Offer[]; category: "food" | "days-out"; isAdmin?: boolean }) {
+export default function OffersView({ offers, category, isAdmin }: { offers: Offer[]; category: "food" | "days-out" | "all"; isAdmin?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const shown = expanded ? offers : offers.slice(0, INITIAL_CAP);
 
@@ -83,7 +83,9 @@ export default function OffersView({ offers, category, isAdmin }: { offers: Offe
       <p className="text-sm text-buzz-mute mb-5 max-w-2xl">
         {category === "food"
           ? "Where the kids can eat free or for £1. Most are national chains with branches near you — always double-check the small print and your local branch before you go."
-          : "Ways to do family days out for less. Most are national schemes that work across Scotland — check the details before you book."}
+          : category === "days-out"
+          ? "Ways to do family days out for less. Most are national schemes that work across Scotland — check the details before you book."
+          : "Kids eat free, £1 meals, vouchers and money off tickets — always double-check the small print and your local branch before you go."}
       </p>
       <div className="grid sm:grid-cols-2 gap-4">
         {shown.map((o) => {
@@ -98,7 +100,7 @@ export default function OffersView({ offers, category, isAdmin }: { offers: Offe
             ) : null}
             <div className="flex items-start gap-2 flex-wrap">
               <span className="inline-flex items-center rounded-full bg-buzz-accent/15 text-buzz-accent text-[11px] font-bold uppercase tracking-wider px-2.5 py-1">
-                {category === "food" ? "🍽️ Eating out" : "🎟️ Days out"}
+                {(category === "all" ? o.category : category) === "food" ? "🍽️ Eating out" : "🎟️ Tickets & days out"}
               </span>
               {o.scope === "national" && (
                 <span className="inline-flex items-center rounded-full bg-buzz-surface border border-buzz-border text-[11px] font-medium px-2.5 py-1">
