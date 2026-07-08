@@ -27,6 +27,20 @@ for future deep-link pushes.
 old mapping, but the web's interim `broadcast` type means taps just open home
 there. No action needed web-side.
 
+## 2026-07-08 — Deals tabs merged; Places to stay teased
+
+Web changes the app should mirror on its home tiles + browse:
+- **"Food deals" + "Days out" merged into one "Deals" tab/tile** (title
+  "Deals", sub "Kids eat free · vouchers · money off tickets etc"). Web URL
+  `?tab=food` is now an alias of `?tab=deals`. The offers query fetches BOTH
+  categories (food first), each card chips its own category ("🍽️ Eating out" /
+  "🎟️ Tickets & days out"). DB categories unchanged (`food` / `days-out`).
+- **4th home tile is now "Places to stay" — coming soon** (🏡, non-clickable,
+  "Coming soon" badge). Feature lands in the next few days.
+- **`offers.ends_on` (sql/089, applied)** — optional end date. Public deals
+  lists must filter `ends_on is null OR ends_on >= today` and can show an
+  "⏳ Until X" chip. Convert-to-deal carries an event's `end_date` across.
+
 ## 2026-07-07 (later) — broadcast pushes: payload type changed to avoid dead route
 
 Tapping an admin broadcast push opened the app's 404 ("screen doesn't exist"):

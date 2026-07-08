@@ -84,25 +84,42 @@ export default async function Home() {
           {[
             { href: "/browse", emoji: "🗺️", title: "Places to go", sub: "Soft plays · farms · parks · museums etc", bg: "#EC1E8C" },
             { href: "/browse?tab=events", emoji: "📅", title: "What's on", sub: "Kids clubs · football camps · Bookbug etc", bg: "#1FA9E0" },
-            { href: "/browse?tab=food", emoji: "🍔", title: "Food deals", sub: "Kids eat free · £1 meals · discounts etc", bg: "#F9A11B" },
-            { href: "/browse?tab=deals", emoji: "🎡", title: "Days out", sub: "Attractions · swimming · vouchers etc", bg: "#6FA713" },
-          ].map((t) => (
-            <Link
-              key={t.href}
-              href={t.href}
-              className="group relative rounded-3xl p-5 sm:p-6 text-white overflow-hidden transition hover:scale-[1.02] hover:shadow-xl"
-              style={{ backgroundColor: t.bg }}
-            >
-              <div className="w-14 h-14 rounded-2xl bg-white grid place-items-center text-3xl mb-3.5 shadow-sm">
-                <span aria-hidden>{t.emoji}</span>
+            { href: "/browse?tab=deals", emoji: "🎟️🍔", title: "Deals", sub: "Kids eat free · vouchers · money off tickets etc", bg: "#F9A11B" },
+            { emoji: "🏡", title: "Places to stay", sub: "Family-friendly stays & getaways", bg: "#6FA713", comingSoon: true },
+          ].map((t: any) =>
+            t.comingSoon ? (
+              <div
+                key={t.title}
+                className="relative rounded-3xl p-5 sm:p-6 text-white overflow-hidden opacity-90"
+                style={{ backgroundColor: t.bg }}
+              >
+                <div className="w-14 h-14 rounded-2xl bg-white grid place-items-center text-3xl mb-3.5 shadow-sm">
+                  <span aria-hidden>{t.emoji}</span>
+                </div>
+                <span className="absolute top-4 right-4 rounded-full bg-white/90 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1" style={{ color: t.bg }}>
+                  Coming soon
+                </span>
+                <h3 className="font-display text-2xl leading-none mb-1.5">{t.title}</h3>
+                <p className="text-[13px] text-white/90 leading-snug">{t.sub}</p>
               </div>
-              <span className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/25 grid place-items-center text-white text-sm group-hover:translate-x-0.5 transition" aria-hidden>
-                ›
-              </span>
-              <h3 className="font-display text-2xl leading-none mb-1.5">{t.title}</h3>
-              <p className="text-[13px] text-white/90 leading-snug">{t.sub}</p>
-            </Link>
-          ))}
+            ) : (
+              <Link
+                key={t.href}
+                href={t.href}
+                className="group relative rounded-3xl p-5 sm:p-6 text-white overflow-hidden transition hover:scale-[1.02] hover:shadow-xl"
+                style={{ backgroundColor: t.bg }}
+              >
+                <div className={`h-14 rounded-2xl bg-white grid place-items-center mb-3.5 shadow-sm ${t.emoji.length > 2 ? "w-[4.5rem] text-2xl" : "w-14 text-3xl"}`}>
+                  <span aria-hidden className="tracking-tighter">{t.emoji}</span>
+                </div>
+                <span className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/25 grid place-items-center text-white text-sm group-hover:translate-x-0.5 transition" aria-hidden>
+                  ›
+                </span>
+                <h3 className="font-display text-2xl leading-none mb-1.5">{t.title}</h3>
+                <p className="text-[13px] text-white/90 leading-snug">{t.sub}</p>
+              </Link>
+            ),
+          )}
         </div>
 
         {/* Quick actions — same pair as the app */}

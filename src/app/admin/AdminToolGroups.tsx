@@ -113,7 +113,7 @@ export default function AdminToolGroups({ pendingCount, suggestionsCount = 0 }: 
           href: "/admin/offers",
           label: "Offers & deals",
           emoji: "🎟️",
-          description: "Kids-eat-free & days-out deals for the Deals/Food tabs (no places added)",
+          description: "Kids-eat-free, vouchers & ticket deals for the Deals tab (no places added)",
           paid: true,
         },
         {
