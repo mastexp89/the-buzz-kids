@@ -74,7 +74,7 @@ export default async function Home() {
       <section className="container-page pt-5 pb-10 sm:pb-14">
         {/* Two sponsor cards above the nav tiles… */}
         {adsTop.length > 0 && (
-          <SponsorCards sponsors={adsTop} className="max-w-3xl lg:max-w-4xl mx-auto mb-4 sm:mb-5" />
+          <SponsorCards sponsors={adsTop} className="max-w-3xl lg:max-w-xl mx-auto mb-4 sm:mb-5" />
         )}
 
         {/* 2×2 phone grid (app-like); one slim 4-across band on desktop so
@@ -118,7 +118,7 @@ export default async function Home() {
       {/* …and two below the tiles. */}
       {adsBottom.length > 0 && (
         <section className="container-page pb-8">
-          <SponsorCards sponsors={adsBottom} className="max-w-3xl lg:max-w-4xl mx-auto" />
+          <SponsorCards sponsors={adsBottom} className="max-w-3xl lg:max-w-xl mx-auto" />
         </section>
       )}
 
