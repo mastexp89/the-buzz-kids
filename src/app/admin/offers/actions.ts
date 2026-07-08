@@ -48,12 +48,19 @@ export async function createOffer(formData: FormData): Promise<OfferResult> {
     city_id: scope === "local" ? cityId : null,
     venue_id: String(formData.get("venue_id") ?? "").trim() || null,
     image_url: String(formData.get("image_url") ?? "").trim() || null,
+    ends_on: parseEndsOn(formData),
   });
   if (error) return { error: error.message };
 
   revalidatePath("/admin/offers");
   revalidatePath("/browse");
   return { ok: true };
+}
+
+// Optional "ends on" date — deals auto-hide from the public tabs after it.
+function parseEndsOn(formData: FormData): string | null {
+  const s = String(formData.get("ends_on") ?? "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
 }
 
 export async function updateOffer(id: string, formData: FormData): Promise<OfferResult> {
@@ -83,6 +90,7 @@ export async function updateOffer(id: string, formData: FormData): Promise<Offer
       city_id: scope === "local" ? cityId : null,
       venue_id: String(formData.get("venue_id") ?? "").trim() || null,
       image_url: String(formData.get("image_url") ?? "").trim() || null,
+      ends_on: parseEndsOn(formData),
     })
     .eq("id", id);
   if (error) return { error: error.message };
@@ -106,7 +114,7 @@ export async function convertEventToOffer(
   const sb = createServiceClient();
   const { data: ev } = await sb
     .from("events")
-    .select("id, title, description, cover_charge, ticket_url, image_url, auto_import_source_url, venue:venues(id, name, website, city_id)")
+    .select("id, title, description, cover_charge, ticket_url, image_url, end_date, auto_import_source_url, venue:venues(id, name, website, city_id)")
     .eq("id", eventId)
     .maybeSingle();
   if (!ev) return { error: "Event not found." };
@@ -126,6 +134,10 @@ export async function convertEventToOffer(
       city_id: venue?.city_id ?? null,
       venue_id: venue?.id ?? null,
       image_url: ev.image_url ?? null,
+      // Multi-day runs carry their last day across, so the deal auto-hides
+      // from the public tabs when the run finishes. Single-dated events
+      // convert as standing deals (no end).
+      ends_on: ev.end_date ?? null,
       approved: true,
     })
     .select("id")

@@ -19,6 +19,7 @@ type Offer = {
   url: string | null;
   business_url?: string | null;
   image_url?: string | null;
+  ends_on?: string | null;
   scope: string;
 };
 
@@ -102,6 +103,11 @@ export default function OffersView({ offers, category, isAdmin }: { offers: Offe
               {o.scope === "national" && (
                 <span className="inline-flex items-center rounded-full bg-buzz-surface border border-buzz-border text-[11px] font-medium px-2.5 py-1">
                   UK-wide
+                </span>
+              )}
+              {o.ends_on && (
+                <span className="inline-flex items-center rounded-full bg-amber-400/15 text-amber-600 text-[11px] font-semibold px-2.5 py-1">
+                  ⏳ Until {new Date(o.ends_on + "T12:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
                 </span>
               )}
             </div>

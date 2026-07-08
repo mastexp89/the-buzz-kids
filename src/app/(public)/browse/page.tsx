@@ -32,11 +32,14 @@ export default async function BrowsePage({ searchParams }: Props) {
   let offers: any[] = [];
   if (isOffers) {
     const category = tab === "food" ? "food" : "days-out";
+    const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
     const { data: offerRows } = await supabase
       .from("offers")
       .select("*")
       .eq("category", category)
       .eq("approved", true)
+      // Time-boxed deals auto-hide once their last day passes.
+      .or(`ends_on.is.null,ends_on.gte.${todayStr}`)
       .order("sort_order", { ascending: true });
     offers = offerRows ?? [];
   }
