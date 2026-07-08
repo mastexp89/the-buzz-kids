@@ -31,6 +31,7 @@ export default function SuggestEditButton({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [isOwner, setIsOwner] = useState(false);
+  const [newsletter, setNewsletter] = useState(false);
   const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -74,6 +75,7 @@ export default function SuggestEditButton({
       contactName: name,
       contactEmail: email,
       isOwner,
+      newsletter: newsletter && !!email.trim(),
     });
     if (res.error) {
       setErrorMsg(res.error);
@@ -140,7 +142,14 @@ export default function SuggestEditButton({
           className="input text-sm"
         />
       </div>
-      <p className="help !mt-0 mb-3">Leave an email only if you&apos;d like us to reply.</p>
+      <p className="help !mt-0 mb-2">Leave an email only if you&apos;d like us to reply.</p>
+
+      {email.trim() && (
+        <label className="flex items-center gap-2 mb-3 cursor-pointer select-none">
+          <input type="checkbox" checked={newsletter} onChange={(e) => setNewsletter(e.target.checked)} />
+          <span className="text-xs">📩 Keep me posted — occasional Buzz Kids news &amp; holiday ideas</span>
+        </label>
+      )}
 
       {state === "error" && errorMsg && <p className="text-xs text-rose-500 mb-2">{errorMsg}</p>}
 

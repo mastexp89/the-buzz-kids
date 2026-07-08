@@ -142,9 +142,9 @@ export default function AdminToolGroups({ pendingCount, suggestionsCount = 0 }: 
       tools: [
         {
           href: "/admin/signups",
-          label: "Coming-soon signups",
+          label: "Mailing list",
           emoji: "📧",
-          description: "Pre-launch waitlist emails — copy or export to CSV",
+          description: "Waitlist + newsletter opt-ins — copy or export to CSV",
         },
         {
           href: "/admin/broadcast",

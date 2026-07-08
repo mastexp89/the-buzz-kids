@@ -15,6 +15,7 @@ export default function PlaceLeadForm() {
   const [email, setEmail] = useState("");
   const [details, setDetails] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [newsletter, setNewsletter] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -50,7 +51,7 @@ export default function PlaceLeadForm() {
     e.preventDefault();
     setState("busy");
     setErrorMsg(null);
-    const res = await submitPlaceLead({ placeName, details, contactName: name, contactEmail: email, imageUrl });
+    const res = await submitPlaceLead({ placeName, details, contactName: name, contactEmail: email, imageUrl, newsletter: newsletter && !!email.trim() });
     if (res.error) {
       setErrorMsg(res.error);
       setState("error");
@@ -113,6 +114,13 @@ export default function PlaceLeadForm() {
           <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={200} placeholder="So we can confirm it's live" />
         </div>
       </div>
+
+      {email.trim() && (
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input type="checkbox" checked={newsletter} onChange={(e) => setNewsletter(e.target.checked)} />
+          <span className="text-sm">📩 Keep me posted — occasional Buzz Kids news &amp; updates</span>
+        </label>
+      )}
 
       {state === "error" && errorMsg && <p className="text-sm text-rose-500">{errorMsg}</p>}
 

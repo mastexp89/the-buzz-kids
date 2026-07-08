@@ -15,6 +15,18 @@ export type SuggestResult = { ok?: true; error?: string };
 const clip = (s: string | undefined | null, n: number) =>
   (s || "").trim().slice(0, n) || null;
 
+// Consent-based mailing-list signup: only called when the submitter ticked
+// "keep me posted". Reuses notify_signups — the same list the newsletter tool
+// sends to — so opt-ins flow straight into the broadcast audience.
+async function subscribeToNewsletter(email: string | null | undefined) {
+  const e = (email || "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return;
+  try {
+    const sb = createServiceClient();
+    await sb.from("notify_signups").upsert({ email: e }, { onConflict: "email", ignoreDuplicates: true });
+  } catch { /* best-effort */ }
+}
+
 // Upload a poster / photo attached to a suggestion or lead. Public (anyone
 // submitting can attach one) so it uses the service client to bypass storage
 // RLS; stored in the shared "media" bucket. Size-capped to keep abuse cheap.
@@ -53,6 +65,7 @@ export async function submitEditSuggestion(input: {
   contactEmail?: string;
   isOwner?: boolean;
   imageUrl?: string;
+  newsletter?: boolean; // explicit opt-in to Buzz Kids emails
 }): Promise<SuggestResult> {
   if (!input.targetId || (input.targetType !== "venue" && input.targetType !== "event")) {
     return { error: "Missing details." };
@@ -94,6 +107,7 @@ export async function submitEditSuggestion(input: {
   }
 
   notifyEditSuggestion(row).catch(() => {});
+  if (input.newsletter) await subscribeToNewsletter(input.contactEmail);
   revalidatePath("/admin");
   revalidatePath("/admin/suggestions");
   return { ok: true };
@@ -105,6 +119,7 @@ export async function submitPlaceLead(input: {
   contactName?: string;
   contactEmail?: string;
   imageUrl?: string;
+  newsletter?: boolean; // explicit opt-in to Buzz Kids emails
 }): Promise<SuggestResult> {
   const name = clip(input.placeName, 200);
   if (!name) return { error: "Tell us the name of your place." };
@@ -127,6 +142,7 @@ export async function submitPlaceLead(input: {
   if (error) return { error: error.message };
 
   notifyEditSuggestion(row).catch(() => {});
+  if (input.newsletter) await subscribeToNewsletter(input.contactEmail);
   revalidatePath("/admin/suggestions");
   return { ok: true };
 }
