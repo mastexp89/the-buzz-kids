@@ -27,6 +27,19 @@ for future deep-link pushes.
 old mapping, but the web's interim `broadcast` type means taps just open home
 there. No action needed web-side.
 
+## 2026-07-08 (later) — EAS Update configured; ONE more TestFlight build needed
+
+Dylan's TestFlight build can't receive OTA updates: `updates.url` was never in
+app.json and no update branch existed. The web session ran `eas update:configure`
+(adds `updates.url` → u.expo.dev/9c645f30…, channel wiring in eas.json) — this
+change is sitting UNCOMMITTED in the app working tree alongside the app
+session's in-progress work; commit it together.
+
+**Release path:** finish the pending sync items → `eas build --profile
+production` → TestFlight. That build bakes OTA in. From then on, JS-only
+changes ship with `eas update --branch production` — no store releases.
+Until that build, nothing new reaches installed apps.
+
 ## 2026-07-08 (later) — on-site reviews RETIRED
 
 Web removed the parent-reviews feature (Google ratings cover social proof):
