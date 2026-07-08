@@ -28,44 +28,12 @@ function host(u: string): string {
   try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return "website"; }
 }
 
-// The brand's root domain, preferring the business site over the deep offer
-// link (so a "my.morrisons.com/cafe" offer still resolves to morrisons.com).
-function brandDomain(o: Offer): string | null {
-  const u = o.business_url || o.url;
-  if (!u) return null;
-  try {
-    const h = new URL(u).hostname.replace(/^www\./, "");
-    return h || null;
-  } catch {
-    return null;
-  }
-}
-
-// Pull the company logo from its domain — no upload needed. Tries icon.horse
-// (fetches the site's real logo/favicon) first, falls back to Google's favicon
-// service, then to nothing. Plain <img> so onError can walk the fallbacks.
-function BrandLogo({ domain, name }: { domain: string; name: string | null }) {
-  const [idx, setIdx] = useState(0);
-  const sources = [
-    `https://icon.horse/icon/${domain}`,
-    `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
-  ];
-  if (idx >= sources.length) return null;
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={sources[idx]}
-      alt={name ? `${name} logo` : ""}
-      onError={() => setIdx((i) => i + 1)}
-      loading="lazy"
-      className="h-10 w-auto max-w-[150px] object-contain object-left"
-    />
-  );
-}
-
 export default function OffersView({ offers, category, isAdmin }: { offers: Offer[]; category: "food" | "days-out" | "all"; isAdmin?: boolean }) {
   const [expanded, setExpanded] = useState(false);
-  const shown = expanded ? offers : offers.slice(0, INITIAL_CAP);
+  // Merged view: quick filter between food deals and money-off/ticket deals.
+  const [cat, setCat] = useState<"all" | "food" | "days-out">("all");
+  const list = category === "all" && cat !== "all" ? offers.filter((o) => o.category === cat) : offers;
+  const shown = expanded ? list : list.slice(0, INITIAL_CAP);
 
   if (offers.length === 0) {
     return (
@@ -87,17 +55,27 @@ export default function OffersView({ offers, category, isAdmin }: { offers: Offe
           ? "Ways to do family days out for less. Most are national schemes that work across Scotland — check the details before you book."
           : "Kids eat free, £1 meals, vouchers and money off tickets — always double-check the small print and your local branch before you go."}
       </p>
+
+      {category === "all" && (
+        <div className="mb-6 flex flex-wrap gap-2">
+          <button onClick={() => { setCat("all"); setExpanded(false); }} className={cat === "all" ? "filter-pill filter-pill-active" : "filter-pill"}>
+            All deals ({offers.length})
+          </button>
+          <button onClick={() => { setCat("food"); setExpanded(false); }} className={cat === "food" ? "filter-pill filter-pill-active" : "filter-pill"}>
+            🍽️ Food deals ({offers.filter((o) => o.category === "food").length})
+          </button>
+          <button onClick={() => { setCat("days-out"); setExpanded(false); }} className={cat === "days-out" ? "filter-pill filter-pill-active" : "filter-pill"}>
+            🎟️ Money off ({offers.filter((o) => o.category === "days-out").length})
+          </button>
+        </div>
+      )}
+      {shown.length === 0 && (
+        <div className="card p-8 text-center text-buzz-mute text-sm">Nothing in this category yet.</div>
+      )}
       <div className="grid sm:grid-cols-2 gap-4">
         {shown.map((o) => {
-          const domain = brandDomain(o);
           return (
           <div key={o.id} className="card p-5 flex flex-col gap-2">
-            {o.image_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={o.image_url} alt="" loading="lazy" className="h-28 w-full object-contain rounded-lg bg-buzz-surface border border-buzz-border" />
-            ) : domain ? (
-              <div className="h-10 mb-0.5 flex items-center"><BrandLogo domain={domain} name={o.provider} /></div>
-            ) : null}
             <div className="flex items-start gap-2 flex-wrap">
               <span className="inline-flex items-center rounded-full bg-buzz-accent/15 text-buzz-accent text-[11px] font-bold uppercase tracking-wider px-2.5 py-1">
                 {(category === "all" ? o.category : category) === "food" ? "🍽️ Eating out" : "🎟️ Tickets & days out"}
@@ -142,16 +120,16 @@ export default function OffersView({ offers, category, isAdmin }: { offers: Offe
         })}
       </div>
 
-      {offers.length > INITIAL_CAP && (
+      {list.length > INITIAL_CAP && (
         <div className="mt-6 text-center">
           <button onClick={() => setExpanded((v) => !v)} className="btn-secondary">
-            {expanded ? "Show fewer" : `Show all ${offers.length} →`}
+            {expanded ? "Show fewer" : `Show all ${list.length} →`}
           </button>
         </div>
       )}
 
       <div className="mt-8 card p-5 text-center bg-buzz-accent/5 border-buzz-accent/30">
-        <p className="text-sm text-buzz-mute mb-3">Know a deal we've missed? Help other parents out.</p>
+        <p className="text-sm text-buzz-mute mb-3">Know a deal we've missed? Help other families out.</p>
         <Link href="/submit-offer" className="btn-secondary">🙌 Suggest a deal →</Link>
       </div>
     </div>
