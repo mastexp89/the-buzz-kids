@@ -72,9 +72,10 @@ export default async function Home() {
           like one product. Four big thumbable destinations in brand colours,
           in the FIRST viewport (people don't scroll to find navigation). */}
       <section className="container-page pt-5 pb-10 sm:pb-14">
-        {/* Two sponsor cards above the nav tiles… */}
+        {/* Mobile only: two sponsor cards above the nav tiles. On desktop all
+            four ads sit in one row under the grid instead. */}
         {adsTop.length > 0 && (
-          <SponsorCards sponsors={adsTop} className="max-w-3xl lg:max-w-xl mx-auto mb-4 sm:mb-5" />
+          <SponsorCards sponsors={adsTop} className="lg:hidden max-w-3xl mx-auto mb-4 sm:mb-5" />
         )}
 
         {/* 2×2 phone grid (app-like); one slim 4-across band on desktop so
@@ -115,10 +116,16 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* …and two below the tiles. */}
-      {adsBottom.length > 0 && (
+      {/* …and two below the tiles on mobile; on desktop this row carries all
+          four ads, 4-across at the same width as the tile band. */}
+      {sponsors.length > 0 && (
         <section className="container-page pb-8">
-          <SponsorCards sponsors={adsBottom} className="max-w-3xl lg:max-w-xl mx-auto" />
+          <div className="lg:hidden">
+            <SponsorCards sponsors={adsBottom} className="max-w-3xl mx-auto" />
+          </div>
+          <div className="hidden lg:block">
+            <SponsorCards sponsors={sponsors} className="lg:max-w-6xl mx-auto" />
+          </div>
         </section>
       )}
 
