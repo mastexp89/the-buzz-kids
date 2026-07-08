@@ -60,6 +60,9 @@ export default async function BrowsePage({ searchParams }: Props) {
   let events: any[] = [];
   if (isEvents) {
     const nowIso = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
+    // UK-local YYYY-MM-DD for comparing against date-only columns
+    // (end_date / recurrence_until).
+    const todayLocal = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
     const { data: eventRows } = await supabase
       .from("events")
       // Only the columns the event cards + client date/area filters use — was
@@ -80,9 +83,17 @@ export default async function BrowsePage({ searchParams }: Props) {
       // never load into What's On at all.
       .eq("status", "approved")
       .eq("cancelled", false)
-      .or(`start_time.gte.${nowIso},end_time.gte.${nowIso}`)
+      // "Still live" means ANY of: starts in future, ends in future, a
+      // multi-day run still going (end_date), or a recurring series that
+      // hasn't finished (recurrence_until in future, or open-ended). The old
+      // start/end-only check silently dropped ~400 ongoing exhibitions and
+      // weekly clubs whose first date had passed.
+      .or(
+        `start_time.gte.${nowIso},end_time.gte.${nowIso},end_date.gte.${todayLocal},` +
+        `recurrence_until.gte.${todayLocal},and(recurrence_pattern.not.is.null,recurrence_until.is.null)`,
+      )
       .order("start_time", { ascending: true })
-      .limit(500);
+      .limit(1000);
     events = (eventRows ?? [])
       .filter((e: any) => {
         if (e.status && e.status !== "approved") return false;
