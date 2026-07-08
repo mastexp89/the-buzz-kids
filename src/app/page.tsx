@@ -82,10 +82,10 @@ export default async function Home() {
             the tiles read as navigation, not giant slabs. */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 max-w-3xl lg:max-w-6xl mx-auto">
           {[
-            { href: "/browse", emoji: "🗺️", title: "Places to go", sub: "Soft plays · farms · parks · museums etc", bg: "#EC1E8C" },
-            { href: "/browse?tab=events", emoji: "📅", title: "What's on", sub: "Kids clubs · football camps · Bookbug etc", bg: "#1FA9E0" },
-            { href: "/browse?tab=deals", emoji: "🎟️🍔", title: "Deals", sub: "Kids eat free · vouchers · money off tickets etc", bg: "#F9A11B" },
-            { emoji: "🏡", title: "Places to stay", sub: "Family-friendly stays & getaways", bg: "#6FA713", comingSoon: true },
+            { href: "/browse", icon: "/tiles/places.png", title: "Places to go", sub: "Soft plays · farms · parks · museums etc", bg: "#EC1E8C" },
+            { href: "/browse?tab=events", icon: "/tiles/whatson.png", title: "What's on", sub: "Kids clubs · football camps · Bookbug etc", bg: "#1FA9E0" },
+            { href: "/browse?tab=deals", icon: "/tiles/food.png", title: "Deals", sub: "Kids eat free · vouchers · money off tickets etc", bg: "#F9A11B" },
+            { icon: "/tiles/daysout.png", title: "Places to stay", sub: "Family-friendly stays & getaways", bg: "#6FA713", comingSoon: true },
           ].map((t: any) =>
             t.comingSoon ? (
               <div
@@ -93,8 +93,8 @@ export default async function Home() {
                 className="relative rounded-3xl p-5 sm:p-6 text-white overflow-hidden opacity-90"
                 style={{ backgroundColor: t.bg }}
               >
-                <div className="w-14 h-14 rounded-2xl bg-white grid place-items-center text-3xl mb-3.5 shadow-sm">
-                  <span aria-hidden>{t.emoji}</span>
+                <div className="relative w-14 h-14 rounded-2xl bg-white grid place-items-center mb-3.5 shadow-sm overflow-hidden">
+                  <Image src={t.icon} alt="" fill sizes="56px" className="object-cover" />
                 </div>
                 <span className="absolute top-4 right-4 rounded-full bg-white/90 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1" style={{ color: t.bg }}>
                   Coming soon
@@ -109,8 +109,8 @@ export default async function Home() {
                 className="group relative rounded-3xl p-5 sm:p-6 text-white overflow-hidden transition hover:scale-[1.02] hover:shadow-xl"
                 style={{ backgroundColor: t.bg }}
               >
-                <div className={`h-14 rounded-2xl bg-white grid place-items-center mb-3.5 shadow-sm ${t.emoji.length > 2 ? "w-[4.5rem] text-2xl" : "w-14 text-3xl"}`}>
-                  <span aria-hidden className="tracking-tighter">{t.emoji}</span>
+                <div className="relative w-14 h-14 rounded-2xl bg-white grid place-items-center mb-3.5 shadow-sm overflow-hidden">
+                  <Image src={t.icon} alt="" fill sizes="56px" className="object-cover" />
                 </div>
                 <span className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/25 grid place-items-center text-white text-sm group-hover:translate-x-0.5 transition" aria-hidden>
                   ›
