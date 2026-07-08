@@ -85,7 +85,7 @@ export default async function Home() {
             { href: "/browse", icon: "/tiles/places.png", title: "Places to go", sub: "Soft plays · farms · parks · museums etc", bg: "#EC1E8C" },
             { href: "/browse?tab=events", icon: "/tiles/whatson.png", title: "What's on", sub: "Kids clubs · football camps · Bookbug etc", bg: "#1FA9E0" },
             { href: "/browse?tab=deals", icon: "/tiles/food.png", title: "Deals", sub: "Kids eat free · vouchers · money off tickets etc", bg: "#F9A11B" },
-            { icon: "/tiles/daysout.png", title: "Places to stay", sub: "Family-friendly stays & getaways", bg: "#6FA713", comingSoon: true },
+            { icon: "/tiles/stay.png", title: "Places to stay", sub: "Family-friendly stays & getaways", bg: "#6FA713", comingSoon: true },
           ].map((t: any) =>
             t.comingSoon ? (
               <div
