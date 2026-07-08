@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import EventCard from "@/components/EventCard";
 import AdminDeleteButton from "@/components/AdminDeleteButton";
+import ConvertEventToOfferButton from "@/components/ConvertEventToOfferButton";
 import WeatherStrip, { type WeatherArea } from "@/components/WeatherStrip";
 import type { EventWithVenue } from "@/lib/types";
 import { isRecurring, recurrenceOccursInWindow } from "@/lib/recurrence";
@@ -270,7 +271,12 @@ export default function WhatsOnView({ events, cities, isAdmin }: { events: Event
               <div className="flex-1">
                 <EventCard event={e} citySlug={(e.venue as any)?.city?.slug ?? (e as any).city?.slug ?? "dundee"} />
               </div>
-              {isAdmin && <AdminDeleteButton kind="event" id={e.id} name={e.title} />}
+              {isAdmin && (
+                <>
+                  <ConvertEventToOfferButton eventId={e.id} eventTitle={e.title} />
+                  <AdminDeleteButton kind="event" id={e.id} name={e.title} />
+                </>
+              )}
             </div>
           ))}
         </div>

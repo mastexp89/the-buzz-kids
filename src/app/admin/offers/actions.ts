@@ -92,6 +92,57 @@ export async function updateOffer(id: string, formData: FormData): Promise<Offer
   return { ok: true };
 }
 
+// Convert a What's On event into a standing offer/deal — for things the
+// scraper filed as events that are really ongoing deals ("kids swim for £1").
+// Copies title/description/poster/links onto a new approved offer attached to
+// the event's place, then deletes the event.
+export async function convertEventToOffer(
+  eventId: string,
+  category: "food" | "days-out",
+): Promise<OfferResult & { offerId?: string }> {
+  if (!(await requireAdmin())) return { error: "Admins only." };
+  if (!["food", "days-out"].includes(category)) return { error: "Pick a category." };
+
+  const sb = createServiceClient();
+  const { data: ev } = await sb
+    .from("events")
+    .select("id, title, description, cover_charge, ticket_url, image_url, auto_import_source_url, venue:venues(id, name, website, city_id)")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (!ev) return { error: "Event not found." };
+  const venue = (ev.venue as any) || null;
+
+  const { data: created, error } = await sb
+    .from("offers")
+    .insert({
+      category,
+      title: (ev.title ?? "").slice(0, 160),
+      provider: venue?.name ?? null,
+      description: (ev.description ?? "").slice(0, 300) || null,
+      terms: ev.cover_charge ? `Price: ${ev.cover_charge}`.slice(0, 500) : null,
+      url: ev.ticket_url || ev.auto_import_source_url || null,
+      business_url: venue?.website ?? null,
+      scope: venue?.city_id ? "local" : "national",
+      city_id: venue?.city_id ?? null,
+      venue_id: venue?.id ?? null,
+      image_url: ev.image_url ?? null,
+      approved: true,
+    })
+    .select("id")
+    .single();
+  if (error) return { error: error.message };
+
+  // Remove the event (it now lives on the Deals/Food tab instead).
+  await sb.from("event_genres").delete().eq("event_id", eventId);
+  await sb.from("event_artists").delete().eq("event_id", eventId);
+  const { error: delErr } = await sb.from("events").delete().eq("id", eventId);
+  if (delErr) return { error: `Offer created but event not removed: ${delErr.message}` };
+
+  revalidatePath("/admin/offers");
+  revalidatePath("/browse");
+  return { ok: true, offerId: created.id };
+}
+
 // Search live places to attach an offer to.
 export async function searchOfferVenues(query: string) {
   if (!(await requireContributor())) return { results: [] as any[] };
