@@ -76,8 +76,8 @@ function SignupForm() {
       <p className="eyebrow mb-2">Create an account</p>
       <h1 className="h-display text-4xl mb-2">Plan your days out.</h1>
       <p className="text-buzz-mute mb-6">
-        Free parent account. Save places to your bucket list, review the ones you've
-        been to and hear about new activities each school holiday.
+        Free parent account. Save places to your bucket list and hear about new
+        activities each school holiday.
       </p>
 
       <form onSubmit={onSubmit} className="card p-6 flex flex-col gap-4">
@@ -90,7 +90,7 @@ function SignupForm() {
             onChange={(e) => setName(e.target.value)}
             placeholder="Your first name"
           />
-          <p className="help">What should we call you? Used on your reviews and emails.</p>
+          <p className="help">What should we call you? Used on your emails.</p>
         </div>
         <div>
           <label className="label">Email</label>

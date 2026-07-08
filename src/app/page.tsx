@@ -226,7 +226,7 @@ export default async function Home() {
           <p className="text-xs uppercase tracking-[0.2em] font-bold mb-2 text-buzz-accent">For parents &amp; carers</p>
           <h2 className="h-display text-4xl sm:text-5xl mb-3">Never miss a great day out.</h2>
           <p className="max-w-xl mx-auto text-buzz-mute mb-6">
-            Save places to your bucket list, leave reviews for other parents and get
+            Save places to your bucket list and get
             alerts when new sessions drop for the school holidays. Free, no spam.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">

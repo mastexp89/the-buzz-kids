@@ -35,7 +35,7 @@ export default async function AboutPage() {
       <p className="text-buzz-mute leading-relaxed mt-3">
         Want a bit more?{" "}
         <Link href="/signup?as=fan" className="text-buzz-accent">Create a free parent account</Link>{" "}
-        and you can save places to your bucket list, leave reviews for other families and get
+        and you can save places to your bucket list and get
         alerts when new sessions are added for the school holidays.
       </p>
 
