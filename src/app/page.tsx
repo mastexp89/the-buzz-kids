@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { trackPageView } from "@/lib/track";
-import SponsorBanner from "@/components/SponsorBanner";
+import { getLiveSponsors, SponsorCards } from "@/components/SponsorBanner";
 
 export const dynamic = "force-dynamic";
 
@@ -21,50 +21,110 @@ export default async function Home() {
 
   const spotlight = (spotlightVenues ?? []).filter((v: any) => v.city?.active);
 
+  // Family favourites — the app's "top-rated" strip, mirrored on the web.
+  // Highest Google ratings with a meaningful review count, across live areas.
+  const { data: topRated } = await supabase
+    .from("venues")
+    .select("id, name, slug, cover_photo_url, image_url, google_photo_url, google_rating, google_rating_count, city:cities(name, slug, active)")
+    .eq("approved", true)
+    .in("venue_type", ["attraction", "both"])
+    .not("google_rating", "is", null)
+    .gte("google_rating_count", 100)
+    .order("google_rating", { ascending: false })
+    .order("google_rating_count", { ascending: false })
+    .limit(12);
+  const favourites = (topRated ?? []).filter((v: any) => v.city?.active).slice(0, 8);
+
+  // One pick of up to 4 sponsors, split 2 above / 2 below the nav tiles —
+  // impressions are counted once here for all shown cards.
+  const sponsors = await getLiveSponsors(4);
+  const adsTop = sponsors.slice(0, 2);
+  const adsBottom = sponsors.slice(2, 4);
+
   return (
     <div>
-      {/* Hero */}
-      <section className="relative overflow-hidden bg-grain border-b border-buzz-border">
+      {/* Compact hero — headline + strapline only. The tiles below ARE the
+          navigation (like the app), so no separate browse buttons; everything
+          important sits in the first viewport. */}
+      <section className="relative overflow-hidden bg-grain">
         <div className="absolute inset-0 -z-10 bg-gradient-to-b from-buzz-accent/10 via-transparent to-transparent" />
-        <div className="container-page py-16 sm:py-24 grid md:grid-cols-[1fr_auto] gap-10 items-center">
-          <div>
-            <p className="eyebrow mb-3">Things to do · Places to go · Memories to make</p>
-            <h1 className="h-display text-6xl sm:text-7xl md:text-8xl">
-              Find their<br />
+        <div className="container-page pt-8 sm:pt-12 pb-2 flex items-center justify-center gap-5">
+          <div className="relative w-20 h-20 sm:w-28 sm:h-28 shrink-0">
+            <Image src="/logo.png" alt="The Buzz Kids logo" fill priority sizes="112px" className="object-contain" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="h-display text-4xl sm:text-6xl leading-none">
+              Find their{" "}
               <span style={{ color: "#EC1E8C" }}>b</span>
               <span style={{ color: "#1FA9E0" }}>u</span>
               <span style={{ color: "#6FA713" }}>z</span>
               <span style={{ color: "#F9A11B" }}>z</span>
               <span style={{ color: "#EC1E8C" }}>.</span>
             </h1>
-            <p className="mt-6 text-buzz-mute max-w-xl text-lg">
-              Scotland's family days-out guide — soft play, farms, museums, holiday
-              clubs and more. Filter by age, price and whether it's raining.
+            <p className="mt-1.5 text-buzz-mute text-sm sm:text-base">
+              Things to do · Places to go · Memories to make
             </p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Link href="/browse" className="btn-primary btn-lg">Browse activities →</Link>
-              <Link href="/surprise" className="btn-secondary btn-lg">🎲 Surprise me</Link>
-            </div>
-            <p className="mt-4 text-sm text-buzz-mute">
-              Want to save to your bucket list and get holiday alerts?{" "}
-              <Link href="/signup?as=fan" className="text-buzz-accent hover:text-buzz-accent2 font-medium">
-                ♡ Sign up free
-              </Link>
-            </p>
-          </div>
-          <div className="hidden md:block relative w-[280px] h-[280px]">
-            <Image src="/logo.png" alt="The Buzz Kids logo" fill priority sizes="280px" className="object-contain" />
           </div>
         </div>
       </section>
 
-      {/* Sponsor ad — rotates a currently-live paid sponsor. Renders nothing
-          when none are booked, so the page is unaffected until we sell one. */}
-      <SponsorBanner />
+      {/* Quick-nav tiles — mirrors the app's home dashboard so web + app feel
+          like one product. Four big thumbable destinations in brand colours,
+          in the FIRST viewport (people don't scroll to find navigation). */}
+      <section className="container-page pt-5 pb-10 sm:pb-14">
+        {/* Two sponsor cards above the nav tiles… */}
+        {adsTop.length > 0 && (
+          <SponsorCards sponsors={adsTop} className="max-w-3xl lg:max-w-4xl mx-auto mb-4 sm:mb-5" />
+        )}
 
-      {/* Spotlight */}
+        {/* 2×2 phone grid (app-like); one slim 4-across band on desktop so
+            the tiles read as navigation, not giant slabs. */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 max-w-3xl lg:max-w-6xl mx-auto">
+          {[
+            { href: "/browse", emoji: "🗺️", title: "Places to go", sub: "Soft plays · farms · parks · museums etc", bg: "#EC1E8C" },
+            { href: "/browse?tab=events", emoji: "📅", title: "What's on", sub: "Kids clubs · football camps · Bookbug etc", bg: "#1FA9E0" },
+            { href: "/browse?tab=food", emoji: "🍔", title: "Food deals", sub: "Kids eat free · £1 meals · discounts etc", bg: "#F9A11B" },
+            { href: "/browse?tab=deals", emoji: "🎡", title: "Days out", sub: "Attractions · swimming · vouchers etc", bg: "#6FA713" },
+          ].map((t) => (
+            <Link
+              key={t.href}
+              href={t.href}
+              className="group relative rounded-3xl p-5 sm:p-6 text-white overflow-hidden transition hover:scale-[1.02] hover:shadow-xl"
+              style={{ backgroundColor: t.bg }}
+            >
+              <div className="w-14 h-14 rounded-2xl bg-white grid place-items-center text-3xl mb-3.5 shadow-sm">
+                <span aria-hidden>{t.emoji}</span>
+              </div>
+              <span className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/25 grid place-items-center text-white text-sm group-hover:translate-x-0.5 transition" aria-hidden>
+                ›
+              </span>
+              <h3 className="font-display text-2xl leading-none mb-1.5">{t.title}</h3>
+              <p className="text-[13px] text-white/90 leading-snug">{t.sub}</p>
+            </Link>
+          ))}
+        </div>
+
+        {/* Quick actions — same pair as the app */}
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4 max-w-3xl lg:max-w-xl mx-auto">
+          <Link href="/surprise" className="card-hover lift rounded-2xl py-3 px-5 text-center font-bold">
+            🎲 Surprise me
+          </Link>
+          <Link href="/dashboard/favourites" className="card-hover lift rounded-2xl py-3 px-5 text-center font-bold">
+            🖤 Bucket list
+          </Link>
+        </div>
+      </section>
+
+      {/* …and two below the tiles. */}
+      {adsBottom.length > 0 && (
+        <section className="container-page pb-8">
+          <SponsorCards sponsors={adsBottom} showLabel={false} className="max-w-3xl lg:max-w-4xl mx-auto" />
+        </section>
+      )}
+
+      {/* Spotlight (paid featured places) */}
       {spotlight.length > 0 && (
-        <section className="container-page py-12 sm:py-16 border-t border-buzz-border">
+        <section className="container-page pb-10 sm:pb-14">
           <p className="eyebrow mb-2">🔦 Spotlight</p>
           <h2 className="h-display text-4xl sm:text-5xl mb-6">Featured places</h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -97,26 +157,44 @@ export default async function Home() {
         </section>
       )}
 
-      {/* How it works */}
-      <section className="container-page py-12 sm:py-16 border-t border-buzz-border">
-        <div className="text-center mb-10">
-          <p className="eyebrow mb-2">How it works</p>
-          <h2 className="h-display text-4xl sm:text-5xl">Three steps. Day sorted.</h2>
-        </div>
-        <div className="grid sm:grid-cols-3 gap-4">
-          {[
-            { n: "01", t: "Browse everything", d: "All our areas in one place — filter by activity type, age, price and accessibility." },
-            { n: "02", t: "Filter for your kids", d: "Narrow it down to what fits — indoor, outdoor, toddler-friendly, sensory-friendly." },
-            { n: "03", t: "Go have fun", d: "Times, prices, booking links and accessibility info — all in one place." },
-          ].map((s) => (
-            <div key={s.n} className="card p-6 lift">
-              <div className="font-display text-5xl text-buzz-accent leading-none mb-3">{s.n}</div>
-              <h3 className="font-display text-xl uppercase mb-2">{s.t}</h3>
-              <p className="text-sm text-buzz-mute">{s.d}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* Family favourites — top-rated places, like the app's home strip. */}
+      {favourites.length > 0 && (
+        <section className="container-page pb-12 sm:pb-16">
+          <div className="flex items-baseline justify-between gap-3 mb-1">
+            <h2 className="h-display text-4xl sm:text-5xl">Family favourites</h2>
+            <Link href="/browse" className="text-sm text-buzz-accent hover:text-buzz-accent2 font-medium shrink-0">See all →</Link>
+          </div>
+          <p className="text-buzz-mute mb-5">⭐ The places local families rate highest</p>
+          <div className="flex gap-4 overflow-x-auto pb-2 -mx-4 px-4 snap-x">
+            {favourites.map((v: any) => {
+              const photo = v.cover_photo_url || v.image_url || v.google_photo_url;
+              return (
+                <Link
+                  key={v.id}
+                  href={`/${v.city?.slug ?? "dundee"}/venues/${v.slug}`}
+                  className="group w-56 shrink-0 snap-start card-hover lift overflow-hidden rounded-2xl"
+                >
+                  <div
+                    className="relative h-32 bg-buzz-surface"
+                    style={photo ? { backgroundImage: `url(${photo})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
+                  >
+                    {!photo && <div className="absolute inset-0 grid place-items-center text-4xl opacity-60" aria-hidden>🐝</div>}
+                    <span className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-black/60 backdrop-blur-sm text-white text-[11px] font-semibold px-2 py-1">
+                      <span className="text-amber-400" aria-hidden>★</span>
+                      {Number(v.google_rating).toFixed(1)}
+                      <span className="text-white/70 font-normal">({v.google_rating_count})</span>
+                    </span>
+                  </div>
+                  <div className="p-3">
+                    <div className="font-display text-lg uppercase leading-tight truncate group-hover:text-buzz-accent transition">{v.name}</div>
+                    <div className="text-xs text-buzz-mute truncate">{v.city?.name}</div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Parent CTA */}
       <section className="container-page pt-6">
