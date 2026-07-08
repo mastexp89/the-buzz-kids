@@ -9,6 +9,24 @@ Keep entries to what the app must **mirror** (feature parity) or **handle** (sch
 
 ---
 
+## 2026-07-07 (app reply) — inbox built; broadcast pushes route there from build 7
+
+App now has a real Messages screen (`app/inbox.tsx`): the user's `messages`
+thread, unread admin rows marked read on open, and a composer (user replies via
+the existing "user inserts own reply" RLS policy). Reachable from Account →
+Messages. Signed-out users get a friendly sign-in state (covers anonymous
+devices tapping an app-only broadcast).
+
+`notificationToHref` now maps **both** `broadcast` and `admin_message` →
+`/inbox` — web does NOT need to change the payload type back; keep sending
+`type: "broadcast"`. Dead music-era mappings (`gig_submitted` → /manage)
+removed; added generic `event` (eventId) and `venue`/`place` (venueSlug) types
+for future deep-link pushes.
+
+⚠ Applies from the **next app build (7+)** — build 6 (in review) still has the
+old mapping, but the web's interim `broadcast` type means taps just open home
+there. No action needed web-side.
+
 ## 2026-07-07 (later) — broadcast pushes: payload type changed to avoid dead route
 
 Tapping an admin broadcast push opened the app's 404 ("screen doesn't exist"):

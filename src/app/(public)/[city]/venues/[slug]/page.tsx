@@ -88,15 +88,22 @@ export default async function VenuePage({ params }: Props) {
     viewerIsAdmin = prof?.role === "admin";
   }
 
-  // Fetch events that started today onwards — wider net, then post-filter using
-  // venue closing time when end_time isn't set.
+  // Fetch everything still live at this venue: future one-offs, multi-day
+  // runs still going (end_date), and recurring series that haven't finished.
+  // The old start_time-only filter hid this venue's ongoing exhibitions and
+  // weekly clubs once their first date passed.
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
+  const todayLocal = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
   const { data: rawEvents } = await supabase
     .from("events")
     .select(`*, venue:venues!inner(*, city:cities!inner(*)), event_genres ( genre:genres(*) )`)
     .eq("venue_id", venue.id)
-    .gte("start_time", startOfToday.toISOString())
+    .or(
+      `start_time.gte.${startOfToday.toISOString()},end_time.gte.${startOfToday.toISOString()},` +
+      `end_date.gte.${todayLocal},recurrence_until.gte.${todayLocal},` +
+      `and(recurrence_pattern.not.is.null,recurrence_until.is.null)`,
+    )
     .eq("cancelled", false)
     .eq("status", "approved")
     .order("start_time", { ascending: true })
@@ -104,7 +111,14 @@ export default async function VenuePage({ params }: Props) {
 
   const nowDate = new Date();
   const events: EventWithVenue[] = (rawEvents ?? [])
-    .filter((e: any) => effectiveEndTime(e, e.venue).getTime() > nowDate.getTime())
+    .filter((e: any) => {
+      // Ongoing multi-day run — live until its last day ends.
+      if (e.end_date && e.end_date >= todayLocal) return true;
+      // Live recurring series (open-ended, or until a future date).
+      if (e.recurrence_pattern && (!e.recurrence_until || e.recurrence_until >= todayLocal)) return true;
+      // One-offs: fall back to venue closing time when end_time isn't set.
+      return effectiveEndTime(e, e.venue).getTime() > nowDate.getTime();
+    })
     .map((e: any) => ({
       ...e,
       genres: (e.event_genres ?? []).map((eg: any) => eg.genre).filter(Boolean),
