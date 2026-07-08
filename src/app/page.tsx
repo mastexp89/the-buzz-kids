@@ -118,7 +118,7 @@ export default async function Home() {
       {/* …and two below the tiles. */}
       {adsBottom.length > 0 && (
         <section className="container-page pb-8">
-          <SponsorCards sponsors={adsBottom} showLabel={false} className="max-w-3xl lg:max-w-4xl mx-auto" />
+          <SponsorCards sponsors={adsBottom} className="max-w-3xl lg:max-w-4xl mx-auto" />
         </section>
       )}
 
