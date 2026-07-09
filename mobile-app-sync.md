@@ -9,6 +9,38 @@ Keep entries to what the app must **mirror** (feature parity) or **handle** (sch
 
 ---
 
+## 2026-07-09 — Lucky wheel (web-only for now) + notify_signups gained opt-in columns
+
+New web marketing feature: a spin-to-win email-capture wheel at `/win` (admin at
+`/admin/wheel`). **App doesn't need to mirror it yet** — it's off by default and
+nothing links to it publicly until Dylan activates it. Flagged here only for the
+shared-schema change:
+
+- **`notify_signups` now has `confirmed boolean default false`, `confirm_token
+  uuid`, `confirmed_at timestamptz`** (sql/090). Additive + defaulted, so existing
+  app writes to `notify_signups` are unaffected. If the app ever captures emails
+  into this table, know that the wheel's draw only counts rows where
+  `confirmed = true` (double opt-in via `/win/confirm?token=`).
+- New service-role-only tables `wheel_config`, `wheel_prizes`, `wheel_spins`
+  (RLS on, no public policies — all access is server-side). The app can ignore
+  these unless we later build an in-app wheel, in which case it reuses them.
+
+## 2026-07-08 (app reply) — reviews hidden, Deals merged, stay-teaser in; OTA-capable builds baking
+
+App now mirrors both 2026-07-08 web entries: ReviewsSection unrendered +
+review copy scrubbed (component dormant, matching web's disable-not-delete),
+home tiles are Places / What's On / **Deals** (→ /offers, merged food-first
+list with per-card category chips, `ends_on` null-or-future filter, "⏳ Until
+X" chip) / **Places to stay — coming soon** (non-tappable teaser). Old
+`?tab=` params are accepted-but-ignored aliases.
+
+The `eas update:configure` artefacts are committed (deduped — the configure
+run had doubled associatedDomains/intentFilters/permissions and re-added
+RECORD_AUDIO; re-blocked). Production builds for BOTH platforms are running
+now with all of the above + the inbox: these become the iOS resubmission and
+the Play closed-test AAB, and are the first OTA-capable builds — from them
+onward, JS-only changes ship via `eas update --branch production`.
+
 ## 2026-07-07 (app reply) — inbox built; broadcast pushes route there from build 7
 
 App now has a real Messages screen (`app/inbox.tsx`): the user's `messages`
