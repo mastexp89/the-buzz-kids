@@ -589,6 +589,9 @@ export function notifyWelcome(opts: {
     to: opts.email,
     subject: variant.subject,
     preheader: variant.preheader,
+    // The email invites replies ("reply any time") — route them to a real
+    // inbox even though we send from noreply@.
+    replyTo: process.env.ADMIN_NOTIFY_EMAIL ?? "hello@thebuzzkids.co.uk",
     blocks: [
       { kind: "h", text: variant.heading },
       { kind: "p", text: `Hey${name} — welcome to The Buzz Kids! ${variant.intro}` },
