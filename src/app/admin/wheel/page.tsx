@@ -31,6 +31,7 @@ export default async function WheelAdminPage() {
   let confirmedCount = 0;
   let entryTally: Record<string, number> = {};
   let realWins: any[] = [];
+  let pendingReal = 0;
 
   try {
     const cfgRes = await sb.from("wheel_config").select("*").eq("id", 1).maybeSingle();
@@ -55,7 +56,11 @@ export default async function WheelAdminPage() {
     const { data: rw } = await sb
       .from("wheel_spins").select("id, email, prize_label, spun_on, fulfilled")
       .eq("prize_kind", "real").order("created_at", { ascending: false }).limit(200);
-    realWins = rw ?? [];
+    // Only confirmed emails count — an instant prize isn't real until the
+    // winner confirms, so unconfirmed wins never show in the hand-out list.
+    const allReal = rw ?? [];
+    realWins = allReal.filter((w) => okEmails.has(w.email));
+    pendingReal = allReal.length - realWins.length;
   } catch {
     tablesMissing = true;
   }
@@ -184,9 +189,16 @@ export default async function WheelAdminPage() {
           {/* Instant-prize wins to fulfil */}
           <section>
             <h2 className="font-display text-2xl mb-1">Instant prizes to hand out</h2>
-            <p className="text-sm text-buzz-mute mb-3">Real prizes people have won. Tick when you&apos;ve sorted them.</p>
+            <p className="text-sm text-buzz-mute mb-3">
+              Real prizes won by people who&apos;ve <strong>confirmed their email</strong>. Tick when you&apos;ve sorted them.
+              {pendingReal > 0 && (
+                <span className="block mt-1 text-xs">
+                  {pendingReal} more {pendingReal === 1 ? "win is" : "wins are"} waiting on email confirmation — hidden until confirmed.
+                </span>
+              )}
+            </p>
             {realWins.length === 0 ? (
-              <p className="text-sm text-buzz-mute">No instant prizes won yet.</p>
+              <p className="text-sm text-buzz-mute">No confirmed instant prizes yet.</p>
             ) : (
               <div className="flex flex-col gap-1.5">
                 {realWins.map((w) => (
