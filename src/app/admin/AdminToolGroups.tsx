@@ -170,6 +170,12 @@ export default function AdminToolGroups({ pendingCount, suggestionsCount = 0 }: 
           emoji: "💼",
           description: "Local family businesses running ads on the site",
         },
+        {
+          href: "/admin/wheel",
+          label: "Lucky wheel",
+          emoji: "🎡",
+          description: "Spin-to-win email capture at /win — set prizes, activate, draw winners",
+        },
       ],
     },
   ];
