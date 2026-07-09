@@ -206,7 +206,7 @@ export default async function BrowsePage({ searchParams }: Props) {
               <Link
                 key={t.key}
                 href={t.href}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition text-center ${tab === t.key ? "bg-buzz-accent text-white" : "text-buzz-mute hover:text-buzz-text"}`}
+                className={`px-2 sm:px-4 py-2 rounded-lg text-[13px] sm:text-sm font-medium transition text-center whitespace-nowrap ${tab === t.key ? "bg-buzz-accent text-white" : "text-buzz-mute hover:text-buzz-text"}`}
               >
                 {t.label}
               </Link>
