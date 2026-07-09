@@ -154,12 +154,15 @@ export default function LuckyWheel({ grandPrize, grandDetail, closesOn, slices }
               </div>
             );
           })}
-          <div
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white grid place-items-center font-display z-[2]"
-            style={{ width: 60, height: 60, fontSize: 26, color: "#EC1E8C" }}
-          >
-            B
-          </div>
+        </div>
+
+        {/* Bee hub — sits above the wheel and stays upright while it spins */}
+        <div
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white grid place-items-center overflow-hidden z-20"
+          style={{ width: 68, height: 68, boxShadow: "0 2px 8px rgba(22,32,42,.2)" }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/favicon.png" alt="" width={56} height={56} style={{ objectFit: "contain" }} />
         </div>
       </div>
     </div>
