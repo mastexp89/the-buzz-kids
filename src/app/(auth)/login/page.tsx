@@ -53,6 +53,9 @@ function LoginForm() {
       <button type="submit" className="btn-primary" disabled={loading}>
         {loading ? "Signing in…" : "Sign in"}
       </button>
+      <p className="text-sm text-center">
+        <Link href="/forgot-password" className="text-buzz-accent">Forgot your password?</Link>
+      </p>
       <p className="text-sm text-buzz-mute text-center">
         New here? <Link href="/signup" className="text-buzz-accent">Create an account</Link>
       </p>

@@ -62,7 +62,7 @@ export async function GET(request: Request) {
     // into the reset-password page instead of the default dashboard so
     // they actually get to change their password.
     if (type === "recovery") {
-      return NextResponse.redirect(`${origin}/reset-password`);
+      return NextResponse.redirect(`${origin}/auth/update-password`);
     }
     return NextResponse.redirect(`${origin}${next}`);
   }
