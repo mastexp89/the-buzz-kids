@@ -60,7 +60,7 @@ export function buildEmailHtml(opts: {
             <tr>
               <td align="center" style="padding:26px 24px 18px 24px;background:#ffffff;border-bottom:1px solid #eef6fb;">
                 <a href="${SITE}" style="text-decoration:none;">
-                  <img src="${LOGO_URL}" alt="The Buzz Kids" width="72" height="72" style="display:block;border:0;outline:none;text-decoration:none;height:72px;width:72px;" />
+                  <img src="${LOGO_URL}" alt="The Buzz Kids" width="89" height="72" style="display:block;border:0;outline:none;text-decoration:none;height:72px;width:89px;" />
                 </a>
                 <div style="margin-top:8px;color:#647682;font-size:12px;letter-spacing:0.02em;">Things to do with the kids across Scotland</div>
               </td>
@@ -88,7 +88,7 @@ export function buildEmailHtml(opts: {
 function renderBlock(block: EmailBlock): string {
   switch (block.kind) {
     case "h":
-      return `<h2 style="margin:0 0 14px 0;font-family:Impact,'Helvetica Neue',sans-serif;font-size:24px;line-height:1.15;color:#16202A;text-transform:uppercase;letter-spacing:0.01em;">${escapeHtml(block.text)}</h2>`;
+      return `<h2 style="margin:0 0 14px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-weight:800;font-size:23px;line-height:1.2;color:#EC1E8C;letter-spacing:-0.01em;">${escapeHtml(block.text)}</h2>`;
     case "p":
       return `<p style="margin:0 0 14px 0;color:#16202A;font-size:15px;line-height:1.6;">${escapeHtml(block.text)}</p>`;
     case "small":
