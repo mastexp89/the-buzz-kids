@@ -347,16 +347,15 @@ export default function ImportSiteClient() {
       {error && <div className="text-sm text-rose-400 mt-3">{error}</div>}
       <div className="text-[11px] text-buzz-mute mt-4 space-y-1">
         <p>
-          <strong>One URL</strong> → we scrape the listing page, follow every
-          page of it, and pull each event's detail page. Works on tourism
-          &ldquo;what&apos;s on&rdquo; portals — paste a category feed like{" "}
-          <code>/whats-on-category/children-family/</code> (or music, outdoors,
-          festivals…) and we&apos;ll keep the family-suitable events, drop the
-          adult ones, and list any <strong>places</strong> separately to add.
-        </p>
-        <p>
-          <strong>Multiple URLs</strong> (one per line) → we fetch each as an
-          event detail page directly. Use for JS-rendered sites. ⌘/Ctrl+Enter to submit.
+          <strong>Paste one or several feeds</strong> (one URL per line) → each
+          is auto-detected: a listings / &ldquo;what&apos;s on&rdquo; page gets
+          swept in full (all its pages + every event), a single event page is
+          read on its own. So you can paste all the category feeds you want at
+          once — e.g. <code>/whats-on-category/children-family/</code>,{" "}
+          <code>/music-dance/</code>, <code>/outdoors/</code>,{" "}
+          <code>/festivals/</code> — and we keep the family-suitable events,
+          drop the adult ones, and list any <strong>places</strong> separately
+          to add. ⌘/Ctrl+Enter to submit.
         </p>
         <p>
           <strong>Screenshot mode</strong> → bypass URL fetching entirely. Best
