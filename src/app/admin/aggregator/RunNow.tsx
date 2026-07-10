@@ -52,6 +52,14 @@ export default function RunNow() {
           {result.warnings.length > 0 && <> · {result.warnings.length} warning{result.warnings.length === 1 ? "" : "s"}</>}
         </p>
       )}
+      {result && result.warnings.length > 0 && (
+        <details className="mt-2">
+          <summary className="text-xs text-buzz-mute cursor-pointer hover:text-buzz-accent">Show warnings</summary>
+          <ul className="mt-1 text-[11px] text-buzz-mute space-y-1 list-disc pl-4 break-all">
+            {result.warnings.slice(0, 12).map((w, i) => <li key={i}>{w}</li>)}
+          </ul>
+        </details>
+      )}
     </div>
   );
 }
