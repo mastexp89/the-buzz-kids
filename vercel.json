@@ -9,6 +9,10 @@
       "schedule": "0 20 * * 2,6"
     },
     {
+      "path": "/api/cron/import-aggregator",
+      "schedule": "0 19 * * 3"
+    },
+    {
       "path": "/api/cron/dedupe-events",
       "schedule": "0 3 * * *"
     },

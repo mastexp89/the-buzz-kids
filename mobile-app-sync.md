@@ -9,6 +9,19 @@ Keep entries to what the app must **mirror** (feature parity) or **handle** (sch
 
 ---
 
+## 2026-07-09 (later) — Scheduled aggregator importer (backend only)
+
+New weekly cron pulls kids' events from regional "what's on" portals (Visit
+Angus etc.) into the review queue. **No app change needed** — it just creates
+normal pending `events` (reviewed → approved like any other) plus `new_place`
+rows in `edit_suggestions`. Shared-schema note:
+
+- **`events.auto_imported_from` CHECK now allows `'aggregator'`** (sql/091,
+  added to the existing `manual_upload/facebook/instagram/website/email` set).
+  If the app ever writes/reads that column, know the value exists.
+- New service-role-only tables `aggregator_sources`, `aggregator_seen` (RLS
+  on, no public policies) — app can ignore them.
+
 ## 2026-07-09 — Lucky wheel (web-only for now) + notify_signups gained opt-in columns
 
 New web marketing feature: a spin-to-win email-capture wheel at `/win` (admin at
