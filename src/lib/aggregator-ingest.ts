@@ -81,6 +81,10 @@ export async function runAggregatorImport(opts: { batch?: number; dry?: boolean 
     res.skippedSeen += detailUrls.length - fresh.length;
     res.newUrls += fresh.length;
 
+    // Dry run is a FREE preview: report the sweep (how many new listings are
+    // waiting) without paying to AI-extract or writing anything.
+    if (dry) continue;
+
     const take = fresh.slice(0, budget);
     let srcEvents = 0;
     let srcPlaces = 0;
