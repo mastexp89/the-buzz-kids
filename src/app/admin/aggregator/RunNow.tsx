@@ -35,11 +35,20 @@ export default function RunNow() {
       {error && <p className="text-sm text-rose-500 mt-2">{error}</p>}
       {result && (
         <p className="text-sm mt-3" style={{ color: "#3B6D11" }}>
-          {result.dry ? "Dry run — " : ""}swept {result.sourcesRun} feed{result.sourcesRun === 1 ? "" : "s"} ·
-          {" "}{result.detailUrlsFound} listings ({result.skippedSeen} already seen, {result.newUrls} new) ·
-          {" "}processed {result.processed} → <strong>{result.events} event{result.events === 1 ? "" : "s"}</strong>
-          {" "}+ <strong>{result.places} place{result.places === 1 ? "" : "s"}</strong>
-          {result.dry ? " would be added." : " added to the review queue."}
+          {result.dry ? (
+            <>
+              Dry run (free) — swept {result.sourcesRun} feed{result.sourcesRun === 1 ? "" : "s"} ·
+              {" "}{result.detailUrlsFound} listings, <strong>{result.newUrls} new</strong> ({result.skippedSeen} already seen).
+              {" "}Run live to extract them into the queue.
+            </>
+          ) : (
+            <>
+              Swept {result.sourcesRun} feed{result.sourcesRun === 1 ? "" : "s"} ·
+              {" "}{result.detailUrlsFound} listings ({result.skippedSeen} already seen, {result.newUrls} new) ·
+              {" "}processed {result.processed} → <strong>{result.events} event{result.events === 1 ? "" : "s"}</strong>
+              {" "}+ <strong>{result.places} place{result.places === 1 ? "" : "s"}</strong> added to the review queue.
+            </>
+          )}
           {result.warnings.length > 0 && <> · {result.warnings.length} warning{result.warnings.length === 1 ? "" : "s"}</>}
         </p>
       )}
