@@ -63,6 +63,11 @@ export type ExtractionInput = {
     city: string;
     nearbyAreas?: string[];
   };
+  // When true, the model may ALSO classify the source as an ongoing place /
+  // attraction (a farm, park, museum) rather than a dated event, returning it
+  // in a `places` array. Used by the aggregator importer. Default false — every
+  // existing caller behaves exactly as before.
+  detectPlaces?: boolean;
 };
 
 // Controlled vocab for accessibility / sensory facets — mirrors the
@@ -112,16 +117,43 @@ export type ExtractedEvent = {
   venue_hint: string | null;
 };
 
+// An ongoing attraction / venue (not a dated event), surfaced only when
+// detectPlaces is set — routed to the Places queue, not the events queue.
+export type ExtractedPlace = {
+  name: string;
+  location: string | null;   // town / area printed on the page
+  description: string;
+  website: string | null;
+  family_suitable: boolean;  // false = adults-only / not for kids
+  confidence: number;
+};
+
 export type ExtractionResult = {
   events: ExtractedEvent[];
+  places: ExtractedPlace[];
   raw: any;
 };
+
+function normalizeExtractedPlace(raw: any): ExtractedPlace | null {
+  const name = typeof raw?.name === "string" ? raw.name.trim() : "";
+  if (!name) return null;
+  const conf = Number(raw?.confidence);
+  return {
+    name,
+    location: typeof raw?.location === "string" && raw.location.trim() ? raw.location.trim() : null,
+    description: typeof raw?.description === "string" ? raw.description.trim() : "",
+    website: typeof raw?.website === "string" && /^https?:\/\//.test(raw.website) ? raw.website.trim() : null,
+    family_suitable: raw?.family_suitable !== false,
+    confidence: Number.isFinite(conf) ? Math.max(0, Math.min(1, conf)) : 0.5,
+  };
+}
 
 function buildSystemPrompt(
   venueName: string,
   postedIso: string,
   availableCategories: { slug: string; name: string }[],
   locationFilter?: ExtractionInput["locationFilter"],
+  detectPlaces?: boolean,
 ): string {
   const postedHuman = new Date(postedIso).toLocaleString("en-GB", {
     weekday: "long",
@@ -166,9 +198,25 @@ Return ONLY a JSON object of this shape:
       "poster_image_index": 0,
       "venue_hint": "string or null"
     }
-  ]
+  ]${detectPlaces ? `,
+  "places": [
+    {
+      "name": "the attraction / venue name",
+      "location": "town or area, or null",
+      "description": "one neutral sentence about what it is",
+      "website": "its own website URL or null",
+      "family_suitable": true or false,
+      "confidence": 0.0-1.0
+    }
+  ]` : ""}
 }
-
+${detectPlaces ? `
+PLACES vs EVENTS (this source is a listings page — classify each item into ONE bucket)
+- If the item is an ongoing ATTRACTION or VENUE you can visit any time — a farm park, soft play, museum, garden, play centre, nature reserve, leisure centre, adventure park — it is a PLACE. Put it in "places", NOT "events". Do NOT invent a dated event for it.
+- If the item is a dated, time-boxed HAPPENING — a show, class, camp, competition, festival, workshop, gala, a holiday programme with start/end dates, a one-off day out — it is an EVENT. Put it in "events".
+- A fixed attraction described as "open daily over the summer" is a PLACE, not a camp.
+- family_suitable: set false ONLY for clearly adults-only items (18+, licensed bar night, wine tasting, adult comedy, grown-up-only talks). Keep anything a parent could reasonably bring a child to — family gigs, outdoor festivals, markets, panto, fun runs — as true. Items you mark family_suitable=false will be dropped.
+` : ""}
 DATES & TIMES
 - Resolve relative dates ("today", "this Saturday", "Sat 14th", "the summer holidays") using POSTED above.
 - If a date has no year, assume the next occurrence from POSTED.
@@ -257,7 +305,7 @@ POSTER IMAGE
 - If several events share one "what's on this week" graphic, use the same index for each.
 - If no images were provided, or none is clearly a poster, set poster_image_index to null.
 
-If nothing event-like, return { "events": [] }.`;
+If nothing event-like, return { "events": []${detectPlaces ? `, "places": []` : ""} }.`;
 }
 
 // Anthropic rejects images whose raw bytes exceed 5 MB. Phone-camera
@@ -623,7 +671,7 @@ export async function extractEvents(input: ExtractionInput): Promise<ExtractionR
   const body = {
     model: MODEL,
     max_tokens: 4096,
-    system: buildSystemPrompt(input.venueName, input.postedAt, input.availableCategories ?? [], input.locationFilter),
+    system: buildSystemPrompt(input.venueName, input.postedAt, input.availableCategories ?? [], input.locationFilter, input.detectPlaces),
     messages: [{ role: "user", content }],
   };
 
@@ -636,12 +684,17 @@ export async function extractEvents(input: ExtractionInput): Promise<ExtractionR
   const textBlock = (json.content ?? []).find((b: any) => b.type === "text");
   const responseText: string = textBlock?.text ?? "";
   const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-  const parsed: { events: ExtractedEvent[] } = { events: [] };
+  const parsed: { events: ExtractedEvent[]; places: ExtractedPlace[] } = { events: [], places: [] };
   if (jsonMatch) {
     try {
       const rawParsed = JSON.parse(jsonMatch[0]);
       const rawEvents = Array.isArray(rawParsed?.events) ? rawParsed.events : [];
       parsed.events = rawEvents.map(normalizeExtractedEvent);
+      if (input.detectPlaces && Array.isArray(rawParsed?.places)) {
+        parsed.places = rawParsed.places
+          .map(normalizeExtractedPlace)
+          .filter((p: ExtractedPlace | null): p is ExtractedPlace => !!p && p.family_suitable);
+      }
     } catch {
       // fall through with empty events
     }
@@ -677,7 +730,7 @@ export async function extractEvents(input: ExtractionInput): Promise<ExtractionR
     });
   }
 
-  return { events: parsed.events, raw: json };
+  return { events: parsed.events, places: parsed.places, raw: json };
 }
 
 // ============================================================

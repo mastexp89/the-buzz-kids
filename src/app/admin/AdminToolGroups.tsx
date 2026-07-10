@@ -83,7 +83,7 @@ export default function AdminToolGroups({ pendingCount, suggestionsCount = 0 }: 
           href: "/admin/import-site",
           label: "Import from website",
           emoji: "🌐",
-          description: "Paste a URL or screenshots",
+          description: "Paste a URL, a what's-on category feed, or screenshots — sweeps all pages, splits events from places",
           paid: true,
         },
       ],
