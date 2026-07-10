@@ -6,6 +6,9 @@ import { addAggregatorSource, deleteAggregatorSource, toggleAggregatorSource } f
 import RunNow from "./RunNow";
 
 export const dynamic = "force-dynamic";
+// The "Run now" server action lives on this route — give it the same long
+// budget as the cron so a live run has time to AI-extract a batch.
+export const maxDuration = 300;
 export const metadata = { title: "Auto-import feeds — The Buzz Kids admin" };
 
 export default async function AggregatorPage() {
