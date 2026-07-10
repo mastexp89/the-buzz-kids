@@ -159,6 +159,13 @@ export default function AdminToolGroups({ pendingCount, suggestionsCount = 0 }: 
           description: "Daily output + run-now triggers",
         },
         {
+          href: "/admin/aggregator",
+          label: "Auto-import feeds",
+          emoji: "🔁",
+          description: "Regional what's-on portals swept weekly into the review queue — new listings only",
+          paid: true,
+        },
+        {
           href: "/admin/analytics",
           label: "Analytics",
           emoji: "📊",
