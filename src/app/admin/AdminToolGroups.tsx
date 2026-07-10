@@ -183,6 +183,12 @@ export default function AdminToolGroups({ pendingCount, suggestionsCount = 0 }: 
           emoji: "🎡",
           description: "Spin-to-win email capture at /win — set prizes, activate, draw winners",
         },
+        {
+          href: "/admin/competition",
+          label: "Circus comp",
+          emoji: "🎪",
+          description: "Sign-up-to-enter competition at /win-circus — entry count + draw a winner",
+        },
       ],
     },
   ];

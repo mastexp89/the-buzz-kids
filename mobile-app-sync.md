@@ -9,6 +9,13 @@ Keep entries to what the app must **mirror** (feature parity) or **handle** (sch
 
 ---
 
+## 2026-07-10 — Circus competition (web-only)
+
+Sign-up-to-enter competition at `/win-circus` to grow parent accounts:
+landing page auto-enters any logged-in visitor (one row per account),
+admin draws a winner at `/admin/competition`. **App can ignore it** — new
+table `competition_entries` (service-role only, sql/092). No app change.
+
 ## 2026-07-09 (later) — Scheduled aggregator importer (backend only)
 
 New weekly cron pulls kids' events from regional "what's on" portals (Visit
