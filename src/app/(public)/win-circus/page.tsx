@@ -12,6 +12,20 @@ export const metadata = {
 export default async function WinCircusPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+
+  // Master switch: while the competition isn't open, show a dormant page and
+  // enter nobody — safe to have the URL live before you announce.
+  if (!CIRCUS.open) {
+    return (
+      <div className="container-page py-20 text-center max-w-lg">
+        <div className="text-5xl mb-4">🎪</div>
+        <h1 className="h-display text-3xl mb-2">Competition coming soon</h1>
+        <p className="text-buzz-mute mb-8">Check back shortly — we&apos;ve got a cracking family prize on the way.</p>
+        <Link href="/browse" className="btn-primary">Browse things to do</Link>
+      </div>
+    );
+  }
+
   const closed = circusClosed();
 
   // Logged in? You're in. We enter you the moment you land here (one entry per

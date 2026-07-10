@@ -3,6 +3,9 @@
 //
 // ⚠ CONFIRM `closesOn` + `winnerText` before you announce — placeholders below.
 export const CIRCUS = {
+  // ⚠ Master switch — while false, /win-circus shows "not open yet" and nobody
+  // can be entered. Flip to true when you're ready to announce.
+  open: false,
   slug: "circus-extreme",
   title: "Circus Extreme",
   prizeLine: "A family ticket for up to 4 — any mix (4 adults, or 2 adults + 2 kids, etc). Valid at any location.",
