@@ -283,111 +283,67 @@ export async function importEventsFromSiteUrl(opts: {
   const allowedLocation = await buildAllowedLocation(sb);
   const cap = Math.max(1, Math.min(50, opts.maxPages || MAX_DETAIL_PAGES));
 
-  // ---- Multi-URL mode: each URL is treated as a detail page directly ----
-  if (validatedUrls.length > 1) {
-    const allDrafts: QuickDraft[] = [];
-    const allPlaces: { place: ExtractedPlace; sourceUrl: string }[] = [];
-    const warnings: string[] = [];
-    let fetched = 0;
-    let skipped = 0;
-    const pages = validatedUrls.slice(0, cap);
+  // ---- Unified sweep ----
+  // Each pasted URL is auto-detected: a LISTING (we follow its detail links +
+  // every page of pagination) or a single DETAIL page (extract it directly).
+  // So you can paste several category feeds at once — e.g. the children-family,
+  // music-dance and outdoors feeds — and it sweeps them all into one review.
+  const LISTING_MIN_LINKS = 3; // >= this many detail links ⇒ it's a listing
+  const detailSet = new Set<string>();
+  const soloDetailPages: string[] = [];
+  const warnings: string[] = [];
+  let listingsSwept = 0;
 
-    await pool(pages, 4, async (pageUrl) => {
-      const raw = await fetchRawHtml(pageUrl);
-      if ("error" in raw) {
-        skipped++;
-        warnings.push(`${pageUrl}: ${raw.error}`);
-        return;
+  for (const inputUrl of validatedUrls) {
+    const idx = await fetchRawHtml(inputUrl);
+    if ("error" in idx) {
+      warnings.push(`${inputUrl}: ${idx.error}`);
+      continue;
+    }
+    const origin = new URL(idx.finalUrl).origin;
+    const links = extractAnchorUrls(idx.html, idx.finalUrl, (u) => looksLikeEventDetail(u, origin));
+    if (links.length >= LISTING_MIN_LINKS) {
+      // A listing page — sweep it and every page of it (pagination is cheap, no AI).
+      listingsSwept++;
+      for (const l of links) detailSet.add(l);
+      for (const pageUrl of discoverPaginationUrls(idx.html, idx.finalUrl, 10)) {
+        const pg = await fetchRawHtml(pageUrl);
+        if ("error" in pg) continue;
+        for (const l of extractAnchorUrls(pg.html, pg.finalUrl, (u) => looksLikeEventDetail(u, origin))) {
+          detailSet.add(l);
+        }
       }
-      fetched++;
-      const page = htmlToScrapedPage(raw.html, raw.finalUrl);
-      if (page.text.length < 60) {
-        skipped++;
-        warnings.push(`${pageUrl}: not enough text on the page`);
-        return;
-      }
-      try {
-        const { drafts, places } = await runExtraction(page.text, page.imageUrls, raw.finalUrl, availableGenres, allowedLocation);
-        allDrafts.push(...drafts);
-        for (const p of places) allPlaces.push({ place: p, sourceUrl: raw.finalUrl });
-      } catch (e: any) {
-        warnings.push(`${pageUrl}: ${e?.message ?? "extraction failed"}`);
-      }
-    });
+    } else {
+      // Few/no detail links — treat the page itself as one detail page (the AI
+      // reads any events listed inline). Covers JS-rendered / flattened pages.
+      soloDetailPages.push(idx.finalUrl);
+    }
+  }
 
+  const allDetailUrls = Array.from(new Set([...detailSet, ...soloDetailPages]));
+  const totalFound = allDetailUrls.length;
+
+  if (totalFound === 0) {
     return {
       ok: true,
       indexUrl: validatedUrls[0],
-      pagesFetched: fetched,
-      pagesSkipped: skipped,
-      drafts: await applyArtistMatchesToDrafts(sb, allDrafts),
-      places: await toPlaceDrafts(sb, allPlaces),
-      warnings,
-    };
-  }
-
-  // ---- Single URL mode: discover detail links from the listing page ----
-  const indexUrl = validatedUrls[0];
-  const parsed = new URL(indexUrl);
-
-  // 1. Fetch the index page so we can read its links.
-  const index = await fetchRawHtml(indexUrl);
-  if ("error" in index) return { error: `Couldn't fetch that page: ${index.error}` };
-
-  const baseOrigin = parsed.origin;
-
-  // Gather detail links from the first page AND any pagination pages, so a
-  // multi-page category (e.g. 29 kids events over 3 pages) is swept fully,
-  // not just the first 12. Pagination fetches are cheap (no AI) — capped at 10.
-  const detailSet = new Set<string>(
-    extractAnchorUrls(index.html, index.finalUrl, (u) => looksLikeEventDetail(u, baseOrigin)),
-  );
-  const paginationUrls = discoverPaginationUrls(index.html, index.finalUrl, 10);
-  for (const pageUrl of paginationUrls) {
-    const pg = await fetchRawHtml(pageUrl);
-    if ("error" in pg) continue;
-    for (const u of extractAnchorUrls(pg.html, pg.finalUrl, (u2) => looksLikeEventDetail(u2, baseOrigin))) {
-      detailSet.add(u);
-    }
-  }
-  const detailLinks = Array.from(detailSet);
-
-  // The index page itself is sometimes the only listing; scrape it too if
-  // there are no detail links (some sites flatten everything onto one page).
-  const pagesToFetch = detailLinks.length > 0
-    ? detailLinks.slice(0, cap)
-    : [index.finalUrl];
-
-  if (detailLinks.length === 0) {
-    // No detail links — extract from index page text directly. AI can find
-    // multiple events listed on one page, but they'll all share the same
-    // image. The admin can switch to multi-URL mode if that's a problem.
-    const page = htmlToScrapedPage(index.html, index.finalUrl);
-    const { drafts: rawDrafts, places: rawPlaces } = await runExtraction(page.text, page.imageUrls, index.finalUrl, availableGenres, allowedLocation);
-    const drafts = await applyArtistMatchesToDrafts(sb, rawDrafts);
-    return {
-      ok: true,
-      indexUrl,
-      pagesFetched: 1,
+      pagesFetched: 0,
       pagesSkipped: 0,
-      drafts,
-      places: await toPlaceDrafts(sb, rawPlaces.map((p) => ({ place: p, sourceUrl: index.finalUrl }))),
-      warnings: drafts.length === 0
-        ? ["No events found on the index page, and no detail links were detected."]
-        : ["Detail links weren't found in the page HTML — likely a JavaScript-rendered listing. All events share the listing page's image. Tip: paste each event's URL directly (one per line) for per-event posters."],
+      drafts: [],
+      places: [],
+      warnings: [...warnings, "No event or place pages found — check the URL points to a what's-on / listings page."],
     };
   }
 
-  // 2. Fetch each detail page + extract concurrently (small concurrency to
-  // stay polite + fit within Vercel's per-function timeout).
-  // (sb / genres / availableGenres / cap already initialised at the top.)
+  const pagesToFetch = allDetailUrls.slice(0, cap);
+
+  // Fetch + extract each detail page concurrently (small pool to stay polite
+  // and fit the function timeout). AI extraction is the dominant cost/time.
   const allDrafts: QuickDraft[] = [];
   const allPlaces: { place: ExtractedPlace; sourceUrl: string }[] = [];
-  const warnings: string[] = [];
   let fetched = 0;
   let skipped = 0;
 
-  // Concurrency = 4. AI extraction is ~3-5s each, so 20 detail pages / 4 = 5 rounds × ~5s = 25s.
   await pool(pagesToFetch, 4, async (pageUrl) => {
     const raw = await fetchRawHtml(pageUrl);
     if ("error" in raw) {
@@ -410,13 +366,13 @@ export async function importEventsFromSiteUrl(opts: {
     }
   });
 
-  if (detailLinks.length > cap) {
-    warnings.push(`Found ${detailLinks.length} listings across ${paginationUrls.length + 1} page(s) — imported the first ${cap}. Raise the page cap or re-run to get the rest.`);
+  if (totalFound > cap) {
+    warnings.push(`Found ${totalFound} listings across ${listingsSwept} feed(s) — imported the first ${cap}. Re-run (or raise the cap) to get the rest.`);
   }
 
   return {
     ok: true,
-    indexUrl,
+    indexUrl: validatedUrls[0],
     pagesFetched: fetched,
     pagesSkipped: skipped,
     drafts: await applyArtistMatchesToDrafts(sb, allDrafts),
