@@ -18,7 +18,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { extractEvents, type ExtractedEvent } from "@/lib/extraction";
+import { extractEvents, type ExtractedEvent, type ExtractedPlace } from "@/lib/extraction";
 import { fetchRawHtml, extractAnchorUrls, htmlToScrapedPage } from "@/lib/scrape-website";
 import {
   applyArtistMatchesToDrafts,
@@ -91,6 +91,11 @@ function looksLikeEventDetail(linkUrl: URL, baseOrigin: string): boolean {
     /\.(jpg|jpeg|png|webp|gif|pdf|zip|mp3|mp4|css|js|svg|ico)$/.test(path) ||
     /^\/wp-(admin|content|json|login)/.test(path) ||
     /^\/(cart|checkout|account|my-account|basket|terms|privacy|contact|about|search|tag|category|author|feed|rss|comments|wp-)/i.test(path) ||
+    // Category / archive listing pages and pagination are NOT event details —
+    // "/whats-on-category/..." and any ".../page/2/" or ".../feed/".
+    /-category\//.test(path) ||
+    /\/page\/\d+\/?$/.test(path) ||
+    /\/feed\/?$/.test(path) ||
     path === "/" ||
     path.length < 4
   ) return false;
@@ -107,6 +112,17 @@ function looksLikeEventDetail(linkUrl: URL, baseOrigin: string): boolean {
   return false;
 }
 
+// An ongoing attraction the importer found on a listings page — routed to
+// the admin as "add this as a place", separate from the event drafts.
+export type PlaceDraft = {
+  name: string;
+  location: string | null;
+  description: string;
+  website: string | null;
+  sourceUrl: string;
+  alreadyExists: boolean; // a venue of this name is already in the directory
+};
+
 export type SiteImportResult =
   | {
       ok: true;
@@ -114,9 +130,61 @@ export type SiteImportResult =
       pagesFetched: number;
       pagesSkipped: number;
       drafts: QuickDraft[];
+      places?: PlaceDraft[];
       warnings: string[];
     }
   | { error: string };
+
+const normName = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+
+// Turn raw extracted places into deduped drafts, flagging any that already
+// exist in the venues directory so the admin doesn't add duplicates.
+async function toPlaceDrafts(
+  sb: ReturnType<typeof createServiceClient>,
+  raw: { place: ExtractedPlace; sourceUrl: string }[],
+): Promise<PlaceDraft[]> {
+  if (raw.length === 0) return [];
+  const { data: venues } = await sb.from("venues").select("name").limit(10000);
+  const existing = new Set((venues ?? []).map((v: any) => normName(v.name)));
+  const seen = new Set<string>();
+  const out: PlaceDraft[] = [];
+  for (const { place, sourceUrl } of raw) {
+    const key = normName(place.name);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      name: place.name,
+      location: place.location,
+      description: place.description,
+      website: place.website,
+      sourceUrl,
+      alreadyExists: existing.has(key),
+    });
+  }
+  return out;
+}
+
+// Pagination discovery: find "?/page/N/" links that extend the listing path
+// (WordPress-style), so we sweep every page of a category, not just the first.
+function discoverPaginationUrls(html: string, listingUrl: string, cap: number): string[] {
+  const base = new URL(listingUrl);
+  const basePath = base.pathname.replace(/\/page\/\d+\/?$/, "").replace(/\/+$/, "");
+  const found = new Set<string>();
+  for (const u of extractAnchorUrls(html, listingUrl)) {
+    try {
+      const p = new URL(u);
+      if (p.origin !== base.origin) continue;
+      const m = p.pathname.match(/^(.*?)\/page\/(\d+)\/?$/);
+      if (!m) continue;
+      if (m[1].replace(/\/+$/, "") !== basePath) continue;
+      if (Number(m[2]) < 2) continue;
+      found.add(`${p.origin}${p.pathname.replace(/\/+$/, "")}`);
+    } catch {
+      /* ignore */
+    }
+  }
+  return Array.from(found).slice(0, cap);
+}
 
 export async function importEventsFromSiteUrl(opts: {
   // Single URL: scrape the page, look for event-detail links, fetch each.
@@ -218,6 +286,7 @@ export async function importEventsFromSiteUrl(opts: {
   // ---- Multi-URL mode: each URL is treated as a detail page directly ----
   if (validatedUrls.length > 1) {
     const allDrafts: QuickDraft[] = [];
+    const allPlaces: { place: ExtractedPlace; sourceUrl: string }[] = [];
     const warnings: string[] = [];
     let fetched = 0;
     let skipped = 0;
@@ -238,8 +307,9 @@ export async function importEventsFromSiteUrl(opts: {
         return;
       }
       try {
-        const drafts = await runExtraction(page.text, page.imageUrls, raw.finalUrl, availableGenres, allowedLocation);
+        const { drafts, places } = await runExtraction(page.text, page.imageUrls, raw.finalUrl, availableGenres, allowedLocation);
         allDrafts.push(...drafts);
+        for (const p of places) allPlaces.push({ place: p, sourceUrl: raw.finalUrl });
       } catch (e: any) {
         warnings.push(`${pageUrl}: ${e?.message ?? "extraction failed"}`);
       }
@@ -251,6 +321,7 @@ export async function importEventsFromSiteUrl(opts: {
       pagesFetched: fetched,
       pagesSkipped: skipped,
       drafts: await applyArtistMatchesToDrafts(sb, allDrafts),
+      places: await toPlaceDrafts(sb, allPlaces),
       warnings,
     };
   }
@@ -264,9 +335,22 @@ export async function importEventsFromSiteUrl(opts: {
   if ("error" in index) return { error: `Couldn't fetch that page: ${index.error}` };
 
   const baseOrigin = parsed.origin;
-  const detailLinks = extractAnchorUrls(index.html, index.finalUrl, (u) =>
-    looksLikeEventDetail(u, baseOrigin),
+
+  // Gather detail links from the first page AND any pagination pages, so a
+  // multi-page category (e.g. 29 kids events over 3 pages) is swept fully,
+  // not just the first 12. Pagination fetches are cheap (no AI) — capped at 10.
+  const detailSet = new Set<string>(
+    extractAnchorUrls(index.html, index.finalUrl, (u) => looksLikeEventDetail(u, baseOrigin)),
   );
+  const paginationUrls = discoverPaginationUrls(index.html, index.finalUrl, 10);
+  for (const pageUrl of paginationUrls) {
+    const pg = await fetchRawHtml(pageUrl);
+    if ("error" in pg) continue;
+    for (const u of extractAnchorUrls(pg.html, pg.finalUrl, (u2) => looksLikeEventDetail(u2, baseOrigin))) {
+      detailSet.add(u);
+    }
+  }
+  const detailLinks = Array.from(detailSet);
 
   // The index page itself is sometimes the only listing; scrape it too if
   // there are no detail links (some sites flatten everything onto one page).
@@ -279,7 +363,7 @@ export async function importEventsFromSiteUrl(opts: {
     // multiple events listed on one page, but they'll all share the same
     // image. The admin can switch to multi-URL mode if that's a problem.
     const page = htmlToScrapedPage(index.html, index.finalUrl);
-    const rawDrafts = await runExtraction(page.text, page.imageUrls, index.finalUrl, availableGenres, allowedLocation);
+    const { drafts: rawDrafts, places: rawPlaces } = await runExtraction(page.text, page.imageUrls, index.finalUrl, availableGenres, allowedLocation);
     const drafts = await applyArtistMatchesToDrafts(sb, rawDrafts);
     return {
       ok: true,
@@ -287,6 +371,7 @@ export async function importEventsFromSiteUrl(opts: {
       pagesFetched: 1,
       pagesSkipped: 0,
       drafts,
+      places: await toPlaceDrafts(sb, rawPlaces.map((p) => ({ place: p, sourceUrl: index.finalUrl }))),
       warnings: drafts.length === 0
         ? ["No events found on the index page, and no detail links were detected."]
         : ["Detail links weren't found in the page HTML — likely a JavaScript-rendered listing. All events share the listing page's image. Tip: paste each event's URL directly (one per line) for per-event posters."],
@@ -297,6 +382,7 @@ export async function importEventsFromSiteUrl(opts: {
   // stay polite + fit within Vercel's per-function timeout).
   // (sb / genres / availableGenres / cap already initialised at the top.)
   const allDrafts: QuickDraft[] = [];
+  const allPlaces: { place: ExtractedPlace; sourceUrl: string }[] = [];
   const warnings: string[] = [];
   let fetched = 0;
   let skipped = 0;
@@ -316,12 +402,17 @@ export async function importEventsFromSiteUrl(opts: {
       return;
     }
     try {
-      const drafts = await runExtraction(page.text, page.imageUrls, raw.finalUrl, availableGenres, allowedLocation);
+      const { drafts, places } = await runExtraction(page.text, page.imageUrls, raw.finalUrl, availableGenres, allowedLocation);
       allDrafts.push(...drafts);
+      for (const p of places) allPlaces.push({ place: p, sourceUrl: raw.finalUrl });
     } catch (e: any) {
       warnings.push(`${pageUrl}: ${e?.message ?? "extraction failed"}`);
     }
   });
+
+  if (detailLinks.length > cap) {
+    warnings.push(`Found ${detailLinks.length} listings across ${paginationUrls.length + 1} page(s) — imported the first ${cap}. Raise the page cap or re-run to get the rest.`);
+  }
 
   return {
     ok: true,
@@ -329,6 +420,7 @@ export async function importEventsFromSiteUrl(opts: {
     pagesFetched: fetched,
     pagesSkipped: skipped,
     drafts: await applyArtistMatchesToDrafts(sb, allDrafts),
+    places: await toPlaceDrafts(sb, allPlaces),
     warnings,
   };
 }
@@ -339,7 +431,7 @@ async function runExtraction(
   pageUrl: string,
   availableGenres: { slug: string; name: string }[],
   locationFilter: { city: string; nearbyAreas: string[] },
-): Promise<QuickDraft[]> {
+): Promise<{ drafts: QuickDraft[]; places: ExtractedPlace[] }> {
   const extraction = await extractEvents({
     venueName: "(unknown — please detect from page)",
     postedAt: new Date().toISOString(),
@@ -347,8 +439,9 @@ async function runExtraction(
     imageUrls: imageUrls.slice(0, 3), // cap images to keep AI cost down
     availableCategories: availableGenres,
     locationFilter,
+    detectPlaces: true, // aggregator: classify ongoing attractions as places
   });
-  return extraction.events.map((e: ExtractedEvent): QuickDraft => ({
+  const drafts = extraction.events.map((e: ExtractedEvent): QuickDraft => ({
     title: e.title,
     starts_at: e.starts_at,
     ends_at: e.ends_at,
@@ -363,6 +456,7 @@ async function runExtraction(
     ticket_url: e.ticket_url ?? pageUrl,
     posterImageUrl: imageUrls[0] ?? "",
   }));
+  return { drafts, places: extraction.places };
 }
 
 // Tiny concurrency pool — borrowed from the FB cron pattern.

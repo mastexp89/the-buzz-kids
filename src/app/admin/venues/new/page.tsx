@@ -7,7 +7,8 @@ import NewVenueForm from "./NewVenueForm";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Add venue — The Buzz Kids admin" };
 
-export default async function NewVenuePage() {
+export default async function NewVenuePage({ searchParams }: { searchParams: Promise<{ name?: string; website?: string }> }) {
+  const sp = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -48,6 +49,8 @@ export default async function NewVenuePage() {
           slug: c.slug,
           active: !!c.active,
         }))}
+        prefillName={sp.name ?? ""}
+        prefillWebsite={sp.website ?? ""}
       />
     </div>
   );

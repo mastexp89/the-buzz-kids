@@ -7,7 +7,7 @@ import { createVenueAsAdmin } from "./actions";
 
 type City = { id: string; name: string; slug: string; active: boolean };
 
-export default function NewVenueForm({ cities }: { cities: City[] }) {
+export default function NewVenueForm({ cities, prefillName = "", prefillWebsite = "" }: { cities: City[]; prefillName?: string; prefillWebsite?: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   // Default to the first ACTIVE city — hidden cities (e.g. Fife while
@@ -17,12 +17,12 @@ export default function NewVenueForm({ cities }: { cities: City[] }) {
   const defaultCityId =
     cities.find((c) => c.active)?.id ?? cities[0]?.id ?? "";
   const [form, setForm] = useState({
-    name: "",
+    name: prefillName,
     cityId: defaultCityId,
     address: "",
     postcode: "",
     facebook: "",
-    website: "",
+    website: prefillWebsite,
     phone: "",
   });
   const [error, setError] = useState<string | null>(null);
