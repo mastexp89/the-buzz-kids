@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { CIRCUS, circusClosed } from "@/lib/competition";
 import { formatDateOrdinal } from "@/lib/format-date";
 import DrawCircus from "./DrawCircus";
+import RemoveEntry from "./RemoveEntry";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Circus competition — The Buzz Kids admin" };
@@ -26,7 +27,7 @@ export default async function CompetitionPage() {
   const closed = circusClosed();
   const sb = createServiceClient();
   let tablesMissing = false;
-  let list: { name: string | null; email: string | null; entered: string; newSignup: boolean }[] = [];
+  let list: { userId: string; name: string | null; email: string | null; entered: string; newSignup: boolean }[] = [];
   try {
     const { data: entryRows, error } = await sb
       .from("competition_entries").select("user_id, created_at")
@@ -45,7 +46,7 @@ export default async function CompetitionPage() {
       // (they made an account then were auto-entered). Existing members show a
       // much older account date.
       const newSignup = !!p && enteredMs - acctMs < 30 * 60 * 1000;
-      return { name: p?.display_name ?? null, email: p?.email ?? null, entered: e.created_at, newSignup };
+      return { userId: e.user_id, name: p?.display_name ?? null, email: p?.email ?? null, entered: e.created_at, newSignup };
     });
   } catch {
     tablesMissing = true;
@@ -107,6 +108,7 @@ export default async function CompetitionPage() {
                   <span className="text-buzz-mute ml-auto shrink-0 text-xs">
                     {formatDateOrdinal(l.entered, { month: "short" })}
                   </span>
+                  <RemoveEntry userId={l.userId} name={l.name || l.email || ""} />
                 </div>
               ))}
             </div>
