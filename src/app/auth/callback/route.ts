@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { CIRCUS, circusClosed } from "@/lib/competition";
 
 // Where users land after clicking an email confirmation, magic link,
 // password reset, or OAuth callback.
@@ -63,6 +64,12 @@ export async function GET(request: Request) {
     // they actually get to change their password.
     if (type === "recovery") {
       return NextResponse.redirect(`${origin}/auth/update-password`);
+    }
+    // Competition hook: a freshly-confirmed signup while a competition is
+    // open → land them on the competition page, which auto-enters them.
+    // Without this they'd hit /dashboard and never get entered.
+    if ((type === "email" || type === "signup") && CIRCUS.open && !circusClosed()) {
+      return NextResponse.redirect(`${origin}/win-circus`);
     }
     return NextResponse.redirect(`${origin}${next}`);
   }
