@@ -55,9 +55,11 @@ export default async function WinCircusPage() {
     <div className="container-page py-12 max-w-2xl">
       <div className="text-center mb-8">
         <p className="eyebrow mb-2" style={{ color: "#EC1E8C" }}>Competition</p>
-        <h1 className="font-display text-4xl sm:text-6xl leading-none mb-3">
-          Win a family ticket to<br /><span style={{ color: "#1FA9E0" }}>Circus Extreme</span> 🎪
-        </h1>
+        <h1 className="font-display text-4xl sm:text-6xl leading-none mb-4">Win a family ticket to</h1>
+        <a href={CIRCUS.website} target="_blank" rel="noopener" className="block max-w-md mx-auto mb-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={CIRCUS.logo} alt="Circus Extreme" className="w-full h-auto" />
+        </a>
         <p className="text-buzz-mute text-lg max-w-xl mx-auto">{CIRCUS.prizeLine}</p>
       </div>
 
@@ -114,9 +116,15 @@ export default async function WinCircusPage() {
         )}
       </div>
 
-      <p className="text-xs text-buzz-mute text-center mt-6 max-w-lg mx-auto leading-relaxed">
-        One entry per account. Winner drawn at random and notified by email. Winner must be able to attend a listed
-        location on a listed date. Prize is a family ticket for up to 4 people, valid at any location.
+      <p className="text-center mt-6 text-sm">
+        <a href={CIRCUS.website} target="_blank" rel="noopener" className="text-buzz-accent font-medium">
+          Full show info &amp; dates at circusextreme.co.uk →
+        </a>
+      </p>
+      <p className="text-xs text-buzz-mute text-center mt-4 max-w-lg mx-auto leading-relaxed">
+        Entries close at {CIRCUS.closesText}. One entry per account. Winner drawn at random and notified by email.
+        Winner must be able to attend a listed location on a listed date. Prize is a family ticket for up to 4
+        people, valid at any location. The Buzz Kids competition is not affiliated with or run by Circus Extreme.
       </p>
     </div>
   );
