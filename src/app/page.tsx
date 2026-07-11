@@ -3,6 +3,7 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { trackPageView } from "@/lib/track";
 import { getLiveSponsors, SponsorCards } from "@/components/SponsorBanner";
+import { CIRCUS, circusClosed } from "@/lib/competition";
 
 export const dynamic = "force-dynamic";
 
@@ -41,8 +42,23 @@ export default async function Home() {
   const adsTop = sponsors.slice(0, 2);
   const adsBottom = sponsors.slice(2, 4);
 
+  const compLive = CIRCUS.open && !circusClosed();
+
   return (
     <div>
+      {/* Competition banner — shown only while the comp is open. Links to the
+          sign-up-to-enter page so non-Facebook visitors can enter too. */}
+      {compLive && (
+        <Link
+          href="/win-circus"
+          className="group block text-center py-3 px-4 text-sm sm:text-base font-bold text-white"
+          style={{ background: "linear-gradient(90deg,#EC1E8C,#9B4DFF,#1FA9E0)" }}
+        >
+          🎪 WIN a family ticket to Circus Extreme — free to enter, just sign up
+          <span className="ml-1 inline-block group-hover:translate-x-1 transition">→</span>
+        </Link>
+      )}
+
       {/* Compact hero — headline + strapline only. The tiles below ARE the
           navigation (like the app), so no separate browse buttons; everything
           important sits in the first viewport. */}
