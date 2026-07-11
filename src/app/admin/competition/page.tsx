@@ -47,7 +47,7 @@ export default async function CompetitionPage() {
       <p className="text-buzz-mute mb-6 max-w-xl">
         Entries come from people creating (or signing into) a free account at{" "}
         <Link href="/win-circus" className="text-buzz-accent">/win-circus</Link> — that&apos;s the link to share on Facebook.
-        Closes <strong>{CIRCUS.closesOn}</strong> · winner drawn <strong>{CIRCUS.winnerText}</strong>.
+        Closes <strong>{CIRCUS.closesText}</strong> · winner drawn <strong>{CIRCUS.winnerText}</strong>.
       </p>
 
       {tablesMissing ? (
