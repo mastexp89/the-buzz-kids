@@ -63,11 +63,11 @@ export default async function WinCircusPage() {
         <p className="text-buzz-mute text-lg max-w-xl mx-auto">{CIRCUS.prizeLine}</p>
       </div>
 
-      {/* Where it's on */}
-      <div className="grid sm:grid-cols-2 gap-3 mb-8">
+      {/* Where it's on — compact, centred cards (not full-width) */}
+      <div className="flex flex-wrap justify-center gap-3 mb-8">
         {CIRCUS.locations.map((l) => (
-          <div key={l.city} className="rounded-2xl border border-buzz-border bg-buzz-card p-4">
-            <p className="font-display text-2xl leading-none mb-1">{l.city}</p>
+          <div key={l.city} className="rounded-2xl border border-buzz-border bg-buzz-card px-4 py-3 w-full sm:w-auto sm:min-w-[15rem]">
+            <p className="font-display text-xl leading-none mb-1">{l.city}</p>
             <p className="text-sm text-buzz-text">{l.place}</p>
             <p className="text-sm text-buzz-mute mt-1">📅 {l.dates}</p>
           </div>
