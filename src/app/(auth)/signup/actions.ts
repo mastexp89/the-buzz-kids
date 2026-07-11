@@ -13,6 +13,13 @@ export async function recordSignup(opts: {
   email: string | null;
   accountType: "venue" | "artist" | "organiser" | string;
 }): Promise<{ ok: true }> {
+  // Parent/fan signups are the norm (business self-serve is retired) and show
+  // up in the admin People / competition lists already — emailing an alert for
+  // every one is pure noise AND burns Resend quota during a competition rush.
+  // Only notify for the rare business/claim signups worth a heads-up.
+  const t = (opts.accountType || "").toLowerCase();
+  const noisy = t === "fan" || t === "parent" || t === "user" || t === "";
+  if (noisy) return { ok: true };
   try {
     await notifyNewSignup({
       displayName: opts.displayName,
