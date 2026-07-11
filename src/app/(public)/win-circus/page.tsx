@@ -88,7 +88,7 @@ export default async function WinCircusPage() {
           <>
             <p className="font-display text-3xl mb-2" style={{ color: "#6FA713" }}>✅ You&apos;re entered!</p>
             <p className="text-buzz-mute mb-4">
-              Good luck! The winner is drawn <strong>{CIRCUS.winnerText}</strong> and we&apos;ll email you if it&apos;s you.
+              Good luck! The winner is drawn on <strong>{CIRCUS.winnerText}</strong>. We&apos;ll email you if it&apos;s you.
             </p>
             <div className="flex gap-2 justify-center flex-wrap">
               <Link href="/browse" className="btn-secondary">Browse things to do</Link>
