@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { CIRCUS, circusClosed } from "@/lib/competition";
+import { formatDateOrdinal } from "@/lib/format-date";
 import DrawCircus from "./DrawCircus";
 
 export const dynamic = "force-dynamic";
@@ -104,7 +105,7 @@ export default async function CompetitionPage() {
                   <span className="font-medium truncate">{l.name || "(no name)"}</span>
                   <span className="text-buzz-mute truncate min-w-0">{l.email}</span>
                   <span className="text-buzz-mute ml-auto shrink-0 text-xs">
-                    {new Date(l.entered).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                    {formatDateOrdinal(l.entered, { month: "short" })}
                   </span>
                 </div>
               ))}
