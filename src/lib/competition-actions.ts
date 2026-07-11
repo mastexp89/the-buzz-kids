@@ -1,8 +1,28 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { CIRCUS } from "@/lib/competition";
+
+async function isAdmin() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+  return me?.role === "admin" ? user.id : null;
+}
+
+// Admin: remove an entrant from the draw (e.g. your own test accounts).
+export async function removeCircusEntry(formData: FormData): Promise<void> {
+  if (!(await isAdmin())) return;
+  const userId = String(formData.get("user_id") ?? "");
+  if (!userId) return;
+  const sb = createServiceClient();
+  await sb.from("competition_entries").delete()
+    .eq("competition_slug", CIRCUS.slug).eq("user_id", userId);
+  revalidatePath("/admin/competition");
+}
 
 export type DrawResult = { ok: boolean; winner?: { name: string | null; email: string | null }; entries?: number; message?: string };
 
