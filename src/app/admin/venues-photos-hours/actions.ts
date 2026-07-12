@@ -445,6 +445,74 @@ function parseClock(s: string): string | null {
 
 // Public action: scan a batch of venues in parallel. Returns the
 // results to the client which will then show a preview UI.
+// Cron entry: enrich a batch of venues automatically (no admin review) —
+// fills photos, hours, website, phone, rating, address, coords for anything
+// missing. Secret-gated (safe to expose as a server action). Marks every venue
+// tried so it processes each once and never re-pays for a Google no-match.
+export async function runEnrichmentCron(
+  secret: string,
+  limit = 10,
+): Promise<{ ok: boolean; processed?: number; filled?: number; remaining?: number; error?: string }> {
+  if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) return { ok: false, error: "unauthorized" };
+  const token = process.env.APIFY_TOKEN;
+  if (!token) return { ok: false, error: "APIFY_TOKEN not set" };
+  const sb = createServiceClient();
+  const cap = Math.max(1, Math.min(12, limit));
+
+  const { data, error } = await sb
+    .from("venues")
+    .select("id, name, slug, postcode, address, gallery_image_urls, opening_hours_json, cover_photo_url, google_photo_url, city:cities ( slug, name )")
+    .eq("approved", true)
+    .is("google_enrich_attempt", null)
+    .or("cover_photo_url.is.null,opening_hours_json.is.null,website.is.null")
+    .limit(cap);
+  if (error) return { ok: false, error: error.message };
+  const rows = data ?? [];
+  if (rows.length === 0) return { ok: true, processed: 0, filled: 0, remaining: 0 };
+
+  const toVN = (v: any): VenueNeedingScan => {
+    const addr: string = typeof v.address === "string" ? v.address : "";
+    const town = addr.split(",").map((s) => s.trim()).find((s) => s.length > 0) ?? null;
+    return {
+      id: v.id, name: v.name, slug: v.slug,
+      citySlug: v.city?.slug ?? null, cityName: v.city?.name ?? null,
+      town, postcode: v.postcode,
+      hasPhotos: Array.isArray(v.gallery_image_urls) && v.gallery_image_urls.length > 0,
+      hasHours: v.opening_hours_json != null,
+    };
+  };
+
+  // Scan in parallel (fast); scanOneVenue auto-fills website/phone/rating/etc.
+  const scanned = await Promise.all(
+    rows.map((v: any) => scanOneVenue(toVN(v), token).then((r) => ({ v, r })).catch(() => ({ v, r: null as ScanResult | null }))),
+  );
+
+  let filled = 0;
+  for (const { v, r } of scanned) {
+    try {
+      if (r && r.ok) {
+        const update: Record<string, unknown> = {};
+        if (r.photos.length > 0) {
+          const cur: string[] = Array.isArray(v.gallery_image_urls) ? v.gallery_image_urls : [];
+          update.gallery_image_urls = Array.from(new Set([...cur, ...r.photos])).slice(0, MAX_PHOTOS);
+          if (!v.cover_photo_url && !v.google_photo_url) update.google_photo_url = r.photos[0];
+        }
+        if (r.openingHoursJson && v.opening_hours_json == null) {
+          update.opening_hours_json = r.openingHoursJson;
+          if (r.openingHoursText) update.opening_hours = r.openingHoursText;
+        }
+        if (Object.keys(update).length > 0) { await sb.from("venues").update(update).eq("id", v.id); filled++; }
+      }
+    } catch { /* skip */ }
+    await sb.from("venues").update({ google_enrich_attempt: new Date().toISOString() }).eq("id", v.id);
+  }
+
+  const { count } = await sb.from("venues").select("id", { count: "exact", head: true })
+    .eq("approved", true).is("google_enrich_attempt", null)
+    .or("cover_photo_url.is.null,opening_hours_json.is.null,website.is.null");
+  return { ok: true, processed: rows.length, filled, remaining: count ?? 0 };
+}
+
 export async function scanVenueBatch(
   venues: VenueNeedingScan[],
 ): Promise<{ error: string } | { ok: true; results: ScanResult[] }> {
