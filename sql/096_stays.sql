@@ -32,6 +32,10 @@ create table if not exists stays (
   updated_at          timestamptz not null default now()
 );
 
+-- Idempotent: if an earlier version of this table already exists (without
+-- stay_types), add the column so the gin index below can build.
+alter table stays add column if not exists stay_types text[] not null default '{}';
+
 -- One row per Google place; multiple NULLs allowed for OSM/manual entries.
 create unique index if not exists stays_google_place_id_uq
   on stays (google_place_id) where google_place_id is not null;
