@@ -15,6 +15,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { fillNearestStops } from "@/lib/nearest-stops";
 import { revalidatePath } from "next/cache";
 
 const APIFY_API = "https://api.apify.com/v2";
@@ -495,6 +496,8 @@ async function enrichBatch(
       }
     } catch { /* skip */ }
     await sb.from("venues").update({ google_enrich_attempt: new Date().toISOString() }).eq("id", v.id);
+    // Now that coords may be set, fill nearest bus stop + rail station (free — DB only).
+    try { await fillNearestStops(sb, v.id); } catch { /* best effort */ }
   }
   return { processed: rows.length, filled };
 }

@@ -349,6 +349,18 @@ export default async function VenuePage({ params }: Props) {
                 {venue.postcode && <span className="text-buzz-mute">{venue.postcode}</span>}
               </div>
             )}
+            {((venue as any).nearest_bus_stop || (venue as any).nearest_rail_station) && (
+              <div className="text-xs text-buzz-mute space-y-0.5 mt-1">
+                {(venue as any).nearest_bus_stop && (
+                  <div>🚌 Nearest stop: <span className="text-buzz-text">{(venue as any).nearest_bus_stop}</span>
+                    {(venue as any).nearest_bus_stop_m != null && ` · ${(venue as any).nearest_bus_stop_m < 1000 ? `${(venue as any).nearest_bus_stop_m}m` : `${((venue as any).nearest_bus_stop_m / 1609).toFixed(1)} mi`}`}</div>
+                )}
+                {(venue as any).nearest_rail_station && (
+                  <div>🚉 Nearest station: <span className="text-buzz-text">{(venue as any).nearest_rail_station}</span>
+                    {(venue as any).nearest_rail_station_m != null && ` · ${(venue as any).nearest_rail_station_m < 1000 ? `${(venue as any).nearest_rail_station_m}m` : `${((venue as any).nearest_rail_station_m / 1609).toFixed(1)} mi`}`}</div>
+                )}
+              </div>
+            )}
             <div className="flex flex-col gap-2 mt-2">
               {venue.phone && (
                 <TrackedLink
