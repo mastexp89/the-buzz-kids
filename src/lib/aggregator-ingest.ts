@@ -53,9 +53,26 @@ export async function runAggregatorImport(opts: { batch?: number; dry?: boolean 
   const { data: cities } = await sb.from("cities").select("id, name, slug, nearby_areas");
   const cityBySlug = new Map<string, any>((cities ?? []).map((c: any) => [c.slug, c]));
 
-  // Existing venue names, to skip place suggestions we already list.
+  // Existing venue names + already-captured/dismissed aggregator places, to
+  // dedupe found places. Keep the normalised names as an array too so we can
+  // do a containment check ("The X" vs "X", "X Farm" vs "X Fruit Farm").
   const { data: venues } = await sb.from("venues").select("name").limit(10000);
-  const existingVenues = new Set((venues ?? []).map((v: any) => norm(v.name)));
+  const venueNorms = (venues ?? []).map((v: any) => norm(v.name)).filter(Boolean);
+  const { data: knownPlaces } = await sb.from("aggregator_places").select("norm_name").limit(10000);
+  const seenPlaceNorms = new Set((knownPlaces ?? []).map((p: any) => p.norm_name));
+
+  // A place we already have (as a venue) or already captured/dismissed.
+  const placeKnown = (nn: string): boolean => {
+    if (!nn || nn.length < 4) return true; // too vague — skip
+    if (seenPlaceNorms.has(nn)) return true;
+    if (venueNorms.includes(nn)) return true;
+    if (nn.length >= 6) {
+      for (const e of venueNorms) {
+        if (e.length >= 6 && (e.includes(nn) || nn.includes(e))) return true;
+      }
+    }
+    return false;
+  };
 
   for (const src of sources) {
     if (budget <= 0) break;
@@ -167,15 +184,29 @@ export async function runAggregatorImport(opts: { batch?: number; dry?: boolean 
         res.warnings.push(`${url}: ${extraction.events.length} event(s) skipped — source has no resolvable city_slug ('${src.city_slug}')`);
       }
 
-      // Places: just COUNT the new ones (skip ones already in the directory).
-      // We deliberately do NOT file them as edit_suggestions — that fires the
-      // new-suggestion email trigger and floods the inbox on a bulk run. The
-      // place URLs are still marked seen below so they're not re-processed;
-      // events (the real value) go to the review queue as normal.
+      // Places: capture NEW attractions into aggregator_places for quiet review
+      // (no edit_suggestions insert — that fires the email trigger and floods
+      // the inbox on a bulk run). Deduped against existing venues AND places we
+      // already captured/dismissed.
       for (const pl of extraction.places as ExtractedPlace[]) {
-        if (existingVenues.has(norm(pl.name))) continue;
+        const nn = norm(pl.name);
+        if (placeKnown(nn)) continue;
         srcPlaces++;
-        existingVenues.add(norm(pl.name)); // avoid double-counting within the run
+        seenPlaceNorms.add(nn); // don't double-capture within this run
+        if (!dry) {
+          await sb.from("aggregator_places").upsert(
+            {
+              name: pl.name.slice(0, 200),
+              norm_name: nn,
+              location: pl.location,
+              website: pl.website,
+              source_url: raw.finalUrl,
+              city_slug: src.city_slug ?? null,
+              status: "new",
+            },
+            { onConflict: "norm_name", ignoreDuplicates: true },
+          );
+        }
       }
 
       if (!dry) {

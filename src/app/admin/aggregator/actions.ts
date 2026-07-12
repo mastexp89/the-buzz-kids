@@ -45,6 +45,13 @@ export async function toggleAggregatorSource(formData: FormData): Promise<void> 
   revalidatePath("/admin/aggregator");
 }
 
+export async function dismissAggregatorPlace(formData: FormData): Promise<void> {
+  const sb = await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  if (id) await sb.from("aggregator_places").update({ status: "dismissed" }).eq("id", id);
+  revalidatePath("/admin/aggregator");
+}
+
 export async function runAggregatorNow(dry: boolean): Promise<AggregatorRunResult> {
   await requireAdmin();
   // Keep the interactive batch small so a live run reliably finishes inside

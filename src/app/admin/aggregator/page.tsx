@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { addAggregatorSource, deleteAggregatorSource, toggleAggregatorSource } from "./actions";
+import { addAggregatorSource, deleteAggregatorSource, toggleAggregatorSource, dismissAggregatorPlace } from "./actions";
 import RunNow from "./RunNow";
 
 export const dynamic = "force-dynamic";
@@ -29,12 +29,17 @@ export default async function AggregatorPage() {
   let tablesMissing = false;
   let sources: any[] = [];
   let seenCount = 0;
+  let places: any[] = [];
   try {
     const sRes = await sb.from("aggregator_sources").select("*").order("label");
     if (sRes.error) throw sRes.error;
     sources = sRes.data ?? [];
     const { count } = await sb.from("aggregator_seen").select("source_url", { count: "exact", head: true });
     seenCount = count ?? 0;
+    const { data: pl } = await sb
+      .from("aggregator_places").select("id, name, location, website, source_url, city_slug")
+      .eq("status", "new").order("found_at", { ascending: false }).limit(500);
+    places = pl ?? [];
   } catch {
     tablesMissing = true;
   }
@@ -71,6 +76,45 @@ export default async function AggregatorPage() {
             </div>
             <RunNow />
           </div>
+
+          {/* Places found — attractions to add to the directory (no emails). */}
+          {places.length > 0 && (
+            <section className="mb-8">
+              <h2 className="font-display text-2xl mb-1">Places found ({places.length})</h2>
+              <p className="text-sm text-buzz-mute mb-3">
+                New attractions the sweep spotted (deduped against places you already have). Add the good ones as venues; dismiss the rest.
+              </p>
+              <div className="flex flex-col gap-2">
+                {places.map((p) => (
+                  <div key={p.id} className="rounded-lg border border-buzz-border bg-buzz-card p-3 flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">
+                        {p.name}
+                        {p.location ? <span className="text-buzz-mute font-normal"> · {p.location}</span> : null}
+                      </div>
+                      {p.source_url && (
+                        <a href={p.source_url} target="_blank" rel="noopener" className="text-[11px] text-buzz-accent hover:underline break-all">view source ↗</a>
+                      )}
+                    </div>
+                    <div className="flex gap-1.5 shrink-0 items-center">
+                      <a
+                        href={`/admin/venues/new?name=${encodeURIComponent(p.name)}${p.website ? `&website=${encodeURIComponent(p.website)}` : ""}`}
+                        target="_blank"
+                        rel="noopener"
+                        className="btn-secondary text-xs whitespace-nowrap"
+                      >
+                        Add as venue →
+                      </a>
+                      <form action={dismissAggregatorPlace}>
+                        <input type="hidden" name="id" value={p.id} />
+                        <button className="text-xs text-buzz-mute hover:text-red-600 px-1" title="Dismiss">Dismiss</button>
+                      </form>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           <h2 className="font-display text-2xl mb-3">Feeds ({sources.length})</h2>
           <div className="flex flex-col gap-2 mb-5">
