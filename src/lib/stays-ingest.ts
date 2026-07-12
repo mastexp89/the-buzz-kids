@@ -56,7 +56,8 @@ export type StaysIngestResult = {
   area: string;
   raw: number;
   kept: number;
-  rejected: number;
+  rejected: number;    // not accommodation
+  wrongArea: number;   // accommodation, but outside the searched region
   counts: Record<StayType, number>;
   inserted: number;
   samples: StaySample[];
@@ -103,6 +104,109 @@ function photosOf(item: any, max = 4): string[] {
     }
   }
   return out;
+}
+
+// Outward postcode district, e.g. "DD8 3AB" -> "DD8", "PH10 6QX" -> "PH10".
+function districtOf(pc: string | null): string | null {
+  const m = pc && /^([A-Z]{1,2}\d{1,2})/i.exec(pc.trim());
+  return m ? m[1].toUpperCase() : null;
+}
+
+// Each region's centre + its postcode districts, learned from the venues we
+// already have coordinates/postcodes for. Used to reject stays Google returns
+// that aren't actually in the searched region (its area search isn't fenced).
+type CityGeo = {
+  centroids: { slug: string; lat: number; lng: number; n: number }[];
+  districts: Map<string, Set<string>>; // slug -> outward districts
+  districtOwners: Map<string, Set<string>>; // district -> slugs that own it
+};
+
+async function loadCityGeo(sb: ReturnType<typeof createServiceClient>): Promise<CityGeo> {
+  const { data: cities } = await sb.from("cities").select("id, slug");
+  const idToSlug = new Map<string, string>((cities ?? []).map((c: any) => [c.id, c.slug]));
+  const acc = new Map<string, { lat: number; lng: number; n: number }>();
+  const districts = new Map<string, Set<string>>();
+  const districtOwners = new Map<string, Set<string>>();
+
+  let from = 0;
+  for (;;) {
+    const { data } = await sb
+      .from("venues")
+      .select("city_id, latitude, longitude, postcode")
+      .eq("approved", true)
+      .range(from, from + 999);
+    const rows = data ?? [];
+    for (const v of rows as any[]) {
+      const slug = idToSlug.get(v.city_id);
+      if (!slug) continue;
+      if (typeof v.latitude === "number" && typeof v.longitude === "number") {
+        const a = acc.get(slug) ?? { lat: 0, lng: 0, n: 0 };
+        a.lat += v.latitude;
+        a.lng += v.longitude;
+        a.n += 1;
+        acc.set(slug, a);
+      }
+      const d = districtOf(v.postcode);
+      if (d) {
+        if (!districts.has(slug)) districts.set(slug, new Set());
+        districts.get(slug)!.add(d);
+        if (!districtOwners.has(d)) districtOwners.set(d, new Set());
+        districtOwners.get(d)!.add(slug);
+      }
+    }
+    if (rows.length < 1000) break;
+    from += 1000;
+  }
+
+  const centroids = [...acc.entries()].map(([slug, a]) => ({
+    slug,
+    lat: a.lat / a.n,
+    lng: a.lng / a.n,
+    n: a.n,
+  }));
+  return { centroids, districts, districtOwners };
+}
+
+function nearestCity(lat: number, lng: number, centroids: CityGeo["centroids"]): string | null {
+  let best: string | null = null;
+  let bestD = Infinity;
+  const cosLat = Math.cos((lat * Math.PI) / 180);
+  for (const c of centroids) {
+    if (c.n < 3) continue; // ignore regions with too few venues to trust a centre
+    const dx = (c.lng - lng) * cosLat;
+    const dy = c.lat - lat;
+    const d = dx * dx + dy * dy;
+    if (d < bestD) {
+      bestD = d;
+      best = c.slug;
+    }
+  }
+  return best;
+}
+
+// Is this stay actually in `areaSlug`? Coordinates first (nearest region wins,
+// so Dundee hotels route to Dundee); postcode district as a fallback; when we
+// can verify neither, keep it (admin reviews) rather than wrongly drop it.
+function inArea(
+  lat: number | null,
+  lng: number | null,
+  postcode: string | null,
+  areaSlug: string,
+  geo: CityGeo,
+): boolean {
+  const areaCentroid = geo.centroids.find((c) => c.slug === areaSlug);
+  if (lat != null && lng != null && areaCentroid && areaCentroid.n >= 5) {
+    return nearestCity(lat, lng, geo.centroids) === areaSlug;
+  }
+  const d = districtOf(postcode);
+  if (d) {
+    if (geo.districts.get(areaSlug)?.has(d)) return true;
+    // District clearly belongs to a different region → reject.
+    const owners = geo.districtOwners.get(d);
+    if (owners && owners.size > 0 && !owners.has(areaSlug)) return false;
+    return true; // unknown district — keep
+  }
+  return true; // no coords, no postcode — keep
 }
 
 async function runSearch(query: string, token: string, per: number): Promise<any[]> {
@@ -167,6 +271,7 @@ export async function ingestStaysForArea(
     raw: 0,
     kept: 0,
     rejected: 0,
+    wrongArea: 0,
     counts: { glamping: 0, caravan: 0, cottage: 0, hotel: 0 },
     inserted: 0,
     samples: [],
@@ -248,15 +353,35 @@ export async function ingestStaysForArea(
     }
   });
 
-  const seeds = [...byKey.values()];
+  const allSeeds = [...byKey.values()];
   // Keyword-augment: tag every type a listing's name/category signals, then set
   // the primary to the most specific one present.
-  for (const s of seeds) {
+  for (const s of allSeeds) {
     const hay = `${s.name} ${s.category ?? ""}`;
     for (const t of Object.keys(TYPE_KW) as StayType[]) {
       if (TYPE_KW[t].test(hay)) s.types.add(t);
     }
     s.stay_type = [...s.types].reduce((a, b) => (PRIORITY[b] > PRIORITY[a] ? b : a), [...s.types][0]);
+  }
+
+  // Geo-gate: Google's area search bleeds in results from other regions
+  // (Dundee hotels, Isle of Lewis, even England). Keep only stays that actually
+  // sit in the searched region, using the coordinate clusters of venues we
+  // already have. Runs in dry mode too, so the preview reflects what'll import.
+  const sb = createServiceClient();
+  const areaSlug = slugify(area);
+  const geo = await loadCityGeo(sb);
+  const wrongAreaExamples: string[] = [];
+  const seeds = allSeeds.filter((s) => {
+    const ok = inArea(s.latitude, s.longitude, s.postcode, areaSlug, geo);
+    if (!ok && wrongAreaExamples.length < 12) {
+      wrongAreaExamples.push(`${s.name}${s.address ? ` — ${s.address}` : ""}`);
+    }
+    return ok;
+  });
+  const wrongArea = allSeeds.length - seeds.length;
+  if (wrongArea > 0) {
+    warnings.push(`Dropped ${wrongArea} outside ${area}: ${wrongAreaExamples.join(" · ")}`);
   }
 
   const counts: Record<StayType, number> = { glamping: 0, caravan: 0, cottage: 0, hotel: 0 };
@@ -278,6 +403,7 @@ export async function ingestStaysForArea(
     raw,
     kept: seeds.length,
     rejected,
+    wrongArea,
     counts,
     samples,
     warnings,
@@ -285,8 +411,7 @@ export async function ingestStaysForArea(
   if (opts.dry || seeds.length === 0) return out;
 
   // ---- insert ----
-  const sb = createServiceClient();
-  const citySlug = slugify(area);
+  const citySlug = areaSlug;
   const { data: city } = await sb.from("cities").select("id").eq("slug", citySlug).maybeSingle();
   const cityId = city?.id ?? null;
 

@@ -62,7 +62,7 @@ export default function RunStays({ areas }: { areas: { slug: string; name: strin
         <div className="mt-3 text-sm">
           <p style={{ color: "#3B6D11" }}>
             {result.dry ? (
-              <>Preview — found <strong>{result.kept}</strong> places to stay in {result.area} ({result.raw} raw, {result.rejected} filtered out). Import to save them.</>
+              <>Preview — found <strong>{result.kept}</strong> places to stay in {result.area} ({result.raw} raw · {result.rejected} not accommodation · {result.wrongArea} outside {result.area}). Import to save them.</>
             ) : (
               <>Imported <strong>{result.inserted}</strong> new stays for {result.area} (of {result.kept} found; the rest were already in). Scroll down to review.</>
             )}
