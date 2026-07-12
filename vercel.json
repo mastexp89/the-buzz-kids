@@ -17,6 +17,10 @@
       "schedule": "0 7 * * *"
     },
     {
+      "path": "/api/cron/enrich-venues",
+      "schedule": "*/30 * * * *"
+    },
+    {
       "path": "/api/cron/dedupe-events",
       "schedule": "0 3 * * *"
     },
