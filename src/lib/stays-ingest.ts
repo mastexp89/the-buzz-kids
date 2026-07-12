@@ -30,8 +30,18 @@ const ACCOM_RE =
 const REJECT_RE =
   /(restaurant|cafe|coffee|takeaway|fast food|museum|golf course|attraction|store|shop|supermarket|\bbar\b|\bpub\b)/i;
 
+// Keyword signals per type, so a single listing can be tagged with EVERY type
+// it offers (a holiday park with static caravans AND glamping pods = both).
+const TYPE_KW: Record<StayType, RegExp> = {
+  glamping: /(glamp|\bpod\b|yurt|shepherd\s?hut|safari\s?tent|bell\s?tent|geo\s?dome|\bdome\b)/i,
+  caravan: /(caravan|holiday\s?park|static|touring|camp(site|ing|ground)?|pitch|\bhut\b)/i,
+  cottage: /(cottage|self.?cater|self.?contained|\bchalet\b|\blodge\b)/i,
+  hotel: /(hotel|\binn\b|resort|\bspa\b)/i,
+};
+
 export type StaySample = {
   type: StayType;
+  types: StayType[];
   name: string;
   rating: number | null;
   address: string | null;
@@ -130,6 +140,7 @@ type Seed = {
   name: string;
   norm_name: string;
   stay_type: StayType;
+  types: Set<StayType>;
   address: string | null;
   postcode: string | null;
   latitude: number | null;
@@ -203,6 +214,7 @@ export async function ingestStaysForArea(
         name,
         norm_name: normName(name),
         stay_type: type,
+        types: new Set<StayType>([type]),
         address: addr,
         postcode: postcodeOf(typeof it?.address === "string" ? it.address : addr),
         latitude: lat,
@@ -217,15 +229,41 @@ export async function ingestStaysForArea(
         category: cat || null,
       };
       const prev = byKey.get(key);
-      if (!prev || PRIORITY[type] > PRIORITY[prev.stay_type]) byKey.set(key, seed);
+      if (!prev) {
+        byKey.set(key, seed);
+      } else {
+        // Same place from a second search — it offers this type too. Keep the
+        // richer record (more photos / a website) but union the type set.
+        prev.types.add(type);
+        if (!prev.website && seed.website) prev.website = seed.website;
+        if (prev.gallery_image_urls.length === 0 && seed.gallery_image_urls.length) {
+          prev.gallery_image_urls = seed.gallery_image_urls;
+          prev.photo_url = seed.photo_url;
+        }
+        if (prev.google_rating == null && seed.google_rating != null) {
+          prev.google_rating = seed.google_rating;
+          prev.google_rating_count = seed.google_rating_count;
+        }
+      }
     }
   });
 
   const seeds = [...byKey.values()];
+  // Keyword-augment: tag every type a listing's name/category signals, then set
+  // the primary to the most specific one present.
+  for (const s of seeds) {
+    const hay = `${s.name} ${s.category ?? ""}`;
+    for (const t of Object.keys(TYPE_KW) as StayType[]) {
+      if (TYPE_KW[t].test(hay)) s.types.add(t);
+    }
+    s.stay_type = [...s.types].reduce((a, b) => (PRIORITY[b] > PRIORITY[a] ? b : a), [...s.types][0]);
+  }
+
   const counts: Record<StayType, number> = { glamping: 0, caravan: 0, cottage: 0, hotel: 0 };
   for (const s of seeds) counts[s.stay_type]++;
   const samples: StaySample[] = seeds.map((s) => ({
     type: s.stay_type,
+    types: [...s.types],
     name: s.name,
     rating: s.google_rating,
     address: s.address,
@@ -272,6 +310,7 @@ export async function ingestStaysForArea(
       slug,
       norm_name: s.norm_name,
       stay_type: s.stay_type,
+      stay_types: [...s.types],
       city_id: cityId,
       city_slug: citySlug,
       address: s.address,

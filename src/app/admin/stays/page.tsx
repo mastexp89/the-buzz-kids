@@ -41,7 +41,7 @@ export default async function StaysAdminPage() {
 
   const sRes = await sb
     .from("stays")
-    .select("id, name, stay_type, city_slug, address, website, photo_url, google_rating, google_rating_count")
+    .select("id, name, stay_type, stay_types, city_slug, address, website, photo_url, google_rating, google_rating_count")
     .order("stay_type")
     .order("name")
     .limit(1000);
@@ -99,6 +99,9 @@ export default async function StaysAdminPage() {
                       <div className="min-w-0 flex-1">
                         <div className="font-medium truncate">
                           {s.name}
+                          {Array.isArray(s.stay_types) && s.stay_types.filter((x: string) => x !== s.stay_type).map((x: string) => (
+                            <span key={x} className="ml-1.5 text-[10px] align-middle rounded-full border border-buzz-border px-1.5 py-0.5 text-buzz-mute font-normal">+ {TYPE_LABEL[x]?.split(" ").slice(1).join(" ").toLowerCase() || x}</span>
+                          ))}
                           {s.google_rating ? <span className="text-buzz-mute font-normal"> · ⭐{s.google_rating}{s.google_rating_count ? ` (${s.google_rating_count})` : ""}</span> : null}
                         </div>
                         <div className="text-[11px] text-buzz-mute truncate">
