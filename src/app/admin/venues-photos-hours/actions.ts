@@ -298,12 +298,25 @@ async function scanOneVenue(
 // Write website / phone / rating / address / coords / place_id from the Apify
 // Google Maps result — but only for fields the venue doesn't already have, so
 // manual data is never clobbered. Runs at scan time (no review step).
+// Google sometimes prefixes an address with a Plus Code ("J62C+46 Abbotsford
+// House…") and always tacks ", UK" on the end. Strip both for a clean address.
+export function cleanAddress(a: string | null): string | null {
+  if (!a) return a;
+  const out = a
+    .replace(/^\s*[A-Z0-9]{2,6}\+[A-Z0-9]{2,4}[\s,]*/i, "") // leading Plus Code
+    .replace(/[\s,]*(United Kingdom|UK)\s*$/i, "")           // trailing country
+    .replace(/\s{2,}/g, " ")
+    .replace(/^[\s,]+/, "")
+    .trim();
+  return out || null;
+}
+
 async function autoFillVenueMeta(venueId: string, item: any): Promise<void> {
   const website = typeof item?.website === "string" && /^https?:\/\//.test(item.website) ? item.website : null;
   const phone = typeof item?.phone === "string" ? item.phone : (typeof item?.phoneUnformatted === "string" ? item.phoneUnformatted : null);
   const rating = typeof item?.totalScore === "number" ? item.totalScore : null;
   const reviews = typeof item?.reviewsCount === "number" ? item.reviewsCount : null;
-  const address = typeof item?.address === "string" ? item.address : (typeof item?.street === "string" ? item.street : null);
+  const address = cleanAddress(typeof item?.address === "string" ? item.address : (typeof item?.street === "string" ? item.street : null));
   const lat = typeof item?.location?.lat === "number" ? item.location.lat : null;
   const lng = typeof item?.location?.lng === "number" ? item.location.lng : null;
   const placeId = typeof item?.placeId === "string" ? item.placeId : null;
