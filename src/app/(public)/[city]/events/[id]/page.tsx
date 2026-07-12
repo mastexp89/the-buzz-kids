@@ -239,6 +239,23 @@ export default async function EventPage({ params }: Props) {
               </div>
             )}
 
+            {(venue?.latitude || venue?.address || (event as any).location_name) && (
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&travelmode=transit&destination=${encodeURIComponent(
+                  venue?.latitude && venue?.longitude
+                    ? `${venue.latitude},${venue.longitude}`
+                    : venue?.address
+                      ? `${venue.name} ${venue.address} ${venue.postcode ?? ""}`
+                      : `${(event as any).location_name} ${eventCity.name}`,
+                )}`}
+                target="_blank"
+                rel="noopener"
+                className="btn-secondary w-fit"
+              >
+                🚌 Getting there by bus/train
+              </a>
+            )}
+
             {artists.length > 0 && (
               <div>
                 <div className="eyebrow text-[10px] mb-1.5">Featuring</div>
