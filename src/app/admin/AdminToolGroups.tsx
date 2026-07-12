@@ -125,6 +125,13 @@ export default function AdminToolGroups({ pendingCount, suggestionsCount = 0 }: 
           paid: true,
         },
         {
+          href: "/admin/stays",
+          label: "Places to stay",
+          emoji: "🛏️",
+          description: "Import glamping, caravan parks, cottages & hotels for an area from Google",
+          paid: true,
+        },
+        {
           href: "/admin/venues-dedupe",
           label: "Dedupe venues",
           emoji: "🧹",
