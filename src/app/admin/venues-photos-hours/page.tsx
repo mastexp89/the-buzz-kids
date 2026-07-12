@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import VenuesPhotosHoursClient from "./VenuesPhotosHoursClient";
+import AutoEnrichNow from "./AutoEnrichNow";
 
 export const dynamic = "force-dynamic";
 // Each Apify run can take up to 45s; we run 3 in parallel per batch and
@@ -42,7 +43,10 @@ export default async function VenuesPhotosHoursPage() {
         each venue (via Apify). Only fills in missing data — your manual
         gallery uploads are never overwritten. Pick a city, scan a batch of
         5, review the photos Google found, untick any that don&apos;t fit, save.
+        Or use <strong>Auto-fill</strong> below to blast through the whole backlog with no review.
       </p>
+
+      <AutoEnrichNow />
 
       <VenuesPhotosHoursClient
         cities={(cities ?? []).map((c) => ({
