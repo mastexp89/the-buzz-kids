@@ -167,24 +167,15 @@ export async function runAggregatorImport(opts: { batch?: number; dry?: boolean 
         res.warnings.push(`${url}: ${extraction.events.length} event(s) skipped — source has no resolvable city_slug ('${src.city_slug}')`);
       }
 
-      // Places → new-place suggestions (skip ones already in the directory).
+      // Places: just COUNT the new ones (skip ones already in the directory).
+      // We deliberately do NOT file them as edit_suggestions — that fires the
+      // new-suggestion email trigger and floods the inbox on a bulk run. The
+      // place URLs are still marked seen below so they're not re-processed;
+      // events (the real value) go to the review queue as normal.
       for (const pl of extraction.places as ExtractedPlace[]) {
         if (existingVenues.has(norm(pl.name))) continue;
         srcPlaces++;
-        if (!dry) {
-          await sb.from("edit_suggestions").insert({
-            target_type: "new_place",
-            target_id: null,
-            target_name: pl.name.slice(0, 200),
-            city_slug: src.city_slug ?? null,
-            reason: "Auto-found (aggregator)",
-            details: [pl.description, pl.location, pl.website, `Source: ${raw.finalUrl}`]
-              .filter(Boolean).join(" · ").slice(0, 2000),
-            is_owner: false,
-            image_url: null,
-          });
-          existingVenues.add(norm(pl.name));
-        }
+        existingVenues.add(norm(pl.name)); // avoid double-counting within the run
       }
 
       if (!dry) {

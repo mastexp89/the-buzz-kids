@@ -29,9 +29,15 @@ export default function RunNow() {
           {busy === "dry" ? "Checking…" : "🔍 Dry run (no writes)"}
         </button>
         <button onClick={() => run(false)} disabled={!!busy} className="btn-primary text-sm disabled:opacity-50">
-          {busy === "live" ? "Running…" : "▶ Run now (into queue)"}
+          {busy === "live" ? "Running… (up to ~1 min)" : "▶ Run now (into queue)"}
         </button>
       </div>
+      {busy === "live" && (
+        <p className="text-xs text-buzz-mute mt-2">
+          Reading each listing with AI — this can take up to a minute. Keep this tab open; it does ~12 new
+          listings per run, so click again for more (the weekly cron clears the rest automatically).
+        </p>
+      )}
       {error && <p className="text-sm text-rose-500 mt-2">{error}</p>}
       {result && (
         <p className="text-sm mt-3" style={{ color: "#3B6D11" }}>
