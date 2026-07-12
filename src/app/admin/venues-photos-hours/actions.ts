@@ -443,32 +443,23 @@ function parseClock(s: string): string | null {
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
-// Public action: scan a batch of venues in parallel. Returns the
-// results to the client which will then show a preview UI.
-// Cron entry: enrich a batch of venues automatically (no admin review) —
-// fills photos, hours, website, phone, rating, address, coords for anything
-// missing. Secret-gated (safe to expose as a server action). Marks every venue
-// tried so it processes each once and never re-pays for a Google no-match.
-export async function runEnrichmentCron(
-  secret: string,
-  limit = 10,
-): Promise<{ ok: boolean; processed?: number; filled?: number; remaining?: number; error?: string }> {
-  if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) return { ok: false, error: "unauthorized" };
-  const token = process.env.APIFY_TOKEN;
-  if (!token) return { ok: false, error: "APIFY_TOKEN not set" };
-  const sb = createServiceClient();
-  const cap = Math.max(1, Math.min(12, limit));
-
-  const { data, error } = await sb
+// Process ONE batch of missing-data venues via Apify: fill photos, hours,
+// website, phone, rating, address, coords for anything missing. Marks each
+// venue tried. Returns how many were processed / actually filled.
+async function enrichBatch(
+  sb: ReturnType<typeof createServiceClient>,
+  token: string,
+  cap: number,
+): Promise<{ processed: number; filled: number }> {
+  const { data } = await sb
     .from("venues")
     .select("id, name, slug, postcode, address, gallery_image_urls, opening_hours_json, cover_photo_url, google_photo_url, city:cities ( slug, name )")
     .eq("approved", true)
     .is("google_enrich_attempt", null)
     .or("cover_photo_url.is.null,opening_hours_json.is.null,website.is.null")
-    .limit(cap);
-  if (error) return { ok: false, error: error.message };
+    .limit(Math.max(1, Math.min(12, cap)));
   const rows = data ?? [];
-  if (rows.length === 0) return { ok: true, processed: 0, filled: 0, remaining: 0 };
+  if (rows.length === 0) return { processed: 0, filled: 0 };
 
   const toVN = (v: any): VenueNeedingScan => {
     const addr: string = typeof v.address === "string" ? v.address : "";
@@ -482,7 +473,6 @@ export async function runEnrichmentCron(
     };
   };
 
-  // Scan in parallel (fast); scanOneVenue auto-fills website/phone/rating/etc.
   const scanned = await Promise.all(
     rows.map((v: any) => scanOneVenue(toVN(v), token).then((r) => ({ v, r })).catch(() => ({ v, r: null as ScanResult | null }))),
   );
@@ -506,12 +496,50 @@ export async function runEnrichmentCron(
     } catch { /* skip */ }
     await sb.from("venues").update({ google_enrich_attempt: new Date().toISOString() }).eq("id", v.id);
   }
+  return { processed: rows.length, filled };
+}
 
+async function remainingToEnrich(sb: ReturnType<typeof createServiceClient>): Promise<number> {
   const { count } = await sb.from("venues").select("id", { count: "exact", head: true })
     .eq("approved", true).is("google_enrich_attempt", null)
     .or("cover_photo_url.is.null,opening_hours_json.is.null,website.is.null");
-  return { ok: true, processed: rows.length, filled, remaining: count ?? 0 };
+  return count ?? 0;
 }
+
+// Cron entry: one batch, secret-gated (safe to expose as a server action).
+export async function runEnrichmentCron(
+  secret: string,
+  limit = 10,
+): Promise<{ ok: boolean; processed?: number; filled?: number; remaining?: number; error?: string }> {
+  if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) return { ok: false, error: "unauthorized" };
+  const token = process.env.APIFY_TOKEN;
+  if (!token) return { ok: false, error: "APIFY_TOKEN not set" };
+  const sb = createServiceClient();
+  const { processed, filled } = await enrichBatch(sb, token, limit);
+  return { ok: true, processed, filled, remaining: await remainingToEnrich(sb) };
+}
+
+// Admin "Run now": loop batches until the time budget runs out — clears far
+// more per click than the 30-min cron.
+export async function runEnrichmentNow(): Promise<{ ok: boolean; processed?: number; filled?: number; remaining?: number; error?: string }> {
+  const ctx = await requireAdmin();
+  if (!ctx) return { ok: false, error: "Admins only." };
+  const token = process.env.APIFY_TOKEN;
+  if (!token) return { ok: false, error: "APIFY_TOKEN isn't set on the server yet." };
+  const sb = createServiceClient();
+  const start = Date.now();
+  let processed = 0, filled = 0;
+  while (Date.now() - start < 230_000) { // stay under the page's 300s budget
+    const r = await enrichBatch(sb, token, 12);
+    processed += r.processed;
+    filled += r.filled;
+    if (r.processed === 0) break;
+  }
+  return { ok: true, processed, filled, remaining: await remainingToEnrich(sb) };
+}
+
+// Public action: scan a batch of venues in parallel. Returns the
+// results to the client which will then show a preview UI.
 
 export async function scanVenueBatch(
   venues: VenueNeedingScan[],
