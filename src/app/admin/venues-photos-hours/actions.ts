@@ -279,6 +279,11 @@ async function scanOneVenue(
   const { json: openingHoursJson, text: openingHoursText } = extractOpeningHours(item);
   const googleMapsUrl = typeof item?.url === "string" ? item.url : null;
 
+  // Auto-fill the non-visual metadata (website, phone, rating, address,
+  // coords, place id) right away — these don't need admin review like photos
+  // do. Only fills fields the venue is currently MISSING; never overwrites.
+  try { await autoFillVenueMeta(venue.id, item); } catch { /* best effort */ }
+
   return {
     venueId: venue.id,
     ok: true,
@@ -287,6 +292,44 @@ async function scanOneVenue(
     openingHoursText,
     googleMapsUrl,
   };
+}
+
+// Write website / phone / rating / address / coords / place_id from the Apify
+// Google Maps result — but only for fields the venue doesn't already have, so
+// manual data is never clobbered. Runs at scan time (no review step).
+async function autoFillVenueMeta(venueId: string, item: any): Promise<void> {
+  const website = typeof item?.website === "string" && /^https?:\/\//.test(item.website) ? item.website : null;
+  const phone = typeof item?.phone === "string" ? item.phone : (typeof item?.phoneUnformatted === "string" ? item.phoneUnformatted : null);
+  const rating = typeof item?.totalScore === "number" ? item.totalScore : null;
+  const reviews = typeof item?.reviewsCount === "number" ? item.reviewsCount : null;
+  const address = typeof item?.address === "string" ? item.address : (typeof item?.street === "string" ? item.street : null);
+  const lat = typeof item?.location?.lat === "number" ? item.location.lat : null;
+  const lng = typeof item?.location?.lng === "number" ? item.location.lng : null;
+  const placeId = typeof item?.placeId === "string" ? item.placeId : null;
+
+  const sb = createServiceClient();
+  const { data: cur } = await sb
+    .from("venues")
+    .select("website, phone, google_rating, address, latitude, longitude, google_place_id")
+    .eq("id", venueId)
+    .maybeSingle();
+  if (!cur) return;
+
+  const u: Record<string, unknown> = {};
+  if (!cur.website && website) u.website = website;
+  if (!cur.phone && phone) u.phone = phone;
+  if (cur.google_rating == null && rating != null) {
+    u.google_rating = rating;
+    if (reviews != null) u.google_rating_count = reviews;
+  }
+  if (!cur.address && address) u.address = address;
+  if (cur.latitude == null && lat != null) { u.latitude = lat; u.longitude = lng; }
+  if (!cur.google_place_id && placeId) u.google_place_id = placeId;
+
+  if (Object.keys(u).length > 0) {
+    u.google_synced_at = new Date().toISOString();
+    await sb.from("venues").update(u).eq("id", venueId);
+  }
 }
 
 // Apify's place actor returns photos under a few possible keys depending
@@ -411,10 +454,10 @@ export async function scanVenueBatch(
   if (!token) return { error: "APIFY_TOKEN env var isn't set on the server." };
 
   if (venues.length === 0) return { ok: true, results: [] };
-  if (venues.length > 5) {
+  if (venues.length > 10) {
     // Hard cap on batch size — protects us from a misclicking admin
     // submitting 100 venues at once and blowing the action's timeout.
-    return { error: "Batch size capped at 5 venues — split into smaller runs." };
+    return { error: "Batch size capped at 10 venues — split into smaller runs." };
   }
 
   const results = await Promise.all(
