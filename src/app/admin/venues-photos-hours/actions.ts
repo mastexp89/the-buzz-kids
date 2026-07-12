@@ -300,7 +300,7 @@ async function scanOneVenue(
 // manual data is never clobbered. Runs at scan time (no review step).
 // Google sometimes prefixes an address with a Plus Code ("J62C+46 Abbotsford
 // House…") and always tacks ", UK" on the end. Strip both for a clean address.
-export function cleanAddress(a: string | null): string | null {
+function cleanAddress(a: string | null): string | null {
   if (!a) return a;
   const out = a
     .replace(/^\s*[A-Z0-9]{2,6}\+[A-Z0-9]{2,4}[\s,]*/i, "") // leading Plus Code
