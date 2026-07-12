@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 // Each Apify run can take up to 45s; we run 3 in parallel per batch and
 // the batch action awaits all of them, so worst case is ~50s. Give the
 // action room to finish before Vercel cuts it off.
-export const maxDuration = 90;
+export const maxDuration = 300;
 export const metadata = { title: "Photos & opening hours — The Buzz Kids admin" };
 
 export default async function VenuesPhotosHoursPage() {

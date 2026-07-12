@@ -19,7 +19,7 @@ import {
   type OpeningHoursJson,
 } from "./actions";
 
-const BATCH_SIZE = 5;
+const BATCH_SIZE = 10;
 const MAX_PHOTOS = 6;
 
 // Tracks state for one venue currently being previewed by the admin.
