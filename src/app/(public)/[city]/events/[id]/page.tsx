@@ -256,6 +256,19 @@ export default async function EventPage({ params }: Props) {
               </a>
             )}
 
+            {(venue?.nearest_bus_stop || venue?.nearest_rail_station) && (
+              <div className="text-xs text-buzz-mute space-y-0.5">
+                {venue.nearest_bus_stop && (
+                  <div>🚌 Nearest stop: <span className="text-buzz-text">{venue.nearest_bus_stop}</span>
+                    {venue.nearest_bus_stop_m != null && ` · ${venue.nearest_bus_stop_m < 1000 ? `${venue.nearest_bus_stop_m}m` : `${(venue.nearest_bus_stop_m / 1609).toFixed(1)} mi`}`}</div>
+                )}
+                {venue.nearest_rail_station && (
+                  <div>🚉 Nearest station: <span className="text-buzz-text">{venue.nearest_rail_station}</span>
+                    {venue.nearest_rail_station_m != null && ` · ${venue.nearest_rail_station_m < 1000 ? `${venue.nearest_rail_station_m}m` : `${(venue.nearest_rail_station_m / 1609).toFixed(1)} mi`}`}</div>
+                )}
+              </div>
+            )}
+
             {artists.length > 0 && (
               <div>
                 <div className="eyebrow text-[10px] mb-1.5">Featuring</div>
