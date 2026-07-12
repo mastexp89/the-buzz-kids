@@ -9,7 +9,8 @@ create table if not exists stays (
   name                text not null,
   slug                text unique,
   norm_name           text not null,               -- normalised, for dedupe
-  stay_type           text not null,               -- 'hotel' | 'cottage' | 'glamping' | 'caravan'
+  stay_type           text not null,               -- primary: 'hotel' | 'cottage' | 'glamping' | 'caravan'
+  stay_types          text[] not null default '{}',-- ALL types it qualifies as (a park can be caravan + glamping)
   city_id             uuid references cities(id) on delete set null,
   city_slug           text,                         -- denormalised for query ease
   address             text,
@@ -36,6 +37,7 @@ create unique index if not exists stays_google_place_id_uq
   on stays (google_place_id) where google_place_id is not null;
 
 create index if not exists stays_type_city   on stays (stay_type, city_slug);
+create index if not exists stays_types_gin    on stays using gin (stay_types);
 create index if not exists stays_approved     on stays (approved, stay_type);
 create index if not exists stays_bbox         on stays (latitude, longitude);
 create index if not exists stays_norm_name    on stays (norm_name);

@@ -85,6 +85,9 @@ export default function RunStays({ areas }: { areas: { slug: string; name: strin
                   result.samples.filter((s) => s.type === t).map((s, i) => (
                     <div key={`${t}-${i}`} className="text-xs border-b border-buzz-border/50 pb-1">
                       <span className="font-medium">{TYPE_LABEL[t].split(" ")[0]} {s.name}</span>
+                      {s.types.length > 1 ? (
+                        <span className="text-buzz-mute"> (also {s.types.filter((x) => x !== t).map((x) => TYPE_LABEL[x].split(" ").slice(1).join(" ").toLowerCase()).join(", ")})</span>
+                      ) : null}
                       {s.rating ? <span className="text-buzz-mute"> ⭐{s.rating}</span> : null}
                       {s.hasPhoto ? " 📷" : ""}{s.hasSite ? " 🌐" : ""}
                       {s.address ? <span className="text-buzz-mute"> · {s.address}</span> : null}
