@@ -372,6 +372,20 @@ export default async function VenuePage({ params }: Props) {
                   📍 Open in Maps
                 </TrackedLink>
               )}
+              {(venue.address || ((venue as any).latitude && (venue as any).longitude)) && (
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&travelmode=transit&destination=${encodeURIComponent(
+                    (venue as any).latitude && (venue as any).longitude
+                      ? `${(venue as any).latitude},${(venue as any).longitude}`
+                      : `${venue.name} ${venue.address ?? ""} ${venue.postcode ?? ""}`,
+                  )}`}
+                  target="_blank"
+                  rel="noopener"
+                  className="btn-secondary"
+                >
+                  🚌 Getting there by bus/train
+                </a>
+              )}
               {venue.website && (
                 <a href={venue.website} target="_blank" rel="noopener" className="btn-secondary">🌐 Visit website</a>
               )}
