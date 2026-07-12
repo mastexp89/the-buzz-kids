@@ -39,7 +39,19 @@ export default async function AggregatorPage() {
     const { data: pl } = await sb
       .from("aggregator_places").select("id, name, location, website, source_url, city_slug")
       .eq("status", "new").order("found_at", { ascending: false }).limit(500);
-    places = pl ?? [];
+    // Safety-net dedupe at display time: hide any captured place that now
+    // matches a venue you already have (covers ones added since capture, or
+    // that existed under a slightly different name).
+    const nrm = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+    const { data: vs } = await sb.from("venues").select("name").limit(10000);
+    const venueNorms = (vs ?? []).map((v: any) => nrm(v.name)).filter(Boolean);
+    const venueSet = new Set(venueNorms);
+    const known = (nn: string) => {
+      if (venueSet.has(nn)) return true;
+      if (nn.length >= 6) for (const e of venueNorms) if (e.length >= 6 && (e.includes(nn) || nn.includes(e))) return true;
+      return false;
+    };
+    places = (pl ?? []).filter((p: any) => !known(nrm(p.name)));
   } catch {
     tablesMissing = true;
   }
