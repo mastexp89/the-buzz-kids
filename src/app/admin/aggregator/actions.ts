@@ -47,9 +47,11 @@ export async function toggleAggregatorSource(formData: FormData): Promise<void> 
 
 export async function runAggregatorNow(dry: boolean): Promise<AggregatorRunResult> {
   await requireAdmin();
-  // ~30 sequential AI extractions ≈ 2 min — comfortably inside the page's
-  // 300s budget, and gets through the backlog in fewer clicks.
-  const result = await runAggregatorImport({ batch: 30, dry });
+  // Keep the interactive batch small so a live run reliably finishes inside
+  // the function timeout even when Anthropic throttles (429 retries add up).
+  // The weekly cron (300s budget) chews through the bulk backlog; Run-now is
+  // for a quick top-up.
+  const result = await runAggregatorImport({ batch: dry ? 60 : 12, dry });
   revalidatePath("/admin/aggregator");
   return result;
 }
