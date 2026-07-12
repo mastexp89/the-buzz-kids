@@ -118,6 +118,13 @@ export default function AdminToolGroups({ pendingCount, suggestionsCount = 0 }: 
           paid: true,
         },
         {
+          href: "/admin/venues-photos-hours",
+          label: "Photos & hours",
+          emoji: "🖼️",
+          description: "Pull Google photos, opening times, address & rating for venues missing them",
+          paid: true,
+        },
+        {
           href: "/admin/venues-dedupe",
           label: "Dedupe venues",
           emoji: "🧹",
