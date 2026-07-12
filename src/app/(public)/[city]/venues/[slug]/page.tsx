@@ -324,19 +324,6 @@ export default async function VenuePage({ params }: Props) {
               </section>
             )}
 
-            {/* Accuracy disclaimer — we don't run these places. */}
-            <p className="text-xs text-buzz-mute mt-6 leading-relaxed">
-              ℹ️ We gather this info from organisers and public sources, so prices, times and details
-              can change. Please double-check {venue.website ? "the venue's own website" : "with the venue"} before you set off.
-            </p>
-            <div className="mt-3">
-              <SuggestEditButton
-                targetType="venue"
-                targetId={venue.id}
-                targetName={venue.name}
-                citySlug={citySlug}
-              />
-            </div>
           </div>
           <aside className="card p-5 flex flex-col gap-3">
             <div className="flex items-center justify-between">
@@ -486,6 +473,24 @@ export default async function VenuePage({ params }: Props) {
               </div>
             </div>
           </aside>
+
+          {/* Accuracy disclaimer + suggest-edit — a 3rd grid child so on mobile
+              it sits BELOW the Find-it card (address/contact comes first). On
+              desktop it flows under the main content column. */}
+          <div className="md:col-start-1">
+            <p className="text-xs text-buzz-mute leading-relaxed">
+              ℹ️ We gather this info from organisers and public sources, so prices, times and details
+              can change. Please double-check {venue.website ? "the venue's own website" : "with the venue"} before you set off.
+            </p>
+            <div className="mt-3">
+              <SuggestEditButton
+                targetType="venue"
+                targetId={venue.id}
+                targetName={venue.name}
+                citySlug={citySlug}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Owner self-service accounts are switched off — businesses reach us
