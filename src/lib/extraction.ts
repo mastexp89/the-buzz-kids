@@ -212,10 +212,11 @@ Return ONLY a JSON object of this shape:
 }
 ${detectPlaces ? `
 PLACES vs EVENTS (this source is a listings page — classify each item into ONE bucket)
-- If the item is an ongoing ATTRACTION or VENUE you can visit any time — a farm park, soft play, museum, garden, play centre, nature reserve, leisure centre, adventure park — it is a PLACE. Put it in "places", NOT "events". Do NOT invent a dated event for it.
+- A PLACE is a PERMANENT attraction families can visit REGULARLY — open year-round or a full season with regular opening hours: a farm park, soft play, museum, play centre, nature reserve, leisure centre, adventure park, visitor centre. Put it in "places", NOT "events". Do NOT invent a dated event for it.
 - If the item is a dated, time-boxed HAPPENING — a show, class, camp, competition, festival, workshop, gala, a holiday programme with start/end dates, a one-off day out — it is an EVENT. Put it in "events".
-- A fixed attraction described as "open daily over the summer" is a PLACE, not a camp.
-- family_suitable: set false ONLY for clearly adults-only items (18+, licensed bar night, wine tasting, adult comedy, grown-up-only talks). Keep anything a parent could reasonably bring a child to — family gigs, outdoor festivals, markets, panto, fun runs — as true. Items you mark family_suitable=false will be dropped.
+- LIMITED-DATE OPENINGS ARE EVENTS, NOT PLACES. A private garden or house that opens only on specific dates or a handful of days — e.g. Scotland's Gardens Scheme / National Garden Scheme openings, "open Sat & Sun", charity/one-off open days — is a dated EVENT, not a place. Never put these in "places". If it has clear dates, put it in "events"; if it's mainly an adult garden viewing with nothing for kids, drop it (don't return it at all).
+- A fixed attraction described as "open daily over the summer" with regular hours is a PLACE, not a camp.
+- family_suitable: set false ONLY for clearly adults-only items (18+, licensed bar night, wine tasting, adult comedy, grown-up-only talks, adult garden viewing). Keep anything a parent could reasonably bring a child to — family gigs, outdoor festivals, markets, panto, fun runs — as true. Items you mark family_suitable=false will be dropped.
 ` : ""}
 DATES & TIMES
 - Resolve relative dates ("today", "this Saturday", "Sat 14th", "the summer holidays") using POSTED above.
