@@ -15,7 +15,7 @@ async function requireAdmin(): Promise<boolean> {
 
 export async function runStaysIngest(area: string, dry: boolean): Promise<StaysIngestResult> {
   const empty: StaysIngestResult = {
-    ok: false, dry, area, raw: 0, kept: 0, rejected: 0,
+    ok: false, dry, area, raw: 0, kept: 0, rejected: 0, wrongArea: 0,
     counts: { glamping: 0, caravan: 0, cottage: 0, hotel: 0 },
     inserted: 0, samples: [], warnings: [], error: "Admins only.",
   };
