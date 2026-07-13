@@ -111,6 +111,13 @@ export default function AdminToolGroups({ pendingCount, suggestionsCount = 0 }: 
           paid: true,
         },
         {
+          href: "/admin/find-deals",
+          label: "Find deals",
+          emoji: "🔎",
+          description: "AI reads kids-eat-free / days-out roundups → drafts deals into the review queue",
+          paid: true,
+        },
+        {
           href: "/admin/venues/new",
           label: "Add venue",
           emoji: "➕",

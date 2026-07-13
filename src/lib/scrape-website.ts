@@ -410,7 +410,7 @@ function extractTitle(html: string): string {
   return m ? decodeEntities(m[1].trim()).slice(0, 200) : "";
 }
 
-function htmlToText(html: string): string {
+export function htmlToText(html: string): string {
   let s = html
     // Drop scripts, styles, navs, footers — they're noise for event extraction
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ")

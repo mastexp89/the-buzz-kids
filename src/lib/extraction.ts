@@ -551,6 +551,127 @@ RULES
   }
 }
 
+// ============================================================
+// Deal / offer extraction
+//
+// Given the text of a "kids eat free" / family-days-out roundup page, pull out
+// the individual money-saving deals as structured offers for the Deals tab.
+// We extract the FACT of each deal (chain X does kids-eat-free, the gist of the
+// terms) — the admin verifies and publishes; we don't copy a source's curated
+// list verbatim. Drafts land in the offers table as approved=false.
+// ============================================================
+
+export type ExtractedDeal = {
+  title: string;                       // short, plain ("Kids eat free at Bella Italia")
+  provider: string | null;            // the chain / business ("Bella Italia")
+  description: string | null;         // one neutral sentence
+  terms: string | null;               // the small print in plain English
+  category: "food" | "days-out";
+  scope: "national" | "local";
+  region: string | null;              // town/area for LOCAL deals, else null
+  url: string | null;                 // where to find/claim it
+  business_url: string | null;        // the chain's own website
+  ends_on: string | null;             // YYYY-MM-DD if clearly time-boxed, else null
+  confidence: number;
+};
+
+function normalizeExtractedDeal(raw: any): ExtractedDeal | null {
+  const title = typeof raw?.title === "string" ? raw.title.trim() : "";
+  if (!title) return null;
+  const str = (v: any): string | null =>
+    typeof v === "string" && v.trim().length > 0 ? v.trim() : null;
+  const url = (v: any): string | null =>
+    typeof v === "string" && /^https?:\/\//.test(v.trim()) ? v.trim() : null;
+  const cat = raw?.category === "days-out" ? "days-out" : "food";
+  const scope = raw?.scope === "local" ? "local" : "national";
+  const ends = typeof raw?.ends_on === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.ends_on) ? raw.ends_on : null;
+  const conf = Number(raw?.confidence);
+  return {
+    title: title.slice(0, 160),
+    provider: str(raw?.provider),
+    description: str(raw?.description),
+    terms: str(raw?.terms),
+    category: cat,
+    scope,
+    region: scope === "local" ? str(raw?.region) : null,
+    url: url(raw?.url),
+    business_url: url(raw?.business_url),
+    ends_on: ends,
+    confidence: Number.isFinite(conf) ? Math.max(0, Math.min(1, conf)) : 0.5,
+  };
+}
+
+/**
+ * Pull family money-saving deals out of a roundup / listings page's text.
+ * `sourceUrl` is passed so the model can use it as a sensible default `url`.
+ * `today` anchors relative end-dates ("until end of the summer holidays").
+ */
+export async function extractDeals(opts: {
+  pageText: string;
+  sourceUrl: string;
+  today: string; // YYYY-MM-DD
+}): Promise<ExtractedDeal[]> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY env var missing.");
+
+  const sys = `You extract family money-saving DEALS from the text of a web page for The Buzz Kids, a Scottish family activities directory. Deals are standing offers that save families money: "kids eat free", "kids eat for £1", kids-go-free attraction entry, family tickets, voucher codes, 2-for-1s.
+
+TODAY: ${opts.today}. SOURCE URL: ${opts.sourceUrl}
+
+Return ONLY a JSON object of this shape:
+{
+  "deals": [
+    {
+      "title": "short plain deal name, e.g. 'Kids eat free at Bella Italia'",
+      "provider": "the chain/business name, e.g. 'Bella Italia', or null",
+      "description": "one neutral sentence describing the deal",
+      "terms": "the key small print in plain English (days, ages, min spend, app needed), or null",
+      "category": "food" | "days-out",
+      "scope": "national" | "local",
+      "region": "town/area name for LOCAL deals only, else null",
+      "url": "the page to claim/see the deal, or null",
+      "business_url": "the business's OWN website, or null",
+      "ends_on": "YYYY-MM-DD if the deal clearly ends on a date, else null",
+      "confidence": 0.0-1.0
+    }
+  ]
+}
+
+RULES
+- category: "food" = eating out (kids eat free/£1 at restaurants/cafes). "days-out" = attractions, travel, tickets, memberships, days-out savings.
+- scope: "national" = a UK-wide chain or scheme (Asda, Tesco, Bella Italia, ScotRail). "local" = a single independent Scottish business or a specific town's offer. If unsure, use "national".
+- region: ONLY for local deals — the Scottish town/area it's in (e.g. "Dundee", "Fife"). null for national.
+- terms: summarise the real conditions concisely and neutrally — do NOT copy long promotional paragraphs verbatim. Capture what a parent must know: which days, child ages, min adult spend, whether an app/voucher code is needed.
+- ends_on: only set when a clear end date is stated (resolve "end of the summer holidays" etc. against TODAY). Ongoing/all-year deals → null.
+- Extract each DISTINCT deal once. Skip duplicates, expired deals (ended before TODAY), affiliate spam, and anything that isn't a concrete family saving.
+- Only Scotland-relevant deals: a national UK chain that operates in Scotland counts; an England-only regional offer does not.
+- Be conservative — if the page doesn't clearly describe a real deal, return fewer. confidence < 0.5 → leave it out.
+- Return ONLY the JSON. If nothing, return { "deals": [] }.`;
+
+  const body = {
+    model: MODEL,
+    max_tokens: 4096,
+    system: sys,
+    messages: [{ role: "user", content: `PAGE TEXT:\n${opts.pageText.slice(0, 14000)}` }],
+  };
+
+  const res = await callAnthropicWithRetry(apiKey, body);
+  const json: any = await res.json();
+  const textBlock = (json.content ?? []).find((b: any) => b.type === "text");
+  const responseText: string = textBlock?.text ?? "";
+  const m = responseText.match(/\{[\s\S]*\}/);
+  if (!m) return [];
+  try {
+    const parsed = JSON.parse(m[0]);
+    const rows = Array.isArray(parsed?.deals) ? parsed.deals : [];
+    return rows
+      .map(normalizeExtractedDeal)
+      .filter((d: ExtractedDeal | null): d is ExtractedDeal => !!d && d.confidence >= 0.5);
+  } catch {
+    return [];
+  }
+}
+
 const ACCESSIBILITY_SET: Set<string> = new Set(ACCESSIBILITY_FACETS);
 const SETTING_SET = new Set(["indoor", "outdoor", "both"]);
 
