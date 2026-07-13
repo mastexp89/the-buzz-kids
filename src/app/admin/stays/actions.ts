@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { ingestStaysForArea, type StaysIngestResult } from "@/lib/stays-ingest";
+import { ingestStaysForArea, importRemainingAreas, type StaysIngestResult, type BulkStaysResult } from "@/lib/stays-ingest";
 import { revalidatePath } from "next/cache";
 
 async function requireAdmin(): Promise<boolean> {
@@ -23,6 +23,18 @@ export async function runStaysIngest(area: string, dry: boolean): Promise<StaysI
   if (!area?.trim()) return { ...empty, error: "Pick an area." };
   const res = await ingestStaysForArea(area.trim(), { dry });
   if (!dry) revalidatePath("/admin/stays");
+  return res;
+}
+
+export async function importAllStays(): Promise<BulkStaysResult> {
+  const empty: BulkStaysResult = {
+    ok: false, areasDone: [], inserted: 0,
+    counts: { glamping: 0, caravan: 0, cottage: 0, hotel: 0 },
+    remaining: 0, done: false, warnings: [], error: "Admins only.",
+  };
+  if (!(await requireAdmin())) return empty;
+  const res = await importRemainingAreas();
+  if (res.inserted > 0) revalidatePath("/admin/stays");
   return res;
 }
 

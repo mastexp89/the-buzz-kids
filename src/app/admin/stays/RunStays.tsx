@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { runStaysIngest } from "./actions";
+import { useRouter } from "next/navigation";
+import { runStaysIngest, importAllStays } from "./actions";
 import type { StaysIngestResult } from "@/lib/stays-ingest";
 
 const TYPE_LABEL: Record<string, string> = {
@@ -12,10 +13,16 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 export default function RunStays({ areas }: { areas: { slug: string; name: string }[] }) {
+  const router = useRouter();
   const [area, setArea] = useState(areas[0]?.name ?? "");
   const [busy, setBusy] = useState<null | "dry" | "live">(null);
   const [result, setResult] = useState<StaysIngestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Bulk "import everything" — loops the resumable server action until done.
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulk, setBulk] = useState<{ areas: number; inserted: number; remaining: number } | null>(null);
+  const [bulkDone, setBulkDone] = useState(false);
 
   async function run(dry: boolean) {
     setBusy(dry ? "dry" : "live");
@@ -25,10 +32,35 @@ export default function RunStays({ areas }: { areas: { slug: string; name: strin
       const r = await runStaysIngest(area, dry);
       if (r.error) setError(r.error);
       setResult(r);
+      if (!dry) router.refresh();
     } catch (e: any) {
       setError(e?.message ?? "Run failed");
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function importAll() {
+    if (!confirm("Import stays for every region that doesn't have any yet? This scrapes Google for each (a few £ across all of Scotland) and can take 20–30 minutes — keep this tab open. You can stop any time; it resumes where it left off.")) return;
+    setBulkBusy(true);
+    setBulkDone(false);
+    setError(null);
+    let areasCount = 0;
+    let inserted = 0;
+    try {
+      for (;;) {
+        const r = await importAllStays();
+        if (r.error) { setError(r.error); break; }
+        areasCount += r.areasDone.length;
+        inserted += r.inserted;
+        setBulk({ areas: areasCount, inserted, remaining: r.remaining });
+        router.refresh();
+        if (r.done || r.areasDone.length === 0) { setBulkDone(true); break; }
+      }
+    } catch (e: any) {
+      setError(e?.message ?? "Bulk import failed");
+    } finally {
+      setBulkBusy(false);
     }
   }
 
@@ -56,6 +88,25 @@ export default function RunStays({ areas }: { areas: { slug: string; name: strin
           Searching Google for glamping, caravan parks, cottages &amp; hotels in {area} — keep this tab open.
         </p>
       )}
+
+      {/* Bulk: do every remaining region automatically */}
+      <div className="mt-3 pt-3 border-t border-buzz-border/60">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button onClick={importAll} disabled={bulkBusy || !!busy} className="btn-secondary text-sm disabled:opacity-50">
+            {bulkBusy ? "Importing all regions…" : "🚀 Import ALL remaining regions"}
+          </button>
+          <span className="text-xs text-buzz-mute">Walks through every region with no stays yet — one click, ~20–30 min.</span>
+        </div>
+        {bulk && (
+          <p className="text-sm mt-2" style={{ color: bulkDone ? "#3B6D11" : undefined }}>
+            {bulkDone ? "✅ All done — " : "Working… "}
+            {bulk.areas} region{bulk.areas === 1 ? "" : "s"} imported, <strong>{bulk.inserted}</strong> stays added
+            {bulk.remaining > 0 ? ` · ${bulk.remaining} region${bulk.remaining === 1 ? "" : "s"} to go` : ""}.
+            {bulkBusy && " Keep this tab open."}
+          </p>
+        )}
+      </div>
+
       {error && <p className="text-sm text-rose-500 mt-2">{error}</p>}
 
       {result && result.ok && (
