@@ -53,6 +53,25 @@ export default async function BrowsePage({ searchParams }: Props) {
   const cities = cityRows ?? [];
   const activeIds = cities.map((c) => c.id);
 
+  // City centres (average of each area's venue coordinates) — lets the Deals
+  // tab map a visitor's GPS location to their nearest region for "near me".
+  const cityCentroids: Record<string, [number, number]> = {};
+  if (isOffers) {
+    const idToSlug = new Map(cities.map((c) => [c.id, c.slug] as const));
+    const { data: vpts } = await supabase
+      .from("venues").select("city_id, latitude, longitude")
+      .eq("approved", true).not("latitude", "is", null).limit(5000);
+    const acc: Record<string, { lat: number; lng: number; n: number }> = {};
+    for (const v of (vpts ?? []) as any[]) {
+      const slug = idToSlug.get(v.city_id);
+      if (!slug || typeof v.latitude !== "number" || typeof v.longitude !== "number") continue;
+      const a = acc[slug] ?? { lat: 0, lng: 0, n: 0 };
+      a.lat += v.latitude; a.lng += v.longitude; a.n++;
+      acc[slug] = a;
+    }
+    for (const [slug, a] of Object.entries(acc)) if (a.n >= 3) cityCentroids[slug] = [a.lat / a.n, a.lng / a.n];
+  }
+
   // Admins get inline delete controls on the live browse views.
   let isAdmin = false;
   if (user) {
@@ -217,7 +236,7 @@ export default async function BrowsePage({ searchParams }: Props) {
 
       <div className="container-page py-8">
         {isOffers ? (
-          <OffersView offers={offers} category="all" isAdmin={isAdmin} />
+          <OffersView offers={offers} category="all" isAdmin={isAdmin} cities={cities} cityCentroids={cityCentroids} />
         ) : isEvents ? (
           <WhatsOnView events={events} cities={cities} isAdmin={isAdmin} />
         ) : (
