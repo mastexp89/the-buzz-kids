@@ -454,15 +454,69 @@ export async function ingestStaysForArea(
     };
   });
 
+  // Plain insert — we've already filtered to genuinely-new place ids and made
+  // slugs unique above. (Can't upsert on google_place_id: its unique index is
+  // partial — `where google_place_id is not null` — which Postgres won't accept
+  // as an ON CONFLICT target.) On a batch error, fall back to row-by-row so one
+  // bad row can't zero the whole batch.
   let inserted = 0;
   for (let i = 0; i < payload.length; i += 100) {
     const batch = payload.slice(i, i + 100);
-    const { error } = await sb
-      .from("stays")
-      .upsert(batch, { onConflict: "google_place_id", ignoreDuplicates: true });
-    if (error) warnings.push(`insert: ${error.message}`);
-    else inserted += batch.length;
+    const { error } = await sb.from("stays").insert(batch);
+    if (!error) { inserted += batch.length; continue; }
+    for (const row of batch) {
+      const { error: rowErr } = await sb.from("stays").insert(row);
+      if (!rowErr) inserted++;
+    }
+    warnings.push(`insert (recovered row-by-row): ${error.message}`);
   }
   out.inserted = inserted;
+  return out;
+}
+
+export type BulkStaysResult = {
+  ok: boolean;
+  areasDone: string[];             // area names imported this call
+  inserted: number;
+  counts: Record<StayType, number>;
+  remaining: number;               // regions still to import after this call
+  done: boolean;                   // nothing left
+  warnings: string[];
+  error?: string;
+};
+
+// Import every region that has no stays yet, looping until the time budget runs
+// out. Resumable: an area counts as "done" once it has any stays, so calling
+// this again picks up where it left off. The admin UI calls it in a loop so one
+// click walks through all of Scotland across several requests.
+export async function importRemainingAreas(): Promise<BulkStaysResult> {
+  const counts: Record<StayType, number> = { glamping: 0, caravan: 0, cottage: 0, hotel: 0 };
+  const out: BulkStaysResult = { ok: false, areasDone: [], inserted: 0, counts, remaining: 0, done: false, warnings: [] };
+  if (!process.env.APIFY_TOKEN) return { ...out, error: "APIFY_TOKEN isn't set on the server." };
+
+  const sb = createServiceClient();
+  const { data: cities } = await sb.from("cities").select("slug, name").eq("active", true).order("name");
+  const list = (cities ?? []) as { slug: string; name: string }[];
+  const { data: staysRows } = await sb.from("stays").select("city_slug");
+  const alreadyDone = new Set<string>((staysRows ?? []).map((r: any) => r.city_slug).filter(Boolean));
+  const todo = list.filter((c) => !alreadyDone.has(c.slug));
+
+  const start = Date.now();
+  for (const c of todo) {
+    if (Date.now() - start > 220_000) break; // stay under the route's 300s budget
+    try {
+      const r = await ingestStaysForArea(c.name, { dry: false });
+      out.inserted += r.inserted;
+      for (const k of Object.keys(counts) as StayType[]) counts[k] += r.counts[k];
+      out.areasDone.push(c.name);
+      if (r.warnings.length) out.warnings.push(`${c.name}: ${r.warnings[0]}`);
+    } catch (e: any) {
+      out.warnings.push(`${c.name}: ${e?.message ?? e}`);
+      out.areasDone.push(c.name); // count as attempted so the loop advances
+    }
+  }
+  out.ok = true;
+  out.remaining = todo.length - out.areasDone.length;
+  out.done = out.remaining === 0;
   return out;
 }
