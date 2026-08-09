@@ -58,6 +58,17 @@ export async function submitOffer(input: {
     } catch { /* best-effort */ }
   }
 
+  // Telegram ping alongside the email.
+  {
+    const { tgOfferSuggestion } = await import("@/lib/telegram");
+    tgOfferSuggestion({
+      title,
+      provider: (input.provider ?? "").trim() || null,
+      category,
+      byEmail: (input.email ?? "").trim() || null,
+    }).catch(() => {});
+  }
+
   // Best-effort admin notification. Falls back to hello@thebuzzkids.co.uk so it
   // still fires even if ADMIN_NOTIFY_EMAIL isn't set (matches the listings /
   // edit-suggestion path), and sets reply-to the suggester when they leave one.

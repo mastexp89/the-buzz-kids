@@ -312,6 +312,10 @@ function notifyAdminOfNewMessage(opts: {
   body: string;
   userId: string;
 }) {
+  // Mirror into the admins Telegram group.
+  import("@/lib/telegram")
+    .then(({ tgAdminMessage }) => tgAdminMessage(opts))
+    .catch(() => {});
   const fromLabel = `${opts.fromName ?? "—"} <${opts.fromEmail ?? "—"}>`;
   const blocks: EmailBlock[] = [
     { kind: "h", text: "New message from a user" },

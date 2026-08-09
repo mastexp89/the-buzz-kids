@@ -139,6 +139,12 @@ export async function POST(req: NextRequest) {
 
     // f. Finally, delete the auth.users entry. After this, the user's
     // session token is invalid.
+    // Tell the admins group — account deletions are worth knowing about.
+    {
+      const { tgAccountDeleted } = await import("@/lib/telegram");
+      tgAccountDeleted({ email: userEmail, venueCount: venueIds.length }).catch(() => {});
+    }
+
     const { error: deleteErr } = await admin.auth.admin.deleteUser(userId);
     if (deleteErr) {
       // Profile is already gone — log and surface, but the user's data is

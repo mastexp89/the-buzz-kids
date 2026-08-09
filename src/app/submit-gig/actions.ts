@@ -181,6 +181,8 @@ export async function submitGig(formData: FormData): Promise<SubmitGigResult> {
       startTime: start_time,
       submitterEmail: user.email ?? null,
       venueId: venue.id,
+      eventId: created.id,
+      status,
     }).catch(() => {});
 
     // Only ping the venue owner if there is one AND the gig is awaiting approval

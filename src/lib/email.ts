@@ -9,6 +9,17 @@
 // All sends are best-effort — if Resend fails we log + return false, never throw.
 
 import { buildEmailHtml, buildEmailText, type EmailBlock } from "./email-template";
+import {
+  tgNewVenue,
+  tgNewArtist,
+  tgNewOrganiser,
+  tgNewSignup,
+  tgVenueSuggestion,
+  tgEditSuggestion,
+  tgNewGig,
+  tgVenueClaim,
+  tgArtistClaim,
+} from "./telegram";
 
 type SendArgs = {
   subject: string;
@@ -96,6 +107,12 @@ export function notifyNewVenue(opts: {
   ownerEmail: string | null;
   cityName: string | null;
 }) {
+  tgNewVenue({
+    venueId: opts.venueId,
+    venueName: opts.venueName,
+    cityName: opts.cityName,
+    byEmail: opts.ownerEmail,
+  }).catch(() => {});
   return sendBrandedEmail({
     subject: `New venue pending: ${opts.venueName}`,
     preheader: `${opts.venueName} (${opts.cityName ?? "—"}) is waiting for approval.`,
@@ -117,6 +134,11 @@ export function notifyNewArtist(opts: {
   artistName: string;
   claimerEmail: string | null;
 }) {
+  tgNewArtist({
+    artistId: opts.artistId,
+    artistName: opts.artistName,
+    byEmail: opts.claimerEmail,
+  }).catch(() => {});
   return sendBrandedEmail({
     subject: `New artist registered: ${opts.artistName}`,
     preheader: `${opts.artistName} just registered.`,
@@ -137,6 +159,11 @@ export function notifyNewOrganiser(opts: {
   organiserName: string;
   claimerEmail: string | null;
 }) {
+  tgNewOrganiser({
+    organiserId: opts.organiserId,
+    organiserName: opts.organiserName,
+    byEmail: opts.claimerEmail,
+  }).catch(() => {});
   return sendBrandedEmail({
     subject: `New organiser pending: ${opts.organiserName}`,
     preheader: `${opts.organiserName} is waiting for approval.`,
@@ -162,6 +189,11 @@ export function notifyNewSignup(opts: {
     : opts.accountType === "artist" ? "Artist / Band / DJ"
     : opts.accountType === "organiser" ? "Event organiser"
     : opts.accountType;
+  tgNewSignup({
+    displayName: opts.displayName,
+    email: opts.email,
+    accountType: opts.accountType,
+  }).catch(() => {});
   return sendBrandedEmail({
     subject: `New signup: ${opts.displayName ?? opts.email ?? "(no name)"} — ${typeLabel}`,
     preheader: `A new ${typeLabel.toLowerCase()} account just signed up.`,
@@ -185,6 +217,13 @@ export function notifyVenueSuggestion(opts: {
   submitterEmail: string | null;
   submitterContact: string | null;
 }) {
+  tgVenueSuggestion({
+    venueName: opts.venueName,
+    cityName: opts.cityName,
+    gigTitle: opts.gigTitle,
+    byEmail: opts.submitterEmail,
+    contact: opts.submitterContact,
+  }).catch(() => {});
   return sendBrandedEmail({
     subject: `Place suggestion: ${opts.venueName}`,
     preheader: `Someone submitted an event at ${opts.venueName}.`,
@@ -216,7 +255,20 @@ export function notifyEditSuggestion(opts: {
   contact_email: string | null;
   is_owner: boolean;
   image_url?: string | null;
+  // For the Telegram "Mark done" button.
+  suggestionId?: string;
 }) {
+  tgEditSuggestion({
+    suggestionId: opts.suggestionId,
+    targetType: opts.target_type,
+    targetName: opts.target_name,
+    reason: opts.reason,
+    details: opts.details,
+    contactName: opts.contact_name,
+    contactEmail: opts.contact_email,
+    isOwner: opts.is_owner,
+    imageUrl: opts.image_url,
+  }).catch(() => {});
   const kindLabel =
     opts.target_type === "new_place" ? "New place request"
     : opts.target_type === "event" ? "Event edit suggestion"
@@ -247,7 +299,23 @@ export function notifyPendingGig(opts: {
   startTime: string | null;
   submitterEmail: string | null;
   venueId: string;
+  // For the Telegram notification: the created event's id (enables the
+  // Approve/Reject buttons + reply-with-photo poster upload) and whether
+  // it went live immediately or is pending.
+  eventId?: string;
+  status?: "pending" | "approved";
 }) {
+  if (opts.eventId) {
+    tgNewGig({
+      eventId: opts.eventId,
+      title: opts.gigTitle,
+      venueName: opts.venueName,
+      startTime: opts.startTime,
+      byEmail: opts.submitterEmail,
+      status: opts.status ?? "pending",
+      source: "public submission",
+    }).catch(() => {});
+  }
   return sendBrandedEmail({
     subject: `Pending event at ${opts.venueName}`,
     preheader: `${opts.gigTitle} needs the place owner's approval.`,
@@ -285,6 +353,13 @@ export function notifyVenueClaim(opts: {
   contactPhone: string | null;
   reason: string | null;
 }) {
+  tgVenueClaim({
+    venueName: opts.venueName,
+    claimantName: opts.claimantName,
+    claimantEmail: opts.claimantEmail,
+    businessName: opts.businessName ?? null,
+    reason: opts.reason,
+  }).catch(() => {});
   const venueLink = opts.citySlug && opts.venueSlug
     ? `${SITE}/${opts.citySlug}/venues/${opts.venueSlug}`
     : `${SITE}/admin`;
@@ -363,6 +438,12 @@ export function notifyArtistClaim(opts: {
   contactPhone: string | null;
   reason: string | null;
 }) {
+  tgArtistClaim({
+    artistName: opts.artistName,
+    claimantName: opts.claimantName,
+    claimantEmail: opts.claimantEmail,
+    reason: opts.reason,
+  }).catch(() => {});
   const artistLink = opts.artistSlug
     ? `${SITE}/artists/${opts.artistSlug}`
     : `${SITE}/admin/queue`;
