@@ -84,6 +84,7 @@ async function handleCallback(cb: any) {
     if (cmd === "pending") await handlePendingCommand();
     else if (cmd === "stats") await handleStatsCommand();
     else if (cmd === "help") await sendHelp();
+    else if (cmd === "menu") await sendMenuCard();
     return;
   }
 
@@ -221,7 +222,10 @@ async function sendHelp() {
           { text: "📥 Pending", callback_data: "cmd:pending" },
           { text: "📊 Today's stats", callback_data: "cmd:stats" },
         ],
-        [{ text: "🔍 Open admin queue", url: `${site}/admin/queue` }],
+        [
+          { text: "🔍 Open admin queue", url: `${site}/admin/queue` },
+          { text: "⬅️ Menu", callback_data: "cmd:menu" },
+        ],
       ],
     },
   );
@@ -342,7 +346,9 @@ async function handlePendingCommand() {
 
   const total = events + suggestions + places + reviews;
   if (total === 0) {
-    await sendTelegram("✨ Buzz Kids queue is empty — nothing pending.");
+    await sendTelegram("✨ Buzz Kids queue is empty — nothing pending.", {
+      buttons: [[{ text: "⬅️ Menu", callback_data: "cmd:menu" }]],
+    });
     return;
   }
 
@@ -351,7 +357,12 @@ async function handlePendingCommand() {
     `📥 <b>Buzz Kids — pending review</b>\n` +
     `Events: ${events} · Edit suggestions: ${suggestions}\n` +
     `Places to add: ${places} · Reviews: ${reviews}`,
-    { buttons: [[{ text: "🔍 Open admin queue", url: `${site}/admin/queue` }]] },
+    {
+      buttons: [[
+        { text: "🔍 Open admin queue", url: `${site}/admin/queue` },
+        { text: "⬅️ Menu", callback_data: "cmd:menu" },
+      ]],
+    },
   );
   await sendPendingEventButtons(5);
 }
@@ -399,5 +410,6 @@ async function handleStatsCommand() {
     `Events added: ${eventsAdded}\n` +
     `Reviews left: ${reviewsToday}\n` +
     `Pending review: ${pending}`,
+    { buttons: [[{ text: "⬅️ Menu", callback_data: "cmd:menu" }]] },
   );
 }
