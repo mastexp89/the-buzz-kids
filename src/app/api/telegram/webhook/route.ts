@@ -185,8 +185,15 @@ async function handleMessage(msg: any) {
     return;
   }
 
-  if (command === "/help" || command === "/menu") {
+  if (command === "/help") {
     await sendHelp();
+    return;
+  }
+
+  // Compact quick-action card. Both bots answer a bare /menu, so the group
+  // gets one card per site — tap the site + action you want. Pin them!
+  if (command === "/menu") {
+    await sendMenuCard();
     return;
   }
   if (command === "/pending") {
@@ -215,6 +222,23 @@ async function sendHelp() {
           { text: "📊 Today's stats", callback_data: "cmd:stats" },
         ],
         [{ text: "🔍 Open admin queue", url: `${site}/admin/queue` }],
+      ],
+    },
+  );
+}
+
+async function sendMenuCard() {
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.thebuzzkids.co.uk";
+  await sendTelegram(
+    `🧒 <b>The Buzz Kids</b> — quick actions`,
+    {
+      silent: true,
+      buttons: [
+        [
+          { text: "📥 Pending", callback_data: "cmd:pending" },
+          { text: "📊 Stats", callback_data: "cmd:stats" },
+        ],
+        [{ text: "🔍 Admin queue", url: `${site}/admin/queue` }],
       ],
     },
   );
