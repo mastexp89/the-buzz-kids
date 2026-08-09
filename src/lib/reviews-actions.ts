@@ -43,9 +43,24 @@ export async function submitReview(input: {
       title: input.title.trim() || null,
       body: input.body.trim() || null,
     })
-    .select("id, venue:venues(slug, city:cities(slug))")
+    .select("id, venue:venues(name, slug, city:cities(slug))")
     .single();
   if (error) return { error: error.message };
+
+  // Telegram: reviews land as pending — give admins one-tap approve/hide.
+  {
+    const { data: prof } = await supabase
+      .from("profiles").select("display_name").eq("id", user.id).maybeSingle();
+    const { tgNewReview } = await import("@/lib/telegram");
+    tgNewReview({
+      reviewId: (review as any).id,
+      venueName: (review as any).venue?.name ?? "a place",
+      rating,
+      title: input.title.trim() || null,
+      body: input.body.trim() || null,
+      authorName: prof?.display_name ?? user.email ?? null,
+    }).catch(() => {});
+  }
 
   const imgs = input.imageUrls.filter(Boolean).slice(0, 6);
   if (imgs.length > 0) {

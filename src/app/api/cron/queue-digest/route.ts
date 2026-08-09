@@ -9,6 +9,8 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { sendAdminEmail } from "@/lib/email";
 import { buildEmailHtml, buildEmailText, type EmailBlock } from "@/lib/email-template";
+import { tgQueueDigest } from "@/lib/telegram";
+import { sendPendingEventButtons } from "@/lib/telegram-queue";
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.thebuzzkids.co.uk";
 
@@ -32,10 +34,20 @@ export async function GET(req: Request) {
   const events = await count("events", "id", (q) => q.eq("status", "pending"));
   const suggestions = await count("edit_suggestions", "id", (q) => q.eq("status", "new"));
   const places = await count("aggregator_places", "id", (q) => q.eq("status", "new"));
+  const reviews = await count("reviews", "id", (q) => q.eq("status", "pending"));
   const total = events + suggestions + places;
 
-  if (total === 0) return NextResponse.json({ ok: true, total, sent: false });
-  if (dry) return NextResponse.json({ ok: true, events, suggestions, places, total, sent: false });
+  if (total === 0 && reviews === 0) return NextResponse.json({ ok: true, total, sent: false });
+  if (dry) return NextResponse.json({ ok: true, events, suggestions, places, reviews, total, sent: false });
+
+  // Telegram: digest into the admins group, then the first few pending
+  // events as individual messages with one-tap Approve/Reject buttons.
+  try {
+    await tgQueueDigest({ events, suggestions, places, reviews });
+    if (events > 0) await sendPendingEventButtons(5);
+  } catch { /* best-effort */ }
+
+  if (total === 0) return NextResponse.json({ ok: true, total, reviews, sent: false });
 
   const blocks: EmailBlock[] = [
     { kind: "h", text: "Your review queue" },

@@ -19,7 +19,17 @@ export async function recordSignup(opts: {
   // Only notify for the rare business/claim signups worth a heads-up.
   const t = (opts.accountType || "").toLowerCase();
   const noisy = t === "fan" || t === "parent" || t === "user" || t === "";
-  if (noisy) return { ok: true };
+  if (noisy) {
+    // Telegram is free and silent-flagged, so parent signups DO ping the
+    // admins group — it's only the per-signup email that stays muted.
+    const { tgNewSignup } = await import("@/lib/telegram");
+    tgNewSignup({
+      displayName: opts.displayName,
+      email: opts.email,
+      accountType: opts.accountType,
+    }).catch(() => {});
+    return { ok: true };
+  }
   try {
     await notifyNewSignup({
       displayName: opts.displayName,

@@ -25,6 +25,10 @@ export async function POST(req: NextRequest) {
   }
 
   // Notify Dylan so he knows someone signed up.
+  {
+    const { tgNewsletterSignup } = await import("@/lib/telegram");
+    tgNewsletterSignup({ email }).catch(() => {});
+  }
   const resendKey = process.env.RESEND_API_KEY;
   const adminEmail = process.env.ADMIN_NOTIFY_EMAIL;
   const from = process.env.ADMIN_NOTIFY_FROM ?? "The Buzz Kids <noreply@thebuzzkids.co.uk>";

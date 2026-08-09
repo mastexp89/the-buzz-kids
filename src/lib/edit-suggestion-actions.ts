@@ -89,7 +89,11 @@ export async function submitEditSuggestion(input: {
     image_url: clip(input.imageUrl, 500),
   };
 
-  const { error } = await sb.from("edit_suggestions").insert(row);
+  const { data: inserted, error } = await sb
+    .from("edit_suggestions")
+    .insert(row)
+    .select("id")
+    .single();
   if (error) return { error: error.message };
 
   // Keep the lightweight venue flag (counter + latest note) in sync so the
@@ -106,7 +110,7 @@ export async function submitEditSuggestion(input: {
       .eq("id", input.targetId);
   }
 
-  notifyEditSuggestion(row).catch(() => {});
+  notifyEditSuggestion({ ...row, suggestionId: inserted?.id }).catch(() => {});
   if (input.newsletter) await subscribeToNewsletter(input.contactEmail);
   revalidatePath("/admin");
   revalidatePath("/admin/suggestions");
@@ -138,10 +142,14 @@ export async function submitPlaceLead(input: {
     image_url: clip(input.imageUrl, 500),
   };
 
-  const { error } = await sb.from("edit_suggestions").insert(row);
+  const { data: inserted, error } = await sb
+    .from("edit_suggestions")
+    .insert(row)
+    .select("id")
+    .single();
   if (error) return { error: error.message };
 
-  notifyEditSuggestion(row).catch(() => {});
+  notifyEditSuggestion({ ...row, suggestionId: inserted?.id }).catch(() => {});
   if (input.newsletter) await subscribeToNewsletter(input.contactEmail);
   revalidatePath("/admin/suggestions");
   return { ok: true };
