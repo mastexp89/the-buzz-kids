@@ -9,7 +9,7 @@ import { sendAdminEmail } from "@/lib/email";
 import { buildEmailHtml, buildEmailText, type EmailBlock } from "@/lib/email-template";
 import { sendPushToUser } from "@/lib/push";
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.thebuzzguide.co.uk";
+const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.thebuzzkids.co.uk";
 const ADMIN_NOTIFY_EMAIL = process.env.ADMIN_NOTIFY_EMAIL ?? "hello@thebuzzkids.co.uk";
 
 export type Message = {
@@ -292,17 +292,17 @@ async function notifyUserOfNewMessage(opts: { toEmail: string; toName: string | 
   const blocks: EmailBlock[] = [
     { kind: "h", text: "You have a new message" },
     { kind: "p", text: `Hi${opts.toName ? " " + opts.toName : ""},` },
-    { kind: "p", text: "The Buzz Guide team sent you a new message:" },
+    { kind: "p", text: "The Buzz Kids team sent you a new message:" },
     { kind: "p", text: `"${opts.body.slice(0, 600)}${opts.body.length > 600 ? "…" : ""}"` },
-    { kind: "button", href: buttonUrl, text: "Reply on The Buzz Guide" },
+    { kind: "button", href: buttonUrl, text: "Reply on The Buzz Kids" },
     { kind: "small", text: "One-tap sign-in. The link expires after one click — request a new one any time by signing in normally." },
   ];
 
   return sendAdminEmail({
     to: opts.toEmail,
-    subject: "New message on The Buzz Guide",
+    subject: "New message on The Buzz Kids",
     text: buildEmailText(blocks),
-    html: buildEmailHtml({ preheader: "New message from The Buzz Guide team.", blocks }),
+    html: buildEmailHtml({ preheader: "New message from The Buzz Kids team.", blocks }),
   });
 }
 
@@ -349,7 +349,7 @@ export async function broadcastMessage(opts: {
   // email + in-app insert above — admins can tick any combination
   // (e.g. push-only when there's a time-sensitive nudge).
   push?: boolean;
-  // Optional custom title for the push (defaults to "Message from The Buzz Guide")
+  // Optional custom title for the push (defaults to "Message from The Buzz Kids")
   pushTitle?: string;
   // When true (with push=true), the push also goes to every anonymous
   // device — phones with the app installed where no user has signed in
