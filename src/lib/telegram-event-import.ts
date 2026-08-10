@@ -160,8 +160,8 @@ export async function importEventPoster(opts: {
   }
   const posterHint = [...hintCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
   const override = (opts.venueHintOverride ?? "").replace(/\/\w+(@[\w_]+)?/g, "").trim() || null;
+  // May be empty — the title-swap check below can still find the place.
   const hints = [posterHint, override].filter(Boolean) as string[];
-  if (hints.length === 0) return { ok: false, reason: "no_venue_hint" };
 
   let venue: any = null;
   for (const hint of hints) {
@@ -213,13 +213,18 @@ export async function importEventPoster(opts: {
         if (full) {
           venue = full;
           for (const ev of events) {
-            if (norm(ev.title) === tNorm) ev.title = hints[0];
+            if (norm(ev.title) === tNorm) {
+              ev.title = hints[0] ?? "Family event";
+            }
           }
         }
         break;
       }
     }
   }
+
+  // No hint anywhere AND no title turned out to be a place → ask for help.
+  if (!venue && hints.length === 0) return { ok: false, reason: "no_venue_hint" };
 
   let createdVenue = false;
   let citySure = true;
