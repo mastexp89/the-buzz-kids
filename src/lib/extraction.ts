@@ -115,6 +115,10 @@ export type ExtractedEvent = {
   poster_image_index: number | null;
   // Venue / organiser name detected on the poster, if any. null if absent.
   venue_hint: string | null;
+  // Address / town / postcode as printed on the poster, if any. Used by
+  // the Telegram poster importer to file a newly created place under the
+  // right region (postcode → postcodes.io admin_district → cities row).
+  venue_location_hint?: string | null;
 };
 
 // An ongoing attraction / venue (not a dated event), surfaced only when
@@ -196,7 +200,8 @@ Return ONLY a JSON object of this shape:
       "confidence": 0.0-1.0,
       "evidence": "brief quote of where you got the date/time from",
       "poster_image_index": 0,
-      "venue_hint": "string or null"
+      "venue_hint": "string or null",
+      "venue_location_hint": "string or null"
     }
   ]${detectPlaces ? `,
   "places": [
@@ -291,6 +296,7 @@ CONFIDENCE GUIDE
 
 VENUE HINT
 - Set "venue_hint" to the venue / organiser name printed on the poster, if any. null if not shown.
+- Set "venue_location_hint" to the venue's address / town / postcode exactly as printed on the poster, if shown (e.g. "Camperdown Park, Dundee" or "KY16 9AB"). null if no address or town is visible.
 - VENUE above may be a placeholder — read the poster independently and report the name you actually see.
 
 ${locationFilter ? `LOCATION FILTER (HARD RULE — skip non-matching events entirely)
@@ -376,16 +382,22 @@ async function fetchImageAsBase64(
   if (!res.ok) throw new Error(`Image fetch ${res.status}`);
 
   const contentType = res.headers.get("content-type") ?? "";
-  const mediaType = contentType.split(";")[0].trim() || "image/jpeg";
+  let mediaType = contentType.split(";")[0].trim() || "image/jpeg";
   const allowed = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
-  if (!allowed.has(mediaType)) {
-    throw new Error(`Unsupported image type ${mediaType}`);
-  }
 
   // Typed as Buffer (no generic) so we can reassign with sharp's output —
   // sharp returns Buffer<ArrayBufferLike> which doesn't satisfy the narrower
   // Buffer<ArrayBuffer> that Buffer.from(ArrayBuffer) infers.
   let buf: Buffer = Buffer.from(await res.arrayBuffer());
+
+  // Some hosts (Telegram's file CDN among them) serve images as
+  // application/octet-stream — sniff the magic bytes rather than trusting
+  // the header, and only reject when the bytes aren't an image either.
+  if (!allowed.has(mediaType)) {
+    const sniffed = sniffImageType(buf);
+    if (!sniffed) throw new Error(`Unsupported image type ${mediaType}`);
+    mediaType = sniffed;
+  }
   let outMediaType = mediaType;
 
   // Downscale anything over the Anthropic threshold. This used to be a
@@ -399,6 +411,16 @@ async function fetchImageAsBase64(
   }
 
   return { media_type: outMediaType, data: buf.toString("base64") };
+}
+
+/** Identify an image format from its magic bytes; null if not an image. */
+function sniffImageType(buf: Buffer): string | null {
+  if (buf.length < 12) return null;
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "image/jpeg";
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return "image/png";
+  if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) return "image/gif";
+  if (buf.toString("ascii", 0, 4) === "RIFF" && buf.toString("ascii", 8, 12) === "WEBP") return "image/webp";
+  return null;
 }
 
 export type ExtractedVenueInfo = {

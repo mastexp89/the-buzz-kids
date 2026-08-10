@@ -9,10 +9,14 @@ import {
   approveArtistCore,
   approveVenueCore,
   approveOrganiserCore,
+  approveVenueWithGigsCore,
+  discardImportedVenueCore,
   setReviewStatusCore,
   setSuggestionStatusCore,
 } from "@/lib/moderation";
 import { sendAdminReplyToUser } from "@/lib/admin-reply";
+import { importEventPoster } from "@/lib/telegram-event-import";
+import { tgNewGig } from "@/lib/telegram";
 import { uploadPosterFromUrl } from "@/lib/poster-storage";
 import { sendPendingEventButtons } from "@/lib/telegram-queue";
 
@@ -91,7 +95,7 @@ async function handleCallback(cb: any) {
     return;
   }
 
-  const m = data.match(/^(ev|ar|rv|sg|vn|og):(ap|rj|hd|dn):([0-9a-f-]{36})$/i);
+  const m = data.match(/^(ev|ar|rv|sg|vn|og):(ap|rj|hd|dn|ok|del):([0-9a-f-]{36})$/i);
   if (!m) {
     await answer("Unknown action.");
     return;
@@ -111,6 +115,8 @@ async function handleCallback(cb: any) {
   else if (entity === "ev" && verb === "rj") { result = await rejectEventCore(reviewerId, id); actionLabel = "Event rejected"; positive = false; }
   else if (entity === "ar" && verb === "ap") { result = await approveArtistCore(reviewerId, id); actionLabel = "Provider approved"; }
   else if (entity === "vn" && verb === "ap") { result = await approveVenueCore(reviewerId, id); actionLabel = "Place approved"; }
+  else if (entity === "vn" && verb === "ok") { result = await approveVenueWithGigsCore(reviewerId, id); actionLabel = "Place + events approved"; }
+  else if (entity === "vn" && verb === "del") { result = await discardImportedVenueCore(reviewerId, id); actionLabel = "Import discarded"; }
   else if (entity === "og" && verb === "ap") { result = await approveOrganiserCore(reviewerId, id); actionLabel = "Organiser approved"; }
   else if (entity === "rv" && verb === "ap") { result = await setReviewStatusCore(reviewerId, id, "approved"); actionLabel = "Review approved"; }
   else if (entity === "rv" && verb === "hd") { result = await setReviewStatusCore(reviewerId, id, "hidden"); actionLabel = "Review hidden"; positive = false; }
@@ -171,9 +177,12 @@ async function handleMessage(msg: any) {
     command = atMatch[1].toLowerCase();
   }
 
-  // Bootstrap commands work from ANY chat — needed to discover the group's
-  // chat id before TELEGRAM_CHAT_ID is configured.
-  if (command === "/chatid" || command === "/start") {
+  const isPrivate = msg.chat?.type === "private";
+
+  // Bootstrap commands — /chatid anywhere, /start in groups — for
+  // discovering a group's chat id during setup. /start in a PRIVATE chat is
+  // the public organiser onboarding instead.
+  if (command === "/chatid" || (command === "/start" && !isPrivate)) {
     await sendTelegram(
       `This chat's id is <code>${chatId}</code>\n` +
       `Set it as <code>TELEGRAM_CHAT_ID</code> in Vercel to make this the admins group.`,
@@ -182,12 +191,30 @@ async function handleMessage(msg: any) {
     return;
   }
 
-  if (!isAdminChat(chatId)) return;
+  if (!isAdminChat(chatId)) {
+    // Public side: organisers can DM the bot an event poster — no need to
+    // be anywhere near the admins group.
+    if (isPrivate) await handlePublicDm(msg);
+    return;
+  }
 
-  // Photo (or image sent as file) → set an event poster.
+  // Photo (or image sent as file): "/event" caption → AI-read the poster
+  // and create the events; otherwise it sets an existing event's poster.
   const photoFileId = pickPhotoFileId(msg);
   if (photoFileId) {
+    if (command === "/event") {
+      await handleEventSubmission(msg, photoFileId, { fromAdminGroup: true });
+      return;
+    }
     await handlePosterUpload(msg, photoFileId);
+    return;
+  }
+  if (command === "/event") {
+    await sendTelegram(
+      "📸 Attach a poster photo with <code>/event</code> as the caption and I'll read it, " +
+      "work out the place, and post the events here for approval.",
+      { replyTo: msg.message_id },
+    );
     return;
   }
 
@@ -242,7 +269,10 @@ async function sendHelp() {
     `edit suggestions and new-place leads, reviews, deal suggestions, messages. ` +
     `Pending items come with one-tap buttons.\n\n` +
     `<b>Set an event poster</b> — reply to one of MY event notifications with a photo, ` +
-    `or send a photo with the event id in the caption.`,
+    `or send a photo with the event id in the caption.\n\n` +
+    `<b>Add events from a poster</b> — send a photo captioned <code>/event</code> and I'll read it, ` +
+    `find (or create) the place, and post the events here for approval. ` +
+    `Organisers can also DM me posters directly — no group access needed.`,
     {
       buttons: [
         [
@@ -256,6 +286,123 @@ async function sendHelp() {
       ],
     },
   );
+}
+
+// ---------------------------------------------------------------------------
+// Public DM side — organisers sending event posters straight to the bot
+// ---------------------------------------------------------------------------
+
+async function handlePublicDm(msg: any) {
+  const photoFileId = pickPhotoFileId(msg);
+  if (photoFileId) {
+    await handleEventSubmission(msg, photoFileId, { fromAdminGroup: false });
+    return;
+  }
+  await sendTelegram(
+    `👋 <b>Hi — I'm The Buzz Kids event bot.</b>\n\n` +
+    `Send me an event poster as a photo — fun days, fetes, holiday clubs, shows — ` +
+    `and I'll read it and send the events to thebuzzkids.co.uk for review.\n\n` +
+    `📸 If the venue or park name is on the poster I'll find it automatically — otherwise ` +
+    `write the place name in the photo's caption.`,
+    { chatId: msg.chat.id },
+  );
+}
+
+/** Shared "/event" pipeline: admin group uploads and public DMs. */
+async function handleEventSubmission(
+  msg: any,
+  fileId: string,
+  opts: { fromAdminGroup: boolean },
+) {
+  const chatId = msg.chat.id;
+  const reply = (text: string) => sendTelegram(text, { chatId, replyTo: msg.message_id });
+
+  const file = await tgApi("getFile", { file_id: fileId });
+  if (!file?.file_path) {
+    await reply("❌ Couldn't download the photo from Telegram — try again.");
+    return;
+  }
+  const fileUrl = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${file.file_path}`;
+
+  const reviewerId = await resolveDefaultReviewerId();
+  if (!reviewerId) {
+    await reply("❌ Site configuration problem (no admin account) — tell the team.");
+    return;
+  }
+
+  await reply("🤖 Reading the poster… this usually takes about 20 seconds.");
+
+  const result = await importEventPoster({
+    imageUrl: fileUrl,
+    submittedBy: reviewerId,
+    venueHintOverride: msg.caption ?? null,
+  });
+
+  if (!result.ok) {
+    if (result.reason === "no_events") {
+      await reply("🤔 I couldn't find any upcoming events on that image. Make sure it's an event poster with dates on it.");
+    } else if (result.reason === "no_venue_hint") {
+      await reply("🤔 I read the poster but couldn't see where it's happening. Send it again with the place name written in the photo caption.");
+    } else {
+      await reply("❌ The poster reader is unavailable right now — please try again later.");
+    }
+    return;
+  }
+
+  const lines = result.created
+    .map((c) => `  • ${tgEsc(c.title)} — ${tgEsc(tgDate(c.startTime))}`)
+    .join("\n");
+  const dupNote = result.skippedDuplicates.length
+    ? `\n(${result.skippedDuplicates.length} already listed, skipped)`
+    : "";
+
+  if (result.created.length === 0) {
+    await reply(`👍 Those events are already listed at <b>${tgEsc(result.venueName)}</b> — nothing new to add.${dupNote}`);
+    return;
+  }
+
+  const senderName = [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(" ") || "someone";
+  const senderLabel = opts.fromAdminGroup
+    ? "poster upload in this group"
+    : `Telegram DM from ${senderName}${msg.from?.username ? ` (@${msg.from.username})` : ""}`;
+
+  if (result.createdVenue) {
+    await reply(
+      `🆕 <b>${tgEsc(result.venueName)}</b> isn't on The Buzz Kids yet, so I've added it along with:\n${lines}${dupNote}\n` +
+      (opts.fromAdminGroup ? "Approve or discard below." : "The Buzz Kids team will review it shortly."),
+    );
+    await sendTelegram(
+      `🆕 <b>New place from a poster</b> — ${tgEsc(result.venueName)}\n` +
+      `📍 Region: ${tgEsc(result.citySlug ?? "—")}${result.citySure ? "" : " ⚠️ (guessed — double-check in admin before approving)"}\n` +
+      `${lines}\n` +
+      `Via ${tgEsc(senderLabel)}\n` +
+      `Approving publishes the place AND the event${result.created.length === 1 ? "" : "s"}; discarding deletes both.`,
+      {
+        buttons: [[
+          { text: "✅ Approve place + events", callback_data: `vn:ok:${result.venueId}` },
+          { text: "🗑 Discard", callback_data: `vn:del:${result.venueId}` },
+        ]],
+      },
+    );
+    return;
+  }
+
+  await reply(
+    `📨 <b>Sent for review</b> — ${result.created.length} event${result.created.length === 1 ? "" : "s"} at ${tgEsc(result.venueName)}:\n${lines}${dupNote}\n` +
+    `The Buzz Kids team will approve ${result.created.length === 1 ? "it" : "them"} shortly.`,
+  );
+
+  for (const c of result.created) {
+    await tgNewGig({
+      eventId: c.id,
+      title: c.title,
+      venueName: result.venueName,
+      startTime: c.startTime,
+      byEmail: null,
+      status: "pending",
+      source: senderLabel,
+    });
+  }
 }
 
 async function sendMenuCard() {
