@@ -82,6 +82,22 @@ export async function approveArtistCore(_reviewerId: string, artistId: string): 
   return { ok: true, label: artist?.name ?? undefined };
 }
 
+export async function approveVenueCore(_reviewerId: string, venueId: string): Promise<ModerationResult> {
+  const sb = createServiceClient();
+  const { error } = await sb.from("venues").update({ approved: true }).eq("id", venueId);
+  if (error) return { error: error.message };
+  const { data: v } = await sb.from("venues").select("name").eq("id", venueId).maybeSingle();
+  return { ok: true, label: v?.name ?? undefined };
+}
+
+export async function approveOrganiserCore(_reviewerId: string, organiserId: string): Promise<ModerationResult> {
+  const sb = createServiceClient();
+  const { error } = await sb.from("organisers").update({ approved: true }).eq("id", organiserId);
+  if (error) return { error: error.message };
+  const { data: o } = await sb.from("organisers").select("name").eq("id", organiserId).maybeSingle();
+  return { ok: true, label: o?.name ?? undefined };
+}
+
 export async function setReviewStatusCore(
   _reviewerId: string,
   reviewId: string,

@@ -7,9 +7,12 @@ import {
   approveEventCore,
   rejectEventCore,
   approveArtistCore,
+  approveVenueCore,
+  approveOrganiserCore,
   setReviewStatusCore,
   setSuggestionStatusCore,
 } from "@/lib/moderation";
+import { sendAdminReplyToUser } from "@/lib/admin-reply";
 import { uploadPosterFromUrl } from "@/lib/poster-storage";
 import { sendPendingEventButtons } from "@/lib/telegram-queue";
 
@@ -88,7 +91,7 @@ async function handleCallback(cb: any) {
     return;
   }
 
-  const m = data.match(/^(ev|ar|rv|sg):(ap|rj|hd|dn):([0-9a-f-]{36})$/i);
+  const m = data.match(/^(ev|ar|rv|sg|vn|og):(ap|rj|hd|dn):([0-9a-f-]{36})$/i);
   if (!m) {
     await answer("Unknown action.");
     return;
@@ -107,6 +110,8 @@ async function handleCallback(cb: any) {
   if (entity === "ev" && verb === "ap") { result = await approveEventCore(reviewerId, id); actionLabel = "Event approved"; }
   else if (entity === "ev" && verb === "rj") { result = await rejectEventCore(reviewerId, id); actionLabel = "Event rejected"; positive = false; }
   else if (entity === "ar" && verb === "ap") { result = await approveArtistCore(reviewerId, id); actionLabel = "Provider approved"; }
+  else if (entity === "vn" && verb === "ap") { result = await approveVenueCore(reviewerId, id); actionLabel = "Place approved"; }
+  else if (entity === "og" && verb === "ap") { result = await approveOrganiserCore(reviewerId, id); actionLabel = "Organiser approved"; }
   else if (entity === "rv" && verb === "ap") { result = await setReviewStatusCore(reviewerId, id, "approved"); actionLabel = "Review approved"; }
   else if (entity === "rv" && verb === "hd") { result = await setReviewStatusCore(reviewerId, id, "hidden"); actionLabel = "Review hidden"; positive = false; }
   else if (entity === "sg" && verb === "dn") { result = await setSuggestionStatusCore(reviewerId, id, "done"); actionLabel = "Suggestion marked done"; }
@@ -184,6 +189,28 @@ async function handleMessage(msg: any) {
   if (photoFileId) {
     await handlePosterUpload(msg, photoFileId);
     return;
+  }
+
+  // Plain-text reply to one of OUR "New message from a user" notifications
+  // → send it into that user's in-app thread (email + push included).
+  if (msg.text && !command.startsWith("/")) {
+    const repliedToUs = msg.reply_to_message?.from?.id != null && msg.reply_to_message.from.id === tgBotId();
+    const repliedText: string = msg.reply_to_message?.text ?? "";
+    const userIdMatch = repliedToUs ? repliedText.match(/User ID:\s*([0-9a-f-]{36})/i) : null;
+    if (userIdMatch) {
+      const result = await sendAdminReplyToUser(userIdMatch[1], msg.text);
+      if ("error" in result) {
+        await sendTelegram(`❌ Couldn't send: ${tgEsc(result.error)}`, { replyTo: msg.message_id });
+      } else {
+        const who = result.displayName ?? result.email ?? "the user";
+        await sendTelegram(
+          `↩️ Sent to <b>${tgEsc(who)}</b> — they'll see it in their dashboard thread` +
+          (result.email ? " plus an email" : "") + ".",
+          { replyTo: msg.message_id, silent: true },
+        );
+      }
+      return;
+    }
   }
 
   if (command === "/help") {
