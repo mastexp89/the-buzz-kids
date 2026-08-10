@@ -274,6 +274,16 @@ export async function importEventPoster(opts: {
 
   const candidates = createdVenue ? await findVenueCandidates(venue.name) : [];
 
+  // A title that is just the place's own name isn't a title — swap in the
+  // poster's venue_hint if it's a different name, so "Camperdown Park at
+  // Camperdown Park" can't happen.
+  for (const e of events) {
+    if (norm(e.title) === norm(venue.name)) {
+      const altHint = hints.find((h) => norm(h) !== norm(venue.name));
+      e.title = altHint ?? "Family event";
+    }
+  }
+
   const venueSlug: string | null = venue.slug ?? null;
   const citySlug: string | null = (venue as any).city?.slug ?? null;
 
