@@ -98,6 +98,56 @@ export async function approveOrganiserCore(_reviewerId: string, organiserId: str
   return { ok: true, label: o?.name ?? undefined };
 }
 
+/**
+ * Approve a place the /event poster importer created, together with the
+ * pending events that came off the poster.
+ */
+export async function approveVenueWithGigsCore(reviewerId: string, venueId: string): Promise<ModerationResult> {
+  const sb = createServiceClient();
+  const { error: vErr } = await sb.from("venues").update({ approved: true }).eq("id", venueId);
+  if (vErr) return { error: vErr.message };
+  const { error: eErr } = await sb
+    .from("events")
+    .update({
+      status: "approved",
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: reviewerId,
+    })
+    .eq("venue_id", venueId)
+    .eq("status", "pending");
+  if (eErr) return { error: eErr.message };
+  const { data: v } = await sb.from("venues").select("name").eq("id", venueId).maybeSingle();
+  return { ok: true, label: v?.name ?? undefined };
+}
+
+/**
+ * Bin a place the poster importer created (plus its events). Guarded so it
+ * can ONLY delete an unapproved auto-imported place — a stale button press
+ * after the place went live is a no-op error, never a delete.
+ */
+export async function discardImportedVenueCore(_reviewerId: string, venueId: string): Promise<ModerationResult> {
+  const sb = createServiceClient();
+  const { data: v } = await sb
+    .from("venues")
+    .select("id, name, approved, auto_imported")
+    .eq("id", venueId)
+    .maybeSingle();
+  if (!v) return { error: "Place not found (already discarded?)." };
+  if (v.approved || !v.auto_imported) {
+    return { error: "Not discardable — place is live or wasn't created by the poster importer." };
+  }
+  const { data: events } = await sb.from("events").select("id").eq("venue_id", venueId);
+  const eventIds = (events ?? []).map((e) => e.id);
+  if (eventIds.length > 0) {
+    await sb.from("event_artists").delete().in("event_id", eventIds);
+    await sb.from("event_genres").delete().in("event_id", eventIds);
+    await sb.from("events").delete().in("id", eventIds);
+  }
+  const { error } = await sb.from("venues").delete().eq("id", venueId);
+  if (error) return { error: error.message };
+  return { ok: true, label: v.name ?? undefined };
+}
+
 export async function setReviewStatusCore(
   _reviewerId: string,
   reviewId: string,

@@ -87,6 +87,9 @@ export async function submitEditSuggestion(input: {
     contact_email: clip(input.contactEmail, 200),
     is_owner: !!input.isOwner,
     image_url: clip(input.imageUrl, 500),
+    // Web submissions are announced by notifyEditSuggestion below; the
+    // sql/098 trigger only telegrams rows where source='app'.
+    source: "web",
   };
 
   const { data: inserted, error } = await sb
@@ -140,6 +143,8 @@ export async function submitPlaceLead(input: {
     contact_email: clip(input.contactEmail, 200),
     is_owner: true,
     image_url: clip(input.imageUrl, 500),
+    // See submitEditSuggestion — stops the sql/098 trigger double-firing.
+    source: "web",
   };
 
   const { data: inserted, error } = await sb
