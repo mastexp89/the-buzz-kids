@@ -274,8 +274,11 @@ export async function importEventPoster(opts: {
     submitted_by: opts.submittedBy,
     auto_imported_from: "manual_upload",
     auto_import_confidence: e.confidence,
-    auto_import_image_url: opts.imageUrl,
-    image_url: opts.imageUrl,
+    // NEVER store the Telegram file URL — it embeds the bot token and
+    // expires. Set after the poster persists to our storage below; a
+    // failed persist leaves a clean placeholder instead of a dead link.
+    auto_import_image_url: null as string | null,
+    image_url: null as string | null,
   }));
 
   const { data: created, error: insErr } = await sb
@@ -294,6 +297,8 @@ export async function importEventPoster(opts: {
       .from("events")
       .update({ image_url: stored.publicUrl, auto_import_image_url: stored.publicUrl })
       .in("id", created.map((c) => c.id));
+  } else {
+    console.warn("[telegram-event-import] poster persist failed:", stored.error);
   }
 
   // Kids uses the genres table as CATEGORIES (soft-play, outdoors…).

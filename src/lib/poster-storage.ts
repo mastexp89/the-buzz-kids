@@ -36,16 +36,22 @@ export async function uploadPosterFromUrl(
   }
   if (!res.ok) return { error: `fetch ${res.status}` };
 
-  const contentType =
+  let contentType =
     res.headers.get("content-type")?.split(";")[0].trim() || "image/jpeg";
-  if (!ALLOWED_TYPES.has(contentType)) {
-    return { error: `unsupported content type: ${contentType}` };
-  }
 
   const buf = Buffer.from(await res.arrayBuffer());
   if (buf.length === 0) return { error: "empty body" };
   if (buf.length > 10 * 1024 * 1024) {
     return { error: `too large (${(buf.length / 1024 / 1024).toFixed(1)}MB)` };
+  }
+
+  // Some hosts (Telegram's file CDN among them) serve images as
+  // application/octet-stream — sniff the magic bytes rather than trusting
+  // the header, and only reject when the bytes aren't an image either.
+  if (!ALLOWED_TYPES.has(contentType)) {
+    const sniffed = sniffImageType(buf);
+    if (!sniffed) return { error: `unsupported content type: ${contentType}` };
+    contentType = sniffed;
   }
 
   let finalBuf: Buffer = buf;
@@ -110,6 +116,16 @@ export async function trimSolidBorders(
   } catch {
     return null;
   }
+}
+
+/** Identify an image format from its magic bytes; null if not an image. */
+function sniffImageType(buf: Buffer): string | null {
+  if (buf.length < 12) return null;
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "image/jpeg";
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return "image/png";
+  if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) return "image/gif";
+  if (buf.toString("ascii", 0, 4) === "RIFF" && buf.toString("ascii", 8, 12) === "WEBP") return "image/webp";
+  return null;
 }
 
 function mimeToExt(mime: string): string {
