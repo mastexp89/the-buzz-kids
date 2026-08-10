@@ -148,6 +148,43 @@ export async function discardImportedVenueCore(_reviewerId: string, venueId: str
   return { ok: true, label: v.name ?? undefined };
 }
 
+/**
+ * "Did you mean…?" resolution: move the events off a place the poster
+ * importer created and onto an existing place, then delete the imported
+ * stub. Events stay pending — the webhook posts per-event Approve cards.
+ */
+export async function reassignImportedEventsCore(
+  _reviewerId: string,
+  importedVenueId: string,
+  targetVenueId: string,
+): Promise<
+  | { ok: true; targetName: string; moved: { id: string; title: string; start_time: string }[] }
+  | { error: string }
+> {
+  const sb = createServiceClient();
+  const [{ data: imported }, { data: target }] = await Promise.all([
+    sb.from("venues").select("id, name, approved, auto_imported").eq("id", importedVenueId).maybeSingle(),
+    sb.from("venues").select("id, name").eq("id", targetVenueId).maybeSingle(),
+  ]);
+  if (!imported) return { error: "Imported place not found (already handled?)." };
+  if (imported.approved || !imported.auto_imported) {
+    return { error: "Not movable — place is live or wasn't created by the poster importer." };
+  }
+  if (!target) return { error: "Target place not found." };
+
+  const { data: moved, error: mvErr } = await sb
+    .from("events")
+    .update({ venue_id: targetVenueId })
+    .eq("venue_id", importedVenueId)
+    .select("id, title, start_time");
+  if (mvErr) return { error: mvErr.message };
+
+  const { error: delErr } = await sb.from("venues").delete().eq("id", importedVenueId);
+  if (delErr) return { error: delErr.message };
+
+  return { ok: true, targetName: target.name, moved: moved ?? [] };
+}
+
 export async function setReviewStatusCore(
   _reviewerId: string,
   reviewId: string,
