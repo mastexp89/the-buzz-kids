@@ -80,46 +80,70 @@ async function resolveCityFromLocation(
   return { cityId: fallback?.id ?? null, citySlug: fallback?.slug ?? null, sure: false, lat: null, lng: null, postcode };
 }
 
+// Generic place words stripped before similarity comparison, so "Camperdown
+// Wildlife Centre" on a poster still resembles "Camperdown Park" variants.
+const GENERIC_VENUE_WORDS = /\b(the|park|centre|center|hall|farm|museum|soft|play|club|cafe|kids|family)\b/gi;
+const stripGeneric = (s: string) => norm(s.replace(GENERIC_VENUE_WORDS, " "));
+
+/** Dice coefficient over letter bigrams — tolerant of OCR misreads. */
+function bigramSim(a: string, b: string): number {
+  if (a.length < 2 || b.length < 2) return a === b ? 1 : 0;
+  const grams = (s: string) => {
+    const m = new Map<string, number>();
+    for (let i = 0; i < s.length - 1; i++) {
+      const g = s.slice(i, i + 2);
+      m.set(g, (m.get(g) ?? 0) + 1);
+    }
+    return m;
+  };
+  const ga = grams(a), gb = grams(b);
+  let common = 0;
+  for (const [g, n] of ga) common += Math.min(n, gb.get(g) ?? 0);
+  return (2 * common) / (a.length - 1 + b.length - 1);
+}
+
 /**
  * Closest existing places to a name — the "did you mean…?" candidates on
- * the new-place card. DETERMINISTIC for a given name (stable scoring +
- * alphabetical tiebreak): the webhook recomputes this at button-press time
- * and picks by index, so the ordering must not depend on call time.
+ * the new-place card. Scores EVERY approved place by bigram similarity
+ * (full + generic-words-stripped forms), so OCR misreads still surface
+ * the right place. DETERMINISTIC for a given name (stable scoring +
+ * alphabetical tiebreak): the webhook recomputes this at press time.
  */
 export async function findVenueCandidates(
   name: string,
   limit = 3,
 ): Promise<{ id: string; name: string }[]> {
   const sb = createServiceClient();
-  const alphanumeric = name.replace(/[^a-zA-Z0-9\s]/g, " ").trim();
-  const firstWord =
-    alphanumeric.replace(/^the\s+/i, "").split(/\s+/).find((w) => w.length >= 3) ??
-    alphanumeric.slice(0, 5);
-  const probe = (p: string) =>
-    sb.from("venues")
+  const all: { id: string; name: string }[] = [];
+  for (let page = 0; page < 3; page++) {
+    const { data } = await sb
+      .from("venues")
       .select("id, name")
       .eq("approved", true)
-      .ilike("name", `%${p.replace(/[%_]/g, "")}%`)
-      .limit(30)
-      .then(({ data }) => data ?? []);
-  const [a, b] = await Promise.all([
-    probe(firstWord.slice(0, 12)),
-    firstWord.length > 4 ? probe(firstWord.slice(0, 4)) : Promise.resolve([]),
-  ]);
-  const seen = new Set<string>();
-  const all = [...a, ...b].filter((v) => (seen.has(v.id) ? false : (seen.add(v.id), true)));
+      .order("id", { ascending: true })
+      .range(page * 1000, page * 1000 + 999);
+    all.push(...(data ?? []));
+    if (!data || data.length < 1000) break;
+  }
+
   const target = norm(name);
+  const targetStripped = stripGeneric(name);
   const score = (v: { name: string }) => {
     const vn = norm(v.name);
-    if (vn === target) return 3;
-    if (vn.includes(target) || target.includes(vn)) return 2;
-    if (vn.startsWith(target.slice(0, 4))) return 1;
-    return 0;
+    const vs = stripGeneric(v.name);
+    if (vn === target) return 2;
+    if (vn.length >= 4 && target.length >= 4 && (vn.includes(target) || target.includes(vn))) return 1.5;
+    return Math.max(
+      bigramSim(vn, target),
+      targetStripped.length >= 4 && vs.length >= 4 ? bigramSim(vs, targetStripped) : 0,
+    );
   };
   return all
-    .sort((x, y) => score(y) - score(x) || x.name.localeCompare(y.name))
+    .map((v) => ({ v, s: score(v) }))
+    .filter((x) => x.s >= 0.4)
+    .sort((x, y) => y.s - x.s || x.v.name.localeCompare(y.v.name))
     .slice(0, limit)
-    .map((v) => ({ id: v.id, name: v.name }));
+    .map((x) => ({ id: x.v.id, name: x.v.name }));
 }
 
 export async function importEventPoster(opts: {
