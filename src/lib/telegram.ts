@@ -132,6 +132,8 @@ export const CB = {
   approveReview: (id: string) => `rv:ap:${id}`,
   hideReview: (id: string) => `rv:hd:${id}`,
   suggestionDone: (id: string) => `sg:dn:${id}`,
+  approveVenue: (id: string) => `vn:ap:${id}`,
+  approveOrganiser: (id: string) => `og:ap:${id}`,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -292,7 +294,12 @@ export function tgNewVenue(opts: {
     `🏰 <b>New place pending approval</b>\n` +
     `<b>${tgEsc(opts.venueName)}</b> · ${tgEsc(opts.cityName ?? "—")}\n` +
     `Owner: ${tgEsc(opts.byEmail ?? "—")}`,
-    { buttons: [[{ text: "🔍 Review in admin", url: `${SITE}/admin/queue` }]] },
+    {
+      buttons: [[
+        { text: "✅ Approve", callback_data: CB.approveVenue(opts.venueId) },
+        { text: "🔍 Review in admin", url: `${SITE}/admin/queue` },
+      ]],
+    },
   );
 }
 
@@ -323,7 +330,12 @@ export function tgNewOrganiser(opts: {
     `📋 <b>New organiser pending approval</b>\n` +
     `<b>${tgEsc(opts.organiserName)}</b>\n` +
     `Registered by: ${tgEsc(opts.byEmail ?? "—")}`,
-    { buttons: [[{ text: "🔍 Review in admin", url: `${SITE}/admin/queue` }]] },
+    {
+      buttons: [[
+        { text: "✅ Approve", callback_data: CB.approveOrganiser(opts.organiserId) },
+        { text: "🔍 Review in admin", url: `${SITE}/admin/queue` },
+      ]],
+    },
   );
 }
 
@@ -372,7 +384,9 @@ export function tgAdminMessage(opts: {
   return sendTelegram(
     `💬 <b>New message from a user</b>\n` +
     `${tgEsc(opts.fromName ?? "—")} · ${tgEsc(opts.fromEmail ?? "—")}\n\n` +
-    `“${tgEsc(preview)}”`,
+    `“${tgEsc(preview)}”\n\n` +
+    `↩️ Reply to this message and I'll send it to them.\n` +
+    `User ID: <code>${opts.userId}</code>`,
     { buttons: [[{ text: "↩️ Reply in admin", url: `${SITE}/admin/messages/${opts.userId}` }]] },
   );
 }
