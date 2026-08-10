@@ -296,6 +296,7 @@ CONFIDENCE GUIDE
 
 VENUE HINT
 - Set "venue_hint" to the venue / organiser name printed on the poster, if any. null if not shown.
+- venue_hint is ALWAYS a physical place or organisation (park, hall, centre, farm, museum, soft play), NEVER a performer or the event's own name. Posters usually read "<EVENT> at <PLACE>" — the event belongs in title, the place in venue_hint. When unsure which name is the place, prefer the one printed next to an address, postcode or phone number.
 - Set "venue_location_hint" to the venue's address / town / postcode exactly as printed on the poster, if shown (e.g. "Camperdown Park, Dundee" or "KY16 9AB"). null if no address or town is visible.
 - VENUE above may be a placeholder — read the poster independently and report the name you actually see.
 
