@@ -11,11 +11,12 @@ import {
   approveOrganiserCore,
   approveVenueWithGigsCore,
   discardImportedVenueCore,
+  reassignImportedEventsCore,
   setReviewStatusCore,
   setSuggestionStatusCore,
 } from "@/lib/moderation";
 import { sendAdminReplyToUser } from "@/lib/admin-reply";
-import { importEventPoster } from "@/lib/telegram-event-import";
+import { importEventPoster, findVenueCandidates } from "@/lib/telegram-event-import";
 import { tgNewGig } from "@/lib/telegram";
 import { uploadPosterFromUrl } from "@/lib/poster-storage";
 import { sendPendingEventButtons } from "@/lib/telegram-queue";
@@ -92,6 +93,59 @@ async function handleCallback(cb: any) {
     else if (cmd === "stats") await handleStatsCommand();
     else if (cmd === "help") await sendHelp();
     else if (cmd === "menu") await sendMenuCard();
+    return;
+  }
+
+  // "Did you mean…?" — move a poster import's events onto an existing
+  // place. Candidates are recomputed from the imported place's name
+  // (deterministic ordering), so the callback carries index + venue id.
+  const vmMatch = data.match(/^vm:(\d+):([0-9a-f-]{36})$/i);
+  if (vmMatch) {
+    const reviewerId = await resolveDefaultReviewerId();
+    if (!reviewerId) {
+      await answer("No admin profile found.", true);
+      return;
+    }
+    const sb = createServiceClient();
+    const { data: iv } = await sb.from("venues").select("name").eq("id", vmMatch[2]).maybeSingle();
+    if (!iv) {
+      await answer("Already handled.", true);
+      return;
+    }
+    const cands = await findVenueCandidates(iv.name);
+    const target = cands[Number(vmMatch[1])];
+    if (!target) {
+      await answer("Couldn't resolve that option — use the admin queue.", true);
+      return;
+    }
+    const res = await reassignImportedEventsCore(reviewerId, vmMatch[2], target.id);
+    if ("error" in res) {
+      await answer(res.error, true);
+      return;
+    }
+    await answer(`Moved to ${target.name} ✅`.slice(0, 190));
+    await tgApi("editMessageReplyMarkup", {
+      chat_id: cb.message.chat.id,
+      message_id: cb.message.message_id,
+      reply_markup: { inline_keyboard: [] },
+    });
+    const mover = [cb.from?.first_name, cb.from?.last_name].filter(Boolean).join(" ") || "an admin";
+    await sendTelegram(
+      `📦 Moved ${res.moved.length} event${res.moved.length === 1 ? "" : "s"} to <b>${tgEsc(res.targetName)}</b> (by ${tgEsc(mover)}) — approve below.`,
+      { replyTo: cb.message.message_id, silent: true },
+    );
+    for (const ev of res.moved) {
+      await tgNewGig({
+        eventId: ev.id,
+        title: ev.title,
+        venueName: res.targetName,
+        startTime: ev.start_time,
+        byEmail: null,
+        status: "pending",
+        source: "poster import (place corrected)",
+      });
+    }
+    try { revalidatePath("/admin/queue"); } catch { /* ok */ }
     return;
   }
 
@@ -378,10 +432,17 @@ async function handleEventSubmission(
       `Via ${tgEsc(senderLabel)}\n` +
       `Approving publishes the place AND the event${result.created.length === 1 ? "" : "s"}; discarding deletes both.`,
       {
-        buttons: [[
-          { text: "✅ Approve place + events", callback_data: `vn:ok:${result.venueId}` },
-          { text: "🗑 Discard", callback_data: `vn:del:${result.venueId}` },
-        ]],
+        buttons: [
+          [
+            { text: "✅ Approve place + events", callback_data: `vn:ok:${result.venueId}` },
+            { text: "🗑 Discard", callback_data: `vn:del:${result.venueId}` },
+          ],
+          // "Did you mean…?" — one tap moves the events onto an existing
+          // place instead and bins the auto-created one.
+          ...result.candidates.map((c, i) => [
+            { text: `📍 It's ${c.name.slice(0, 40)}`, callback_data: `vm:${i}:${result.venueId}` },
+          ]),
+        ],
       },
     );
     return;

@@ -20,6 +20,8 @@ export type EventImportOutcome =
       citySlug: string | null;
       createdVenue: boolean;
       citySure: boolean;
+      // "Did you mean…?" — closest existing places, only when createdVenue.
+      candidates: { id: string; name: string }[];
       created: { id: string; title: string; startTime: string }[];
       skippedDuplicates: string[];
     }
@@ -78,6 +80,48 @@ async function resolveCityFromLocation(
   return { cityId: fallback?.id ?? null, citySlug: fallback?.slug ?? null, sure: false, lat: null, lng: null, postcode };
 }
 
+/**
+ * Closest existing places to a name — the "did you mean…?" candidates on
+ * the new-place card. DETERMINISTIC for a given name (stable scoring +
+ * alphabetical tiebreak): the webhook recomputes this at button-press time
+ * and picks by index, so the ordering must not depend on call time.
+ */
+export async function findVenueCandidates(
+  name: string,
+  limit = 3,
+): Promise<{ id: string; name: string }[]> {
+  const sb = createServiceClient();
+  const alphanumeric = name.replace(/[^a-zA-Z0-9\s]/g, " ").trim();
+  const firstWord =
+    alphanumeric.replace(/^the\s+/i, "").split(/\s+/).find((w) => w.length >= 3) ??
+    alphanumeric.slice(0, 5);
+  const probe = (p: string) =>
+    sb.from("venues")
+      .select("id, name")
+      .eq("approved", true)
+      .ilike("name", `%${p.replace(/[%_]/g, "")}%`)
+      .limit(30)
+      .then(({ data }) => data ?? []);
+  const [a, b] = await Promise.all([
+    probe(firstWord.slice(0, 12)),
+    firstWord.length > 4 ? probe(firstWord.slice(0, 4)) : Promise.resolve([]),
+  ]);
+  const seen = new Set<string>();
+  const all = [...a, ...b].filter((v) => (seen.has(v.id) ? false : (seen.add(v.id), true)));
+  const target = norm(name);
+  const score = (v: { name: string }) => {
+    const vn = norm(v.name);
+    if (vn === target) return 3;
+    if (vn.includes(target) || target.includes(vn)) return 2;
+    if (vn.startsWith(target.slice(0, 4))) return 1;
+    return 0;
+  };
+  return all
+    .sort((x, y) => score(y) - score(x) || x.name.localeCompare(y.name))
+    .slice(0, limit)
+    .map((v) => ({ id: v.id, name: v.name }));
+}
+
 export async function importEventPoster(opts: {
   imageUrl: string;
   submittedBy: string;
@@ -125,14 +169,23 @@ export async function importEventPoster(opts: {
     const firstWord =
       alphanumeric.replace(/^the\s+/i, "").split(/\s+/).find((w) => w.length >= 3) ??
       alphanumeric.slice(0, 5);
-    const { data: candidates } = await sb
-      .from("venues")
-      .select("id, name, slug, city_id, city:cities(slug)")
-      .eq("approved", true)
-      .ilike("name", `%${firstWord.slice(0, 12).replace(/[%_]/g, "")}%`)
-      .limit(20);
+    // Two probes: the whole first word, plus its first 4 letters — the
+    // short probe catches spacing differences ("Bellrock" on the poster
+    // vs "Bell Rock Tavern" on the site) that the long one misses.
+    const probe = (p: string) =>
+      sb.from("venues")
+        .select("id, name, slug, city_id, city:cities(slug)")
+        .eq("approved", true)
+        .ilike("name", `%${p.replace(/[%_]/g, "")}%`)
+        .limit(30)
+        .then(({ data }) => data ?? []);
+    const [a, b] = await Promise.all([
+      probe(firstWord.slice(0, 12)),
+      firstWord.length > 4 ? probe(firstWord.slice(0, 4)) : Promise.resolve([]),
+    ]);
+    const candidates = [...a, ...b.filter((v: any) => !a.some((x: any) => x.id === v.id))];
     const hintNorm = norm(hint);
-    venue = (candidates ?? []).find((v: any) => {
+    venue = candidates.find((v: any) => {
       const vn = norm(v.name);
       return vn === hintNorm || (vn.length >= 4 && hintNorm.length >= 4 && (vn.includes(hintNorm) || hintNorm.includes(vn)));
     }) ?? null;
@@ -185,6 +238,8 @@ export async function importEventPoster(opts: {
     createdVenue = true;
   }
 
+  const candidates = createdVenue ? await findVenueCandidates(venue.name) : [];
+
   const venueSlug: string | null = venue.slug ?? null;
   const citySlug: string | null = (venue as any).city?.slug ?? null;
 
@@ -205,7 +260,7 @@ export async function importEventPoster(opts: {
     .filter((e) => takenHours.has(hourKey(e.starts_at)))
     .map((e) => e.title);
   if (fresh.length === 0) {
-    return { ok: true, venueName: venue.name, venueId: venue.id, venueSlug, citySlug, createdVenue, citySure, created: [], skippedDuplicates };
+    return { ok: true, venueName: venue.name, venueId: venue.id, venueSlug, citySlug, createdVenue, citySure, candidates, created: [], skippedDuplicates };
   }
 
   const rows = fresh.map((e) => ({
@@ -262,6 +317,7 @@ export async function importEventPoster(opts: {
     citySlug,
     createdVenue,
     citySure,
+    candidates,
     created: created.map((c) => ({ id: c.id, title: c.title, startTime: c.start_time })),
     skippedDuplicates,
   };
