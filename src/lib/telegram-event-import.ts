@@ -192,6 +192,35 @@ export async function importEventPoster(opts: {
     if (venue) break;
   }
 
+  // Swap detection: the model sometimes puts the PLACE in the event title
+  // and the event in venue_hint. If an extracted TITLE matches an existing
+  // place, use that place and give the swapped events the hint as title.
+  if (!venue) {
+    for (const e of events) {
+      const tNorm = norm(e.title);
+      if (tNorm.length < 6) continue;
+      const cands = await findVenueCandidates(e.title, 5);
+      const hit = cands.find((c) => {
+        const cn = norm(c.name);
+        return cn === tNorm || cn.startsWith(tNorm);
+      });
+      if (hit) {
+        const { data: full } = await sb
+          .from("venues")
+          .select("id, name, slug, city_id, city:cities(slug)")
+          .eq("id", hit.id)
+          .maybeSingle();
+        if (full) {
+          venue = full;
+          for (const ev of events) {
+            if (norm(ev.title) === tNorm) ev.title = hints[0];
+          }
+        }
+        break;
+      }
+    }
+  }
+
   let createdVenue = false;
   let citySure = true;
   if (!venue) {
