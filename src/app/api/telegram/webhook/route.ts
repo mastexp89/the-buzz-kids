@@ -283,11 +283,51 @@ async function handleMessage(msg: any) {
     return;
   }
 
-  // Plain-text reply to one of OUR "New message from a user" notifications
-  // → send it into that user's in-app thread (email + push included).
+  // Plain-text replies to OUR notifications:
+  //   - "New place from a poster" card → typed place-name search: move the
+  //     imported events onto whichever place the admin names
+  //   - "New message from a user" → send into that user's in-app thread
   if (msg.text && !command.startsWith("/")) {
     const repliedToUs = msg.reply_to_message?.from?.id != null && msg.reply_to_message.from.id === tgBotId();
     const repliedText: string = msg.reply_to_message?.text ?? "";
+
+    const venueIdMatch = repliedToUs ? repliedText.match(/Venue ID:\s*([0-9a-f-]{36})/i) : null;
+    if (venueIdMatch) {
+      const typed = msg.text.trim();
+      const reviewerId = await resolveDefaultReviewerId();
+      if (!reviewerId) return;
+      const cands = await findVenueCandidates(typed, 1);
+      if (!cands.length) {
+        await sendTelegram(
+          `🤔 Couldn't find a place matching “${tgEsc(typed)}” — check the name on the site and reply again, or use the admin queue.`,
+          { replyTo: msg.message_id },
+        );
+        return;
+      }
+      const res = await reassignImportedEventsCore(reviewerId, venueIdMatch[1], cands[0].id);
+      if ("error" in res) {
+        await sendTelegram(`❌ ${tgEsc(res.error)}`, { replyTo: msg.message_id });
+        return;
+      }
+      await sendTelegram(
+        `📦 Moved ${res.moved.length} event${res.moved.length === 1 ? "" : "s"} to <b>${tgEsc(res.targetName)}</b> — approve below.`,
+        { replyTo: msg.message_id, silent: true },
+      );
+      for (const ev of res.moved) {
+        await tgNewGig({
+          eventId: ev.id,
+          title: ev.title,
+          venueName: res.targetName,
+          startTime: ev.start_time,
+          byEmail: null,
+          status: "pending",
+          source: "poster import (place corrected)",
+        });
+      }
+      try { revalidatePath("/admin/queue"); } catch { /* ok */ }
+      return;
+    }
+
     const userIdMatch = repliedToUs ? repliedText.match(/User ID:\s*([0-9a-f-]{36})/i) : null;
     if (userIdMatch) {
       const result = await sendAdminReplyToUser(userIdMatch[1], msg.text);
@@ -441,7 +481,9 @@ async function handleEventSubmission(
       `📍 Region: ${tgEsc(result.citySlug ?? "—")}${result.citySure ? "" : " ⚠️ (guessed — double-check in admin before approving)"}\n` +
       `${lines}\n` +
       `Via ${tgEsc(senderLabel)}\n` +
-      `Approving publishes the place AND the event${result.created.length === 1 ? "" : "s"}; discarding deletes both.`,
+      `Approving publishes the place AND the event${result.created.length === 1 ? "" : "s"}; discarding deletes both.\n` +
+      `Wrong place? Reply to this message with the correct place name and I'll move the event${result.created.length === 1 ? "" : "s"} there.\n` +
+      `Venue ID: <code>${result.venueId}</code>`,
       {
         buttons: [
           [
