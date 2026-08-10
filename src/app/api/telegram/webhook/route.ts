@@ -96,6 +96,17 @@ async function handleCallback(cb: any) {
     return;
   }
 
+  // Morning duplicate review: "both fine" just dismisses the pair.
+  if (data.startsWith("dd:ok:")) {
+    await answer("Kept both ✅");
+    await tgApi("editMessageReplyMarkup", {
+      chat_id: cb.message.chat.id,
+      message_id: cb.message.message_id,
+      reply_markup: { inline_keyboard: [] },
+    });
+    return;
+  }
+
   // "Did you mean…?" — move a poster import's events onto an existing
   // place. Candidates are recomputed from the imported place's name
   // (deterministic ordering), so the callback carries index + venue id.
