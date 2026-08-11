@@ -1,29 +1,38 @@
 // "/event + photo" import for the Kids Telegram admin bot: run AI extraction
-// on a poster (fun day, fete, holiday club…), work out which place it's for
-// from the name printed on the poster, and create the events as PENDING so
-// the admins group gets them back with one-tap Approve/Reject buttons.
+// on a poster (fun day, fete, holiday club…), work out which place EACH
+// extracted event is at (listing posters can cover several places), and
+// create the events as PENDING so the admins group gets them back with
+// one-tap Approve/Reject buttons.
 //
-// If the place isn't on the site yet it's created UNAPPROVED, filed under
+// If a place isn't on the site yet it's created UNAPPROVED, filed under
 // the region the poster's address/postcode points at, and the group gets a
-// single "Approve place + events / Discard" card.
+// "Approve place + events / Discard" card for it.
 
 import { createServiceClient } from "@/lib/supabase/service";
 import { extractEvents } from "@/lib/extraction";
 import { uploadPosterFromUrl } from "@/lib/poster-storage";
 
+export type EventImportVenueResult = {
+  venueName: string;
+  venueId: string;
+  venueSlug: string | null;
+  citySlug: string | null;
+  createdVenue: boolean;
+  // False when we defaulted a new place's region to Dundee without solid
+  // evidence — the group card asks admins to double-check it.
+  citySure: boolean;
+  // "Did you mean…?" — closest existing places, only when createdVenue.
+  candidates: { id: string; name: string }[];
+  created: { id: string; title: string; startTime: string }[];
+  skippedDuplicates: string[];
+};
+
 export type EventImportOutcome =
   | {
       ok: true;
-      venueName: string;
-      venueId: string;
-      venueSlug: string | null;
-      citySlug: string | null;
-      createdVenue: boolean;
-      citySure: boolean;
-      // "Did you mean…?" — closest existing places, only when createdVenue.
-      candidates: { id: string; name: string }[];
-      created: { id: string; title: string; startTime: string }[];
-      skippedDuplicates: string[];
+      venues: EventImportVenueResult[];
+      // Titles of events whose place couldn't be determined at all.
+      unplaced: string[];
     }
   | { ok: false; reason: "no_events" }
   | { ok: false; reason: "no_venue_hint" }
@@ -146,9 +155,47 @@ export async function findVenueCandidates(
     .map((x) => ({ id: x.v.id, name: x.v.name }));
 }
 
+type VenueRow = {
+  id: string;
+  name: string;
+  slug: string | null;
+  city_id: string | null;
+  city: { slug: string } | null;
+};
+
+/** Strict matcher: two ilike probes + normalised containment compare. */
+async function matchVenue(hint: string): Promise<VenueRow | null> {
+  const sb = createServiceClient();
+  const alphanumeric = hint.replace(/[^a-zA-Z0-9\s]/g, " ").trim();
+  const firstWord =
+    alphanumeric.replace(/^the\s+/i, "").split(/\s+/).find((w) => w.length >= 3) ??
+    alphanumeric.slice(0, 5);
+  const probe = (p: string) =>
+    sb.from("venues")
+      .select("id, name, slug, city_id, city:cities(slug)")
+      .eq("approved", true)
+      .ilike("name", `%${p.replace(/[%_]/g, "")}%`)
+      .limit(30)
+      .then(({ data }) => data ?? []);
+  const [a, b] = await Promise.all([
+    probe(firstWord.slice(0, 12)),
+    firstWord.length > 4 ? probe(firstWord.slice(0, 4)) : Promise.resolve([]),
+  ]);
+  const candidates = [...a, ...b.filter((v: any) => !a.some((x: any) => x.id === v.id))];
+  const hintNorm = norm(hint);
+  return (candidates.find((v: any) => {
+    const vn = norm(v.name);
+    return vn === hintNorm || (vn.length >= 4 && hintNorm.length >= 4 && (vn.includes(hintNorm) || hintNorm.includes(vn)));
+  }) ?? null) as VenueRow | null;
+}
+
 export async function importEventPoster(opts: {
   imageUrl: string;
   submittedBy: string;
+  // Extra place-name text to try when the poster itself doesn't name one
+  // (or names one we can't match) — e.g. the photo's caption. Only applied
+  // when the poster resolves to a single place bucket, so a caption can't
+  // mis-file a multi-place listing poster.
   venueHintOverride?: string | null;
 }): Promise<EventImportOutcome> {
   const sb = createServiceClient();
@@ -158,7 +205,7 @@ export async function importEventPoster(opts: {
   let extraction;
   try {
     extraction = await extractEvents({
-      venueName: "Unknown — read the venue name off the poster",
+      venueName: "Multiple places possible — read each event's venue off the poster",
       postedAt: new Date().toISOString(),
       imageUrls: [opts.imageUrl],
       availableCategories: (genres ?? []).map((g) => ({ slug: g.slug, name: g.name })),
@@ -177,221 +224,237 @@ export async function importEventPoster(opts: {
     return { ok: false, reason: "no_events" };
   }
 
+  const override = (opts.venueHintOverride ?? "").replace(/\/\w+(@[\w_]+)?/g, "").trim() || null;
+
+  // ---- Bucket events by their own venue_hint (listing posters can cover
+  // several places). Hintless events join the majority bucket; with no
+  // hints at all they form one bucket that leans on the caption override.
+  const buckets = new Map<string, { hint: string | null; events: typeof events }>();
   const hintCounts = new Map<string, number>();
   for (const e of events) {
-    const h = (e as any).venue_hint?.trim();
-    if (h) hintCounts.set(h, (hintCounts.get(h) ?? 0) + 1);
+    const h = (e as any).venue_hint?.trim() || null;
+    if (h) hintCounts.set(norm(h), (hintCounts.get(norm(h)) ?? 0) + 1);
   }
-  const posterHint = [...hintCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
-  const override = (opts.venueHintOverride ?? "").replace(/\/\w+(@[\w_]+)?/g, "").trim() || null;
-  // May be empty — the title-swap check below can still find the place.
-  const hints = [posterHint, override].filter(Boolean) as string[];
-
-  let venue: any = null;
-  for (const hint of hints) {
-    const alphanumeric = hint.replace(/[^a-zA-Z0-9\s]/g, " ").trim();
-    const firstWord =
-      alphanumeric.replace(/^the\s+/i, "").split(/\s+/).find((w) => w.length >= 3) ??
-      alphanumeric.slice(0, 5);
-    // Two probes: the whole first word, plus its first 4 letters — the
-    // short probe catches spacing differences ("Bellrock" on the poster
-    // vs "Bell Rock Tavern" on the site) that the long one misses.
-    const probe = (p: string) =>
-      sb.from("venues")
-        .select("id, name, slug, city_id, city:cities(slug)")
-        .eq("approved", true)
-        .ilike("name", `%${p.replace(/[%_]/g, "")}%`)
-        .limit(30)
-        .then(({ data }) => data ?? []);
-    const [a, b] = await Promise.all([
-      probe(firstWord.slice(0, 12)),
-      firstWord.length > 4 ? probe(firstWord.slice(0, 4)) : Promise.resolve([]),
-    ]);
-    const candidates = [...a, ...b.filter((v: any) => !a.some((x: any) => x.id === v.id))];
-    const hintNorm = norm(hint);
-    venue = candidates.find((v: any) => {
-      const vn = norm(v.name);
-      return vn === hintNorm || (vn.length >= 4 && hintNorm.length >= 4 && (vn.includes(hintNorm) || hintNorm.includes(vn)));
-    }) ?? null;
-    if (venue) break;
+  const majorityHintNorm = [...hintCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  for (const e of events) {
+    const h = (e as any).venue_hint?.trim() || null;
+    const key = h ? norm(h) : majorityHintNorm ?? "";
+    const bucket = buckets.get(key) ?? { hint: h, events: [] as typeof events };
+    if (!bucket.hint && h) bucket.hint = h;
+    bucket.events.push(e);
+    buckets.set(key, bucket);
   }
+  const singleBucket = buckets.size === 1;
 
-  // Swap detection: the model sometimes puts the PLACE in the event title
-  // and the event in venue_hint. If an extracted TITLE matches an existing
-  // place, use that place and give the swapped events the hint as title.
-  if (!venue) {
-    for (const e of events) {
-      const tNorm = norm(e.title);
-      if (tNorm.length < 6) continue;
-      const cands = await findVenueCandidates(e.title, 5);
-      const hit = cands.find((c) => {
-        const cn = norm(c.name);
-        return cn === tNorm || cn.startsWith(tNorm);
-      });
-      if (hit) {
-        const { data: full } = await sb
-          .from("venues")
-          .select("id, name, slug, city_id, city:cities(slug)")
-          .eq("id", hit.id)
-          .maybeSingle();
-        if (full) {
-          venue = full;
-          for (const ev of events) {
-            if (norm(ev.title) === tNorm) {
-              ev.title = hints[0] ?? "Family event";
+  const results: EventImportVenueResult[] = [];
+  const unplaced: string[] = [];
+  const allCreatedIds: string[] = [];
+  const genreLinks: { event_id: string; genre_id: string }[] = [];
+  const genreSlugToId = new Map((genres ?? []).map((g) => [g.slug, g.id]));
+  let citiesCache: { id: string; slug: string; name: string }[] | null = null;
+
+  for (const bucket of buckets.values()) {
+    const bucketHints = [bucket.hint, singleBucket ? override : null].filter(Boolean) as string[];
+
+    // 1. Strict match on the bucket's hints.
+    let venue: VenueRow | null = null;
+    for (const hint of bucketHints) {
+      venue = await matchVenue(hint);
+      if (venue) break;
+    }
+
+    // 2. Swap detection: if a title in this bucket matches an existing
+    // place, use it and give those events the hint as title.
+    if (!venue) {
+      for (const e of bucket.events) {
+        const tNorm = norm(e.title);
+        if (tNorm.length < 6) continue;
+        const cands = await findVenueCandidates(e.title, 5);
+        const hit = cands.find((c) => {
+          const cn = norm(c.name);
+          return cn === tNorm || cn.startsWith(tNorm);
+        });
+        if (hit) {
+          const { data: full } = await sb
+            .from("venues")
+            .select("id, name, slug, city_id, city:cities(slug)")
+            .eq("id", hit.id)
+            .maybeSingle();
+          if (full) {
+            venue = full as unknown as VenueRow;
+            for (const ev of bucket.events) {
+              if (norm(ev.title) === tNorm) {
+                ev.title = bucketHints[0] ?? "Family event";
+              }
             }
           }
+          break;
         }
-        break;
       }
     }
-  }
 
-  // No hint anywhere AND no title turned out to be a place → ask for help.
-  if (!venue && hints.length === 0) return { ok: false, reason: "no_venue_hint" };
-
-  let createdVenue = false;
-  let citySure = true;
-  if (!venue) {
-    const name = hints[0].trim().slice(0, 200);
-
-    const locCounts = new Map<string, number>();
-    for (const e of events) {
-      const l = (e as any).venue_location_hint?.trim();
-      if (l) locCounts.set(l, (locCounts.get(l) ?? 0) + 1);
+    // 3. No way to place this bucket at all → report, don't guess.
+    if (!venue && bucketHints.length === 0) {
+      unplaced.push(...bucket.events.map((e) => e.title));
+      continue;
     }
-    const locationHint =
-      [...locCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? override ?? null;
 
-    const { data: cities } = await sb.from("cities").select("id, slug, name");
-    const loc = await resolveCityFromLocation(cities ?? [], locationHint);
-    citySure = loc.sure;
+    // 4. Place not on the site yet → create it UNAPPROVED, filed under
+    // the region this bucket's poster address/postcode points at.
+    let createdVenue = false;
+    let citySure = true;
+    if (!venue) {
+      const name = bucketHints[0].trim().slice(0, 200);
 
-    const baseSlug = name.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9\s-]/g, "")
-      .replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "venue";
-    let slug = baseSlug;
-    for (let i = 0; i < 6 && !venue; i++) {
-      const { data: ins, error } = await sb
-        .from("venues")
-        .insert({
-          name,
-          slug,
-          city_id: loc.cityId,
-          address: locationHint?.replace(UK_POSTCODE_RE, "").replace(/[,\s]+$/, "").slice(0, 200) || null,
-          postcode: loc.postcode,
-          latitude: loc.lat,
-          longitude: loc.lng,
-          approved: false,
-          // Event-host until an admin decides it's also a visitable place.
-          venue_type: "programmes",
-          auto_imported: true,
-        })
-        .select("id, name, slug, city_id, city:cities(slug)")
-        .single();
-      if (ins) { venue = ins; break; }
-      if (error?.code === "23505") { slug = `${baseSlug}-${i + 2}`; continue; }
-      return { ok: false, reason: "error", message: `Couldn't create place: ${error?.message ?? "unknown"}` };
+      const locCounts = new Map<string, number>();
+      for (const e of bucket.events) {
+        const l = (e as any).venue_location_hint?.trim();
+        if (l) locCounts.set(l, (locCounts.get(l) ?? 0) + 1);
+      }
+      const locationHint =
+        [...locCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? (singleBucket ? override : null);
+
+      if (!citiesCache) {
+        const { data: cities } = await sb.from("cities").select("id, slug, name");
+        citiesCache = cities ?? [];
+      }
+      const loc = await resolveCityFromLocation(citiesCache, locationHint);
+      citySure = loc.sure;
+
+      const baseSlug = name.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9\s-]/g, "")
+        .replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "venue";
+      let slug = baseSlug;
+      for (let i = 0; i < 6 && !venue; i++) {
+        const { data: ins, error } = await sb
+          .from("venues")
+          .insert({
+            name,
+            slug,
+            city_id: loc.cityId,
+            address: locationHint?.replace(UK_POSTCODE_RE, "").replace(/[,\s]+$/, "").slice(0, 200) || null,
+            postcode: loc.postcode,
+            latitude: loc.lat,
+            longitude: loc.lng,
+            approved: false,
+            // Event-host until an admin decides it's also a visitable place.
+            venue_type: "programmes",
+            auto_imported: true,
+          })
+          .select("id, name, slug, city_id, city:cities(slug)")
+          .single();
+        if (ins) { venue = ins as unknown as VenueRow; break; }
+        if (error?.code === "23505") { slug = `${baseSlug}-${i + 2}`; continue; }
+        return { ok: false, reason: "error", message: `Couldn't create place: ${error?.message ?? "unknown"}` };
+      }
+      if (!venue) return { ok: false, reason: "error", message: "Couldn't find a free slug for the new place." };
+      createdVenue = true;
     }
-    if (!venue) return { ok: false, reason: "error", message: "Couldn't find a free slug for the new place." };
-    createdVenue = true;
-  }
 
-  const candidates = createdVenue ? await findVenueCandidates(venue.name) : [];
+    const candidates = createdVenue ? await findVenueCandidates(venue.name) : [];
 
-  // A title that is just the place's own name isn't a title — swap in the
-  // poster's venue_hint if it's a different name, so "Camperdown Park at
-  // Camperdown Park" can't happen.
-  for (const e of events) {
-    if (norm(e.title) === norm(venue.name)) {
-      const altHint = hints.find((h) => norm(h) !== norm(venue.name));
-      e.title = altHint ?? "Family event";
-    }
-  }
-
-  const venueSlug: string | null = venue.slug ?? null;
-  const citySlug: string | null = (venue as any).city?.slug ?? null;
-
-  const hourKey = (iso: string) => {
-    const t = new Date(iso);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${t.getUTCFullYear()}-${pad(t.getUTCMonth() + 1)}-${pad(t.getUTCDate())}T${pad(t.getUTCHours())}`;
-  };
-  const { data: existing } = await sb
-    .from("events")
-    .select("id, start_time")
-    .eq("venue_id", venue.id)
-    .neq("status", "rejected");
-  const takenHours = new Set((existing ?? []).map((e) => hourKey(e.start_time)));
-
-  const fresh = events.filter((e) => !takenHours.has(hourKey(e.starts_at)));
-  const skippedDuplicates = events
-    .filter((e) => takenHours.has(hourKey(e.starts_at)))
-    .map((e) => e.title);
-  if (fresh.length === 0) {
-    return { ok: true, venueName: venue.name, venueId: venue.id, venueSlug, citySlug, createdVenue, citySure, candidates, created: [], skippedDuplicates };
-  }
-
-  const rows = fresh.map((e) => ({
-    venue_id: venue.id,
-    title: e.title.trim().slice(0, 200),
-    start_time: e.starts_at,
-    end_time: e.ends_at ?? null,
-    description: (e.description ?? "").trim().slice(0, 2000),
-    // Always pending on Kids — the group's buttons are the review step.
-    status: "pending",
-    submitted_by: opts.submittedBy,
-    auto_imported_from: "manual_upload",
-    auto_import_confidence: e.confidence,
-    // NEVER store the Telegram file URL — it embeds the bot token and
-    // expires. Set after the poster persists to our storage below; a
-    // failed persist leaves a clean placeholder instead of a dead link.
-    auto_import_image_url: null as string | null,
-    image_url: null as string | null,
-  }));
-
-  const { data: created, error: insErr } = await sb
-    .from("events")
-    .insert(rows)
-    .select("id, title, start_time");
-  if (insErr) return { ok: false, reason: "error", message: insErr.message };
-  if (!created?.length) return { ok: false, reason: "error", message: "No events created." };
-
-  const stored = await uploadPosterFromUrl(sb, {
-    sourceUrl: opts.imageUrl,
-    eventId: created[0].id,
-  });
-  if ("ok" in stored) {
-    await sb
+    // Skip same-hour duplicates rather than double-listing.
+    const hourKey = (iso: string) => {
+      const t = new Date(iso);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      return `${t.getUTCFullYear()}-${pad(t.getUTCMonth() + 1)}-${pad(t.getUTCDate())}T${pad(t.getUTCHours())}`;
+    };
+    const { data: existing } = await sb
       .from("events")
-      .update({ image_url: stored.publicUrl, auto_import_image_url: stored.publicUrl })
-      .in("id", created.map((c) => c.id));
-  } else {
-    console.warn("[telegram-event-import] poster persist failed:", stored.error);
+      .select("id, start_time")
+      .eq("venue_id", venue.id)
+      .neq("status", "rejected");
+    const takenHours = new Set((existing ?? []).map((e) => hourKey(e.start_time)));
+
+    // A title that is just the place's own name isn't a title.
+    for (const e of bucket.events) {
+      if (norm(e.title) === norm(venue.name)) {
+        const altHint = bucketHints.find((h) => norm(h) !== norm(venue!.name));
+        e.title = altHint ?? "Family event";
+      }
+    }
+
+    const fresh = bucket.events.filter((e) => !takenHours.has(hourKey(e.starts_at)));
+    const skippedDuplicates = bucket.events
+      .filter((e) => takenHours.has(hourKey(e.starts_at)))
+      .map((e) => e.title);
+
+    const base: EventImportVenueResult = {
+      venueName: venue.name,
+      venueId: venue.id,
+      venueSlug: venue.slug ?? null,
+      citySlug: (venue as any).city?.slug ?? null,
+      createdVenue,
+      citySure,
+      candidates,
+      created: [],
+      skippedDuplicates,
+    };
+
+    if (fresh.length === 0) {
+      results.push(base);
+      continue;
+    }
+
+    const rows = fresh.map((e) => ({
+      venue_id: venue!.id,
+      title: e.title.trim().slice(0, 200),
+      start_time: e.starts_at,
+      end_time: e.ends_at ?? null,
+      description: (e.description ?? "").trim().slice(0, 2000),
+      // Always pending on Kids — the group's buttons are the review step.
+      status: "pending",
+      submitted_by: opts.submittedBy,
+      auto_imported_from: "manual_upload",
+      auto_import_confidence: e.confidence,
+      // NEVER store the Telegram file URL — it embeds the bot token and
+      // expires. Set after the poster persists to our storage below.
+      auto_import_image_url: null as string | null,
+      image_url: null as string | null,
+    }));
+
+    const { data: created, error: insErr } = await sb
+      .from("events")
+      .insert(rows)
+      .select("id, title, start_time");
+    if (insErr) return { ok: false, reason: "error", message: insErr.message };
+
+    (created ?? []).forEach((c, i) => {
+      allCreatedIds.push(c.id);
+      const e = fresh[i];
+      for (const slug of (e as any)?.categories ?? []) {
+        const gid = genreSlugToId.get(slug);
+        if (gid) genreLinks.push({ event_id: c.id, genre_id: gid });
+      }
+    });
+
+    results.push({
+      ...base,
+      created: (created ?? []).map((c) => ({ id: c.id, title: c.title, startTime: c.start_time })),
+    });
+  }
+
+  if (results.length === 0) {
+    return { ok: false, reason: "no_venue_hint" };
+  }
+
+  // Persist the poster ONCE into our storage and stamp every created event.
+  if (allCreatedIds.length > 0) {
+    const stored = await uploadPosterFromUrl(sb, {
+      sourceUrl: opts.imageUrl,
+      eventId: allCreatedIds[0],
+    });
+    if ("ok" in stored) {
+      await sb
+        .from("events")
+        .update({ image_url: stored.publicUrl, auto_import_image_url: stored.publicUrl })
+        .in("id", allCreatedIds);
+    } else {
+      console.warn("[telegram-event-import] poster persist failed:", stored.error);
+    }
   }
 
   // Kids uses the genres table as CATEGORIES (soft-play, outdoors…).
-  const genreSlugToId = new Map((genres ?? []).map((g) => [g.slug, g.id]));
-  const genreLinks: { event_id: string; genre_id: string }[] = [];
-  fresh.forEach((e, i) => {
-    const eventId = created[i]?.id;
-    if (!eventId) return;
-    for (const slug of e.categories ?? []) {
-      const gid = genreSlugToId.get(slug);
-      if (gid) genreLinks.push({ event_id: eventId, genre_id: gid });
-    }
-  });
   if (genreLinks.length) await sb.from("event_genres").insert(genreLinks);
 
-  return {
-    ok: true,
-    venueName: venue.name,
-    venueId: venue.id,
-    venueSlug,
-    citySlug,
-    createdVenue,
-    citySure,
-    candidates,
-    created: created.map((c) => ({ id: c.id, title: c.title, startTime: c.start_time })),
-    skippedDuplicates,
-  };
+  return { ok: true, venues: results, unplaced };
 }

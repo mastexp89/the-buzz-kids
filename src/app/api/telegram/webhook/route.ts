@@ -487,68 +487,67 @@ async function handleEventSubmission(
     return;
   }
 
-  const lines = result.created
-    .map((c) => `  • ${tgEsc(c.title)} — ${tgEsc(tgDate(c.startTime))}`)
-    .join("\n");
-  const dupNote = result.skippedDuplicates.length
-    ? `\n(${result.skippedDuplicates.length} already listed, skipped)`
-    : "";
-
-  if (result.created.length === 0) {
-    await reply(`👍 Those events are already listed at <b>${tgEsc(result.venueName)}</b> — nothing new to add.${dupNote}`);
-    return;
-  }
-
   const senderName = [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(" ") || "someone";
   const senderLabel = opts.fromAdminGroup
     ? "poster upload in this group"
     : `Telegram DM from ${senderName}${msg.from?.username ? ` (@${msg.from.username})` : ""}`;
 
-  if (result.createdVenue) {
-    await reply(
-      `🆕 <b>${tgEsc(result.venueName)}</b> isn't on The Buzz Kids yet, so I've added it along with:\n${lines}${dupNote}\n` +
-      (opts.fromAdminGroup ? "Approve or discard below." : "The Buzz Kids team will review it shortly."),
-    );
-    await sendTelegram(
-      `🆕 <b>New place from a poster</b> — ${tgEsc(result.venueName)}\n` +
-      `📍 Region: ${tgEsc(result.citySlug ?? "—")}${result.citySure ? "" : " ⚠️ (guessed — double-check in admin before approving)"}\n` +
-      `${lines}\n` +
-      `Via ${tgEsc(senderLabel)}\n` +
-      `Approving publishes the place AND the event${result.created.length === 1 ? "" : "s"}; discarding deletes both.\n` +
-      `Wrong place? Reply to this message with the correct place name and I'll move the event${result.created.length === 1 ? "" : "s"} there.\n` +
-      `Venue ID: <code>${result.venueId}</code>`,
-      {
-        buttons: [
-          [
-            { text: "✅ Approve place + events", callback_data: `vn:ok:${result.venueId}` },
-            { text: "🗑 Discard", callback_data: `vn:del:${result.venueId}` },
-          ],
-          // "Did you mean…?" — one tap moves the events onto an existing
-          // place instead and bins the auto-created one.
-          ...result.candidates.map((c, i) => [
-            { text: `📍 It's ${c.name.slice(0, 40)}`, callback_data: `vm:${i}:${result.venueId}` },
-          ]),
-        ],
-      },
-    );
-    return;
+  // ---- Summary back to the sender: one section per place on the poster.
+  const summaryParts: string[] = [];
+  for (const v of result.venues) {
+    const lines = v.created.map((c) => `  • ${tgEsc(c.title)} — ${tgEsc(tgDate(c.startTime))}`).join("\n");
+    const dupNote = v.skippedDuplicates.length ? ` (${v.skippedDuplicates.length} already listed, skipped)` : "";
+    if (v.createdVenue) {
+      summaryParts.push(`🆕 <b>${tgEsc(v.venueName)}</b> — not on the site yet, added for review${dupNote}\n${lines}`);
+    } else if (v.created.length === 0) {
+      summaryParts.push(`👍 <b>${tgEsc(v.venueName)}</b> — already listed, nothing new${dupNote}`);
+    } else {
+      summaryParts.push(`📨 <b>${tgEsc(v.venueName)}</b> — ${v.created.length} event${v.created.length === 1 ? "" : "s"} sent for review${dupNote}\n${lines}`);
+    }
   }
+  if (result.unplaced.length) {
+    summaryParts.push(`🤔 Couldn't tell where these are: ${result.unplaced.map(tgEsc).join(", ")}`);
+  }
+  await reply(summaryParts.join("\n\n"));
 
-  await reply(
-    `📨 <b>Sent for review</b> — ${result.created.length} event${result.created.length === 1 ? "" : "s"} at ${tgEsc(result.venueName)}:\n${lines}${dupNote}\n` +
-    `The Buzz Kids team will approve ${result.created.length === 1 ? "it" : "them"} shortly.`,
-  );
+  for (const v of result.venues) {
+    // Place not on the site: the group decides the whole package per card.
+    if (v.createdVenue) {
+      const lines = v.created.map((c) => `  • ${tgEsc(c.title)} — ${tgEsc(tgDate(c.startTime))}`).join("\n");
+      await sendTelegram(
+        `🆕 <b>New place from a poster</b> — ${tgEsc(v.venueName)}\n` +
+        `📍 Region: ${tgEsc(v.citySlug ?? "—")}${v.citySure ? "" : " ⚠️ (guessed — double-check in admin before approving)"}\n` +
+        `${lines}\n` +
+        `Via ${tgEsc(senderLabel)}\n` +
+        `Approving publishes the place AND the event${v.created.length === 1 ? "" : "s"}; discarding deletes both.\n` +
+        `Wrong place? Reply to this message with the correct place name and I'll move the event${v.created.length === 1 ? "" : "s"} there.\n` +
+        `Venue ID: <code>${v.venueId}</code>`,
+        {
+          buttons: [
+            [
+              { text: "✅ Approve place + events", callback_data: `vn:ok:${v.venueId}` },
+              { text: "🗑 Discard", callback_data: `vn:del:${v.venueId}` },
+            ],
+            ...v.candidates.map((c, i) => [
+              { text: `📍 It's ${c.name.slice(0, 40)}`, callback_data: `vm:${i}:${v.venueId}` },
+            ]),
+          ],
+        },
+      );
+      continue;
+    }
 
-  for (const c of result.created) {
-    await tgNewGig({
-      eventId: c.id,
-      title: c.title,
-      venueName: result.venueName,
-      startTime: c.startTime,
-      byEmail: null,
-      status: "pending",
-      source: senderLabel,
-    });
+    for (const c of v.created) {
+      await tgNewGig({
+        eventId: c.id,
+        title: c.title,
+        venueName: v.venueName,
+        startTime: c.startTime,
+        byEmail: null,
+        status: "pending",
+        source: senderLabel,
+      });
+    }
   }
 }
 
