@@ -462,6 +462,75 @@ export async function deleteSuggestionCore(_reviewerId: string, suggestionId: st
   return { ok: true, label: s?.target_name ?? undefined };
 }
 
+/**
+ * One-tap "Add place" from an aggregator card: create the venue published
+ * (name, region, website from the aggregator row), and let the half-hourly
+ * enrich-venues cron backfill address/photos/hours. Skips creation when a
+ * same-named approved venue already exists.
+ */
+export async function addAggregatorPlaceCore(_reviewerId: string, placeId: string): Promise<ModerationResult> {
+  const sb = createServiceClient();
+  const { data: p } = await sb
+    .from("aggregator_places")
+    .select("id, name, norm_name, location, website, city_slug, status")
+    .eq("id", placeId)
+    .maybeSingle();
+  if (!p) return { error: "Place not found." };
+  if (p.status !== "new") return { error: "Already handled." };
+
+  // Already on the site under the same normalised name? Just clear the row.
+  const { data: existing } = await sb
+    .from("venues")
+    .select("id, name")
+    .eq("approved", true)
+    .ilike("name", `%${(p.name.split(/\s+/)[0] ?? "").replace(/[%_]/g, "")}%`)
+    .limit(20);
+  const normName = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const dupe = (existing ?? []).find((v) => normName(v.name) === normName(p.name));
+  if (dupe) {
+    await sb.from("aggregator_places").update({ status: "added" }).eq("id", placeId);
+    return { ok: true, redundant: true, label: `${p.name} (already on the site)` };
+  }
+
+  const { data: city } = p.city_slug
+    ? await sb.from("cities").select("id, slug").eq("slug", p.city_slug).maybeSingle()
+    : { data: null as { id: string; slug: string } | null };
+
+  const baseSlug = p.name.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "place";
+  let slug = baseSlug;
+  let created: { id: string; slug: string } | null = null;
+  for (let i = 0; i < 6 && !created; i++) {
+    const { data: ins, error } = await sb
+      .from("venues")
+      .insert({
+        name: p.name,
+        slug,
+        city_id: city?.id ?? null,
+        address: p.location ?? null,
+        website: p.website ?? null,
+        approved: true,
+        venue_type: "attraction",
+        auto_imported: true,
+      })
+      .select("id, slug")
+      .single();
+    if (ins) { created = ins; break; }
+    if (error?.code === "23505") { slug = `${baseSlug}-${i + 2}`; continue; }
+    return { error: `Couldn't create place: ${error?.message ?? "unknown"}` };
+  }
+  if (!created) return { error: "Couldn't find a free slug for the place." };
+
+  await sb.from("aggregator_places").update({ status: "added" }).eq("id", placeId);
+
+  const citySlug = city?.slug ?? "dundee";
+  return {
+    ok: true,
+    label: p.name,
+    paths: [`/${citySlug}/venues/${created.slug}`, `/${citySlug}`],
+  };
+}
+
 export async function dismissAggregatorPlaceCore(_reviewerId: string, placeId: string): Promise<ModerationResult> {
   const sb = createServiceClient();
   const { data: p } = await sb.from("aggregator_places").select("name").eq("id", placeId).maybeSingle();

@@ -19,17 +19,10 @@ export async function recordSignup(opts: {
   // Only notify for the rare business/claim signups worth a heads-up.
   const t = (opts.accountType || "").toLowerCase();
   const noisy = t === "fan" || t === "parent" || t === "user" || t === "";
-  if (noisy) {
-    // Telegram is free and silent-flagged, so parent signups DO ping the
-    // admins group — it's only the per-signup email that stays muted.
-    const { tgNewSignup } = await import("@/lib/telegram");
-    tgNewSignup({
-      displayName: opts.displayName,
-      email: opts.email,
-      accountType: opts.accountType,
-    }).catch(() => {});
-    return { ok: true };
-  }
+  // Telegram pings for signups come from the sql/099 profiles trigger —
+  // it fires for EVERY signup (website AND mobile app), so nothing is
+  // sent from here (that would double up the web ones).
+  if (noisy) return { ok: true };
   try {
     await notifyNewSignup({
       displayName: opts.displayName,
