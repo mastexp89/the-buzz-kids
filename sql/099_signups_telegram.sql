@@ -6,7 +6,9 @@
 -- trigger, so a trigger THERE catches them all. The website's own Telegram
 -- signup pings have been removed in favour of this single source.
 --
--- Uses the same secret + endpoint pattern as sql/098.
+-- BEFORE RUNNING: replace REPLACE_WITH_TELEGRAM_WEBHOOK_SECRET below with
+-- the TELEGRAM_WEBHOOK_SECRET value from the Vercel project. NEVER commit
+-- the real value — this repo is public.
 -- Run in the Buzz Kids Supabase SQL editor.
 
 create extension if not exists pg_net with schema extensions;
@@ -22,7 +24,7 @@ begin
     url := 'https://www.thebuzzkids.co.uk/api/hooks/new-signup',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
-      'x-hook-secret', '355ac4c20073680e3fb7daa3e6b595d6a5dbd8fedfca9de4'
+      'x-hook-secret', 'REPLACE_WITH_TELEGRAM_WEBHOOK_SECRET'
     ),
     body := jsonb_build_object('record', jsonb_build_object(
       'id', new.id,
