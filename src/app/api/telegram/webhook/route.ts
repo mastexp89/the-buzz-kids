@@ -19,6 +19,7 @@ import {
   setReviewStatusCore,
   setSuggestionStatusCore,
   deleteSuggestionCore,
+  addAggregatorPlaceCore,
   dismissAggregatorPlaceCore,
 } from "@/lib/moderation";
 import { sendAdminReplyToUser } from "@/lib/admin-reply";
@@ -166,7 +167,7 @@ async function handleCallback(cb: any) {
     return;
   }
 
-  const m = data.match(/^(ev|ar|rv|sg|vn|og|vc|ac|ag):(ap|rj|hd|dn|ok|del|tx|di):([0-9a-f-]{36})$/i);
+  const m = data.match(/^(ev|ar|rv|sg|vn|og|vc|ac|ag):(ap|rj|hd|dn|ok|del|tx|di|ad):([0-9a-f-]{36})$/i);
   if (!m) {
     await answer("Unknown action.");
     return;
@@ -198,6 +199,7 @@ async function handleCallback(cb: any) {
   else if (entity === "vc" && verb === "rj") { result = await rejectVenueClaimCore(reviewerId, id, "Rejected via Telegram"); actionLabel = "Place claim rejected"; positive = false; }
   else if (entity === "ac" && verb === "ap") { result = await approveArtistClaimCore(reviewerId, id); actionLabel = "Page claim approved"; }
   else if (entity === "ac" && verb === "rj") { result = await rejectArtistClaimCore(reviewerId, id, "Rejected via Telegram"); actionLabel = "Page claim rejected"; positive = false; }
+  else if (entity === "ag" && verb === "ad") { result = await addAggregatorPlaceCore(reviewerId, id); actionLabel = "Place added to the site"; }
   else if (entity === "ag" && verb === "di") { result = await dismissAggregatorPlaceCore(reviewerId, id); actionLabel = "Place dismissed"; positive = false; }
   else {
     await answer("Unknown action.");

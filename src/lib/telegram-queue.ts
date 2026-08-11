@@ -14,21 +14,31 @@ export async function sendAggregatorPlaceCards(limit = 5): Promise<number> {
   const sb = createServiceClient();
   const { data: places } = await sb
     .from("aggregator_places")
-    .select("id, name, location, website, source_url")
+    .select("id, name, location, website, source_url, city_slug, found_at")
     .eq("status", "new")
     .order("found_at", { ascending: true })
     .limit(limit);
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.thebuzzkids.co.uk";
   for (const p of places ?? []) {
+    const linkRow = [
+      ...(p.website ? [{ text: "🌐 Website", url: p.website }] : []),
+      ...(p.source_url ? [{ text: "🔍 Where we found it", url: p.source_url }] : []),
+      { text: "✏️ Admin", url: `${site}/admin/aggregator` },
+    ];
     await sendTelegram(
       `📍 <b>Place to add</b> — ${tgEsc(p.name)}\n` +
-      `${tgEsc(p.location ?? "—")}${p.website ? ` · ${tgEsc(p.website)}` : ""}`,
+      `Area: ${tgEsc(p.location ?? "—")} · Region: ${tgEsc(p.city_slug ?? "—")}\n` +
+      (p.website ? `${tgEsc(p.website)}\n` : "") +
+      `Adding publishes it now — address, photos and hours fill in automatically within the hour.`,
       {
         silent: true,
-        buttons: [[
-          { text: "🙈 Dismiss", callback_data: `ag:di:${p.id}` },
-          { text: "➕ Add in admin", url: `${site}/admin/aggregator` },
-        ]],
+        buttons: [
+          [
+            { text: "➕ Add place", callback_data: `ag:ad:${p.id}` },
+            { text: "🙈 Dismiss", callback_data: `ag:di:${p.id}` },
+          ],
+          linkRow,
+        ],
       },
     );
   }

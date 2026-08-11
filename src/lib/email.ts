@@ -189,11 +189,8 @@ export function notifyNewSignup(opts: {
     : opts.accountType === "artist" ? "Artist / Band / DJ"
     : opts.accountType === "organiser" ? "Event organiser"
     : opts.accountType;
-  tgNewSignup({
-    displayName: opts.displayName,
-    email: opts.email,
-    accountType: opts.accountType,
-  }).catch(() => {});
+  // No Telegram here — the sql/099 profiles trigger pings the group for
+  // every signup (web + app); doubling it from the email path would spam.
   return sendBrandedEmail({
     subject: `New signup: ${opts.displayName ?? opts.email ?? "(no name)"} — ${typeLabel}`,
     preheader: `A new ${typeLabel.toLowerCase()} account just signed up.`,
