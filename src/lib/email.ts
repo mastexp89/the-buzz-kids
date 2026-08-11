@@ -352,6 +352,8 @@ export function notifyVenueClaim(opts: {
   businessType?: string | null;
   contactPhone: string | null;
   reason: string | null;
+  // For Telegram Approve/Reject buttons.
+  claimId?: string;
 }) {
   tgVenueClaim({
     venueName: opts.venueName,
@@ -359,6 +361,7 @@ export function notifyVenueClaim(opts: {
     claimantEmail: opts.claimantEmail,
     businessName: opts.businessName ?? null,
     reason: opts.reason,
+    claimId: opts.claimId,
   }).catch(() => {});
   const venueLink = opts.citySlug && opts.venueSlug
     ? `${SITE}/${opts.citySlug}/venues/${opts.venueSlug}`
@@ -437,12 +440,15 @@ export function notifyArtistClaim(opts: {
   role: string | null;
   contactPhone: string | null;
   reason: string | null;
+  // For Telegram Approve/Reject buttons.
+  claimId?: string;
 }) {
   tgArtistClaim({
     artistName: opts.artistName,
     claimantName: opts.claimantName,
     claimantEmail: opts.claimantEmail,
     reason: opts.reason,
+    claimId: opts.claimId,
   }).catch(() => {});
   const artistLink = opts.artistSlug
     ? `${SITE}/artists/${opts.artistSlug}`

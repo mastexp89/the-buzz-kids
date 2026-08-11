@@ -134,6 +134,14 @@ export const CB = {
   suggestionDone: (id: string) => `sg:dn:${id}`,
   approveVenue: (id: string) => `vn:ap:${id}`,
   approveOrganiser: (id: string) => `og:ap:${id}`,
+  approveVenueClaim: (id: string) => `vc:ap:${id}`,
+  rejectVenueClaim: (id: string) => `vc:rj:${id}`,
+  // Two-tap ownership transfer: shown only after vc:ap hits an existing owner.
+  transferVenueClaim: (id: string) => `vc:tx:${id}`,
+  approveArtistClaim: (id: string) => `ac:ap:${id}`,
+  rejectArtistClaim: (id: string) => `ac:rj:${id}`,
+  deleteSuggestion: (id: string) => `sg:del:${id}`,
+  dismissAggregatorPlace: (id: string) => `ag:di:${id}`,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -223,7 +231,10 @@ export function tgEditSuggestion(opts: {
   const detail = (opts.details ?? "").slice(0, 400);
   const buttons: TgButton[][] = [];
   const row: TgButton[] = [];
-  if (opts.suggestionId) row.push({ text: "✅ Mark done", callback_data: CB.suggestionDone(opts.suggestionId) });
+  if (opts.suggestionId) {
+    row.push({ text: "✅ Mark done", callback_data: CB.suggestionDone(opts.suggestionId) });
+    row.push({ text: "🗑 Delete", callback_data: CB.deleteSuggestion(opts.suggestionId) });
+  }
   row.push({ text: "🔍 Review", url: `${SITE}/admin/suggestions` });
   buttons.push(row);
   if (opts.imageUrl) buttons.push([{ text: "🖼 View attached photo", url: opts.imageUrl }]);
@@ -348,14 +359,22 @@ export function tgVenueClaim(opts: {
   claimantEmail: string | null;
   businessName: string | null;
   reason: string | null;
+  // For the Telegram Approve/Reject buttons.
+  claimId?: string;
 }) {
+  const buttons: TgButton[][] = opts.claimId
+    ? [[
+        { text: "✅ Approve claim", callback_data: CB.approveVenueClaim(opts.claimId) },
+        { text: "❌ Reject", callback_data: CB.rejectVenueClaim(opts.claimId) },
+      ]]
+    : [[{ text: "🔍 Review in admin queue", url: `${SITE}/admin/queue` }]];
   return sendTelegram(
     `🔑 <b>Place ownership claim</b>\n` +
     `<b>${tgEsc(opts.venueName)}</b>\n` +
     `By: ${tgEsc(opts.claimantName ?? "—")} · ${tgEsc(opts.claimantEmail ?? "—")}\n` +
     `Business: ${tgEsc(opts.businessName ?? "—")}\n` +
     `Reason: ${tgEsc(opts.reason ?? "—")}`,
-    { buttons: [[{ text: "🔍 Review in admin queue", url: `${SITE}/admin/queue` }]] },
+    { buttons },
   );
 }
 
@@ -364,13 +383,21 @@ export function tgArtistClaim(opts: {
   claimantName: string | null;
   claimantEmail: string | null;
   reason: string | null;
+  // For the Telegram Approve/Reject buttons.
+  claimId?: string;
 }) {
+  const buttons: TgButton[][] = opts.claimId
+    ? [[
+        { text: "✅ Approve claim", callback_data: CB.approveArtistClaim(opts.claimId) },
+        { text: "❌ Reject", callback_data: CB.rejectArtistClaim(opts.claimId) },
+      ]]
+    : [[{ text: "🔍 Review in admin queue", url: `${SITE}/admin/queue` }]];
   return sendTelegram(
     `🔑 <b>Provider page claim</b>\n` +
     `<b>${tgEsc(opts.artistName)}</b>\n` +
     `By: ${tgEsc(opts.claimantName ?? "—")} · ${tgEsc(opts.claimantEmail ?? "—")}\n` +
     `Reason: ${tgEsc(opts.reason ?? "—")}`,
-    { buttons: [[{ text: "🔍 Review in admin queue", url: `${SITE}/admin/queue` }]] },
+    { buttons },
   );
 }
 
