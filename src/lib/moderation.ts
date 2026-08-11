@@ -10,10 +10,16 @@
 
 import { createServiceClient } from "@/lib/supabase/service";
 import { sendApprovalWelcomeMessage } from "@/lib/welcome-message";
+import {
+  notifyClaimApproved,
+  notifyClaimRejected,
+  notifyArtistClaimApproved,
+  notifyArtistClaimRejected,
+} from "@/lib/email";
 
 export type ModerationResult =
-  | { ok: true; label?: string }
-  | { error: string };
+  | { ok: true; label?: string; redundant?: boolean; paths?: string[] }
+  | { error: string; hasExistingOwner?: boolean };
 
 /**
  * Reviewer attribution for Telegram-side actions: the oldest admin
@@ -183,6 +189,286 @@ export async function reassignImportedEventsCore(
   if (delErr) return { error: delErr.message };
 
   return { ok: true, targetName: target.name, moved: moved ?? [] };
+}
+
+// ---------- Place claims (Take Ownership) ----------
+
+export async function approveVenueClaimCore(
+  reviewerId: string,
+  claimId: string,
+  opts: { transferFromExistingOwner?: boolean } = {},
+): Promise<ModerationResult> {
+  const sb = createServiceClient();
+
+  const { data: claim } = await sb
+    .from("venue_claims")
+    .select(`
+      id, status, venue_id, claimant_user_id, contact_email,
+      venue:venues(id, name, slug, owner_id, city:cities(slug))
+    `)
+    .eq("id", claimId)
+    .maybeSingle();
+  if (!claim) return { error: "Claim not found." };
+  if (claim.status !== "pending") return { error: "Claim is not pending." };
+
+  const existingOwnerId: string | null = (claim.venue as any)?.owner_id ?? null;
+  const venue = claim.venue as any;
+  const citySlug = venue?.city?.slug ?? "dundee";
+
+  // Claimant already owns it (wizard + formal claim double-up) → just clear.
+  if (existingOwnerId && existingOwnerId === claim.claimant_user_id) {
+    const { error } = await sb
+      .from("venue_claims")
+      .update({ status: "approved", reviewed_at: new Date().toISOString(), reviewed_by: reviewerId })
+      .eq("id", claimId);
+    if (error) return { error: error.message };
+    await sb
+      .from("venue_claims")
+      .update({
+        status: "rejected",
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: reviewerId,
+        rejection_reason: "Another claim was approved first",
+      })
+      .eq("venue_id", claim.venue_id)
+      .eq("status", "pending");
+    return { ok: true, redundant: true, label: venue?.name ?? undefined };
+  }
+
+  if (existingOwnerId && !opts.transferFromExistingOwner) {
+    return { error: "Place already has an owner.", hasExistingOwner: true };
+  }
+
+  const { error: vErr } = await sb
+    .from("venues")
+    .update({ owner_id: claim.claimant_user_id })
+    .eq("id", claim.venue_id);
+  if (vErr) return { error: vErr.message };
+
+  const { error: cErr } = await sb
+    .from("venue_claims")
+    .update({ status: "approved", reviewed_at: new Date().toISOString(), reviewed_by: reviewerId })
+    .eq("id", claimId);
+  if (cErr) return { error: cErr.message };
+
+  await sb
+    .from("venue_claims")
+    .update({
+      status: "rejected",
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: reviewerId,
+      rejection_reason: "Another claim was approved first",
+    })
+    .eq("venue_id", claim.venue_id)
+    .eq("status", "pending");
+
+  const { data: claimantProfile } = await sb
+    .from("profiles")
+    .select("email")
+    .eq("id", claim.claimant_user_id)
+    .maybeSingle();
+  const email = claimantProfile?.email ?? claim.contact_email;
+  if (email && venue?.slug) {
+    notifyClaimApproved({
+      claimantEmail: email,
+      venueName: venue.name,
+      citySlug,
+      venueSlug: venue.slug,
+      venueId: venue.id,
+    }).catch(() => {});
+  }
+
+  if (claim.claimant_user_id && venue?.name) {
+    await sendApprovalWelcomeMessage({
+      userId: claim.claimant_user_id,
+      kind: "venue",
+      displayName: venue.name,
+    });
+  }
+
+  return {
+    ok: true,
+    label: venue?.name ?? undefined,
+    paths: [`/${citySlug}/venues/${venue?.slug}`],
+  };
+}
+
+export async function rejectVenueClaimCore(
+  reviewerId: string,
+  claimId: string,
+  reason?: string,
+): Promise<ModerationResult> {
+  const sb = createServiceClient();
+
+  const { data: claim } = await sb
+    .from("venue_claims")
+    .select(`id, status, claimant_user_id, contact_email, venue:venues(name)`)
+    .eq("id", claimId)
+    .maybeSingle();
+  if (!claim) return { error: "Claim not found." };
+  if (claim.status !== "pending") return { error: "Claim is not pending." };
+
+  const { error } = await sb
+    .from("venue_claims")
+    .update({
+      status: "rejected",
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: reviewerId,
+      rejection_reason: reason || null,
+    })
+    .eq("id", claimId);
+  if (error) return { error: error.message };
+
+  const { data: claimantProfile } = await sb
+    .from("profiles")
+    .select("email")
+    .eq("id", claim.claimant_user_id)
+    .maybeSingle();
+  const email = claimantProfile?.email ?? claim.contact_email;
+  if (email) {
+    notifyClaimRejected({
+      claimantEmail: email,
+      venueName: (claim.venue as any)?.name ?? "your place",
+      reason: reason ?? null,
+    }).catch(() => {});
+  }
+
+  return { ok: true, label: (claim.venue as any)?.name ?? undefined };
+}
+
+// ---------- Provider (artist) page claims ----------
+
+export async function approveArtistClaimCore(
+  reviewerId: string,
+  claimId: string,
+): Promise<ModerationResult> {
+  const sb = createServiceClient();
+
+  const { data: claim } = await sb
+    .from("artist_claims")
+    .select(`
+      id, status, artist_id, claimant_user_id, contact_email,
+      artist:artists(id, name, slug, claimed_by)
+    `)
+    .eq("id", claimId)
+    .maybeSingle();
+  if (!claim) return { error: "Claim not found." };
+  if (claim.status !== "pending") return { error: "Claim is not pending." };
+  if ((claim.artist as any)?.claimed_by) {
+    return { error: "Page already has an owner." };
+  }
+
+  const artist = claim.artist as any;
+
+  const { error: aErr } = await sb
+    .from("artists")
+    .update({ claimed_by: claim.claimant_user_id })
+    .eq("id", claim.artist_id);
+  if (aErr) return { error: aErr.message };
+
+  const { error: cErr } = await sb
+    .from("artist_claims")
+    .update({ status: "approved", reviewed_at: new Date().toISOString(), reviewed_by: reviewerId })
+    .eq("id", claimId);
+  if (cErr) return { error: cErr.message };
+
+  await sb
+    .from("artist_claims")
+    .update({
+      status: "rejected",
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: reviewerId,
+      rejection_reason: "Another claim was approved first",
+    })
+    .eq("artist_id", claim.artist_id)
+    .eq("status", "pending");
+
+  const { data: claimantProfile } = await sb
+    .from("profiles")
+    .select("email")
+    .eq("id", claim.claimant_user_id)
+    .maybeSingle();
+  const email = claimantProfile?.email ?? claim.contact_email;
+  if (email && artist?.slug) {
+    notifyArtistClaimApproved({
+      claimantEmail: email,
+      artistName: artist.name,
+      artistSlug: artist.slug,
+      artistId: artist.id,
+    }).catch(() => {});
+  }
+
+  if (claim.claimant_user_id && artist?.name) {
+    await sendApprovalWelcomeMessage({
+      userId: claim.claimant_user_id,
+      kind: "artist",
+      displayName: artist.name,
+    });
+  }
+
+  return { ok: true, label: artist?.name ?? undefined, paths: [`/artists/${artist?.slug}`] };
+}
+
+export async function rejectArtistClaimCore(
+  reviewerId: string,
+  claimId: string,
+  reason?: string,
+): Promise<ModerationResult> {
+  const sb = createServiceClient();
+
+  const { data: claim } = await sb
+    .from("artist_claims")
+    .select(`id, status, claimant_user_id, contact_email, artist:artists(name)`)
+    .eq("id", claimId)
+    .maybeSingle();
+  if (!claim) return { error: "Claim not found." };
+  if (claim.status !== "pending") return { error: "Claim is not pending." };
+
+  const { error } = await sb
+    .from("artist_claims")
+    .update({
+      status: "rejected",
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: reviewerId,
+      rejection_reason: reason || null,
+    })
+    .eq("id", claimId);
+  if (error) return { error: error.message };
+
+  const { data: claimantProfile } = await sb
+    .from("profiles")
+    .select("email")
+    .eq("id", claim.claimant_user_id)
+    .maybeSingle();
+  const email = claimantProfile?.email ?? claim.contact_email;
+  if (email) {
+    notifyArtistClaimRejected({
+      claimantEmail: email,
+      artistName: (claim.artist as any)?.name ?? "your page",
+      reason: reason ?? null,
+    }).catch(() => {});
+  }
+
+  return { ok: true, label: (claim.artist as any)?.name ?? undefined };
+}
+
+// ---------- Edit suggestions + aggregator places ----------
+
+export async function deleteSuggestionCore(_reviewerId: string, suggestionId: string): Promise<ModerationResult> {
+  const sb = createServiceClient();
+  const { data: s } = await sb.from("edit_suggestions").select("target_name").eq("id", suggestionId).maybeSingle();
+  const { error } = await sb.from("edit_suggestions").delete().eq("id", suggestionId);
+  if (error) return { error: error.message };
+  return { ok: true, label: s?.target_name ?? undefined };
+}
+
+export async function dismissAggregatorPlaceCore(_reviewerId: string, placeId: string): Promise<ModerationResult> {
+  const sb = createServiceClient();
+  const { data: p } = await sb.from("aggregator_places").select("name").eq("id", placeId).maybeSingle();
+  if (!p) return { error: "Place not found." };
+  const { error } = await sb.from("aggregator_places").update({ status: "dismissed" }).eq("id", placeId);
+  if (error) return { error: error.message };
+  return { ok: true, label: p.name ?? undefined };
 }
 
 export async function setReviewStatusCore(

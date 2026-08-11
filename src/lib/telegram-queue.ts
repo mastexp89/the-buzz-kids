@@ -5,6 +5,36 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { sendTelegram, tgEsc, tgDate } from "@/lib/telegram";
 
+/**
+ * Post the newest aggregator-discovered places as cards with a one-tap
+ * Dismiss — used by the morning digest and /pending. Adding a place stays
+ * a web-admin job (it needs details filled in), so that side is a link.
+ */
+export async function sendAggregatorPlaceCards(limit = 5): Promise<number> {
+  const sb = createServiceClient();
+  const { data: places } = await sb
+    .from("aggregator_places")
+    .select("id, name, location, website, source_url")
+    .eq("status", "new")
+    .order("found_at", { ascending: true })
+    .limit(limit);
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.thebuzzkids.co.uk";
+  for (const p of places ?? []) {
+    await sendTelegram(
+      `📍 <b>Place to add</b> — ${tgEsc(p.name)}\n` +
+      `${tgEsc(p.location ?? "—")}${p.website ? ` · ${tgEsc(p.website)}` : ""}`,
+      {
+        silent: true,
+        buttons: [[
+          { text: "🙈 Dismiss", callback_data: `ag:di:${p.id}` },
+          { text: "➕ Add in admin", url: `${site}/admin/aggregator` },
+        ]],
+      },
+    );
+  }
+  return (places ?? []).length;
+}
+
 export async function sendPendingEventButtons(limit = 5): Promise<number> {
   const sb = createServiceClient();
   const { data: pendingEvents } = await sb

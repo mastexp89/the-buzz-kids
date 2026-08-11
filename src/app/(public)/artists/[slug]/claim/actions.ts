@@ -42,7 +42,7 @@ export async function submitArtistClaim(
     .eq("id", user.id)
     .maybeSingle();
 
-  const { error: insertErr } = await supabase
+  const { data: insertedClaim, error: insertErr } = await supabase
     .from("artist_claims")
     .insert({
       artist_id: artist.id,
@@ -52,7 +52,9 @@ export async function submitArtistClaim(
       contact_email: contactEmailInput ?? user.email ?? null,
       reason,
       status: "pending",
-    });
+    })
+    .select("id")
+    .single();
   if (insertErr) {
     if (insertErr.code === "23505") {
       return { error: "You already have a pending claim on this artist." };
@@ -69,6 +71,7 @@ export async function submitArtistClaim(
     role,
     contactPhone,
     reason,
+    claimId: insertedClaim?.id,
   }).catch(() => {});
 
   revalidatePath("/admin/queue");

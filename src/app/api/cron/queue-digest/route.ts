@@ -10,7 +10,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { sendAdminEmail } from "@/lib/email";
 import { buildEmailHtml, buildEmailText, type EmailBlock } from "@/lib/email-template";
 import { tgQueueDigest } from "@/lib/telegram";
-import { sendPendingEventButtons } from "@/lib/telegram-queue";
+import { sendPendingEventButtons, sendAggregatorPlaceCards } from "@/lib/telegram-queue";
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.thebuzzkids.co.uk";
 
@@ -45,6 +45,7 @@ export async function GET(req: Request) {
   try {
     await tgQueueDigest({ events, suggestions, places, reviews });
     if (events > 0) await sendPendingEventButtons(5);
+    if (places > 0) await sendAggregatorPlaceCards(5);
   } catch { /* best-effort */ }
 
   if (total === 0) return NextResponse.json({ ok: true, total, reviews, sent: false });

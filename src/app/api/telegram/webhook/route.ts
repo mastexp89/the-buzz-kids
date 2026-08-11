@@ -12,14 +12,20 @@ import {
   approveVenueWithGigsCore,
   discardImportedVenueCore,
   reassignImportedEventsCore,
+  approveVenueClaimCore,
+  rejectVenueClaimCore,
+  approveArtistClaimCore,
+  rejectArtistClaimCore,
   setReviewStatusCore,
   setSuggestionStatusCore,
+  deleteSuggestionCore,
+  dismissAggregatorPlaceCore,
 } from "@/lib/moderation";
 import { sendAdminReplyToUser } from "@/lib/admin-reply";
 import { importEventPoster, findVenueCandidates } from "@/lib/telegram-event-import";
 import { tgNewGig } from "@/lib/telegram";
 import { uploadPosterFromUrl } from "@/lib/poster-storage";
-import { sendPendingEventButtons } from "@/lib/telegram-queue";
+import { sendPendingEventButtons, sendAggregatorPlaceCards } from "@/lib/telegram-queue";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -160,7 +166,7 @@ async function handleCallback(cb: any) {
     return;
   }
 
-  const m = data.match(/^(ev|ar|rv|sg|vn|og):(ap|rj|hd|dn|ok|del):([0-9a-f-]{36})$/i);
+  const m = data.match(/^(ev|ar|rv|sg|vn|og|vc|ac|ag):(ap|rj|hd|dn|ok|del|tx|di):([0-9a-f-]{36})$/i);
   if (!m) {
     await answer("Unknown action.");
     return;
@@ -186,12 +192,36 @@ async function handleCallback(cb: any) {
   else if (entity === "rv" && verb === "ap") { result = await setReviewStatusCore(reviewerId, id, "approved"); actionLabel = "Review approved"; }
   else if (entity === "rv" && verb === "hd") { result = await setReviewStatusCore(reviewerId, id, "hidden"); actionLabel = "Review hidden"; positive = false; }
   else if (entity === "sg" && verb === "dn") { result = await setSuggestionStatusCore(reviewerId, id, "done"); actionLabel = "Suggestion marked done"; }
+  else if (entity === "sg" && verb === "del") { result = await deleteSuggestionCore(reviewerId, id); actionLabel = "Suggestion deleted"; positive = false; }
+  else if (entity === "vc" && verb === "ap") { result = await approveVenueClaimCore(reviewerId, id); actionLabel = "Place claim approved"; }
+  else if (entity === "vc" && verb === "tx") { result = await approveVenueClaimCore(reviewerId, id, { transferFromExistingOwner: true }); actionLabel = "Ownership transferred"; }
+  else if (entity === "vc" && verb === "rj") { result = await rejectVenueClaimCore(reviewerId, id, "Rejected via Telegram"); actionLabel = "Place claim rejected"; positive = false; }
+  else if (entity === "ac" && verb === "ap") { result = await approveArtistClaimCore(reviewerId, id); actionLabel = "Page claim approved"; }
+  else if (entity === "ac" && verb === "rj") { result = await rejectArtistClaimCore(reviewerId, id, "Rejected via Telegram"); actionLabel = "Page claim rejected"; positive = false; }
+  else if (entity === "ag" && verb === "di") { result = await dismissAggregatorPlaceCore(reviewerId, id); actionLabel = "Place dismissed"; positive = false; }
   else {
     await answer("Unknown action.");
     return;
   }
 
   if ("error" in result) {
+    // Place already owned: offer a two-tap transfer instead of a dead end.
+    if (result.hasExistingOwner) {
+      await answer("Place already has an owner — confirm below to transfer.", true);
+      await sendTelegram(
+        `⚠️ <b>This place already has an owner.</b>\n` +
+        `Approving this claim would take the place off the current owner and hand it to the claimant. ` +
+        `They keep their account but lose dashboard access to this place.`,
+        {
+          replyTo: cb.message.message_id,
+          buttons: [[
+            { text: "⚠️ Yes, transfer ownership", callback_data: `vc:tx:${id}` },
+            { text: "🔍 Check in admin first", url: `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.thebuzzkids.co.uk"}/admin/queue` },
+          ]],
+        },
+      );
+      return;
+    }
     await answer(result.error, true);
     return;
   }
@@ -203,6 +233,7 @@ async function handleCallback(cb: any) {
     revalidatePath("/admin/reviews");
     revalidatePath("/admin/suggestions");
     revalidatePath("/admin");
+    for (const p of result.paths ?? []) revalidatePath(p);
   } catch { /* fine outside render context */ }
 
   // Remove the buttons from the original notification and record who acted.
@@ -653,6 +684,7 @@ async function handlePendingCommand() {
     },
   );
   await sendPendingEventButtons(5);
+  if (places > 0) await sendAggregatorPlaceCards(3);
 }
 
 async function handleStatsCommand() {

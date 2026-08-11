@@ -74,7 +74,7 @@ export async function submitVenueClaim(formData: FormData): Promise<SubmitClaimR
     .eq("id", user.id)
     .maybeSingle();
 
-  const { error: insertErr } = await supabase
+  const { data: insertedClaim, error: insertErr } = await supabase
     .from("venue_claims")
     .insert({
       venue_id: venue.id,
@@ -88,7 +88,9 @@ export async function submitVenueClaim(formData: FormData): Promise<SubmitClaimR
       authorised_rep: f.authorisedRep,
       accepted_terms: f.acceptedTerms,
       status: "pending",
-    });
+    })
+    .select("id")
+    .single();
   if (insertErr) {
     if (insertErr.code === "23505") {
       return { error: "You already have a pending claim on this place." };
@@ -113,6 +115,7 @@ export async function submitVenueClaim(formData: FormData): Promise<SubmitClaimR
     businessType: f.businessType,
     contactPhone: f.contactPhone,
     reason: f.reason,
+    claimId: insertedClaim?.id,
   }).catch(() => {});
 
   revalidatePath(`/admin/queue`);
@@ -162,7 +165,7 @@ export async function attachClaimAfterSignup(input: {
     return { error: "This place was just claimed by someone else. Get in touch if that's a mistake." };
   }
 
-  const { error: insertErr } = await svc
+  const { data: insertedClaim, error: insertErr } = await svc
     .from("venue_claims")
     .insert({
       venue_id: venue.id,
@@ -176,7 +179,9 @@ export async function attachClaimAfterSignup(input: {
       authorised_rep: f.authorisedRep,
       accepted_terms: f.acceptedTerms,
       status: "pending",
-    });
+    })
+    .select("id")
+    .maybeSingle();
   if (insertErr && insertErr.code !== "23505") {
     return { error: insertErr.message };
   }
@@ -202,6 +207,7 @@ export async function attachClaimAfterSignup(input: {
     businessType: f.businessType,
     contactPhone: f.contactPhone,
     reason: f.reason,
+    claimId: insertedClaim?.id,
   }).catch(() => {});
 
   revalidatePath(`/admin/queue`);
