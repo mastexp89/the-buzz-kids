@@ -38,17 +38,27 @@ export async function GET(req: Request) {
     return n ?? 0;
   };
 
-  const [views, viewsPrev, clicks, signups, eventsAdded, reviews, newDevices, totalDevices, activeDevices] = await Promise.all([
+  const weekAgo = new Date(todayStart.getTime() - 7 * dayMs).toISOString();
+  const [
+    views, viewsPrev, clicks, signups, eventsAdded, reviews,
+    newIos, newAndroid, totalIos, totalAndroid, activeIos, activeAndroid,
+  ] = await Promise.all([
     count("page_views", (q) => q.eq("kind", "view").gte("viewed_at", yStart).lt("viewed_at", yEnd)),
     count("page_views", (q) => q.eq("kind", "view").gte("viewed_at", y2Start).lt("viewed_at", yStart)),
     count("page_views", (q) => q.neq("kind", "view").gte("viewed_at", yStart).lt("viewed_at", yEnd)),
     count("profiles", (q) => q.gte("created_at", yStart).lt("created_at", yEnd)),
     count("events", (q) => q.gte("created_at", yStart).lt("created_at", yEnd)),
     count("reviews", (q) => q.gte("created_at", yStart).lt("created_at", yEnd)),
-    count("device_tokens", (q) => q.gte("created_at", yStart).lt("created_at", yEnd)),
-    count("device_tokens", (q) => q),
-    count("device_tokens", (q) => q.gte("last_seen_at", new Date(todayStart.getTime() - 7 * dayMs).toISOString())),
+    count("device_tokens", (q) => q.eq("platform", "ios").gte("created_at", yStart).lt("created_at", yEnd)),
+    count("device_tokens", (q) => q.eq("platform", "android").gte("created_at", yStart).lt("created_at", yEnd)),
+    count("device_tokens", (q) => q.eq("platform", "ios")),
+    count("device_tokens", (q) => q.eq("platform", "android")),
+    count("device_tokens", (q) => q.eq("platform", "ios").gte("last_seen_at", weekAgo)),
+    count("device_tokens", (q) => q.eq("platform", "android").gte("last_seen_at", weekAgo)),
   ]);
+  const newDevices = newIos + newAndroid;
+  const totalDevices = totalIos + totalAndroid;
+  const activeDevices = activeIos + activeAndroid;
 
   // Top 3 most-viewed places yesterday.
   const { data: viewRows } = await sb
@@ -89,7 +99,9 @@ export async function GET(req: Request) {
     `👨‍👧 New signups: ${signups}\n` +
     `🎪 Events added: ${eventsAdded}\n` +
     `📝 Reviews left: ${reviews}\n` +
-    `📱 App: +${newDevices} new device${newDevices === 1 ? "" : "s"} · ${activeDevices} active this week · ${totalDevices} total`,
+    `📱 App devices:\n` +
+    `  🍎 iOS — +${newIos} new · ${activeIos} active this week · ${totalIos} total\n` +
+    `  🤖 Android — +${newAndroid} new · ${activeAndroid} active this week · ${totalAndroid} total`,
     { silent: true },
   );
 
