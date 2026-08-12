@@ -159,12 +159,19 @@ type VenueRow = {
   id: string;
   name: string;
   slug: string | null;
+  address: string | null;
   city_id: string | null;
   city: { slug: string } | null;
 };
 
-/** Strict matcher: two ilike probes + normalised containment compare. */
-async function matchVenue(hint: string): Promise<VenueRow | null> {
+/**
+ * Strict matcher: two ilike probes + normalised containment compare.
+ *
+ * When several places share a name, the town printed on the poster
+ * decides — without it a listing poster silently files events at the
+ * wrong town's namesake.
+ */
+async function matchVenue(hint: string, locationHint?: string | null): Promise<VenueRow | null> {
   const sb = createServiceClient();
   const alphanumeric = hint.replace(/[^a-zA-Z0-9\s]/g, " ").trim();
   const firstWord =
@@ -172,7 +179,7 @@ async function matchVenue(hint: string): Promise<VenueRow | null> {
     alphanumeric.slice(0, 5);
   const probe = (p: string) =>
     sb.from("venues")
-      .select("id, name, slug, city_id, city:cities(slug)")
+      .select("id, name, slug, address, city_id, city:cities(slug)")
       .eq("approved", true)
       .ilike("name", `%${p.replace(/[%_]/g, "")}%`)
       .limit(30)
@@ -183,10 +190,28 @@ async function matchVenue(hint: string): Promise<VenueRow | null> {
   ]);
   const candidates = [...a, ...b.filter((v: any) => !a.some((x: any) => x.id === v.id))];
   const hintNorm = norm(hint);
-  return (candidates.find((v: any) => {
+  const matches = candidates.filter((v: any) => {
     const vn = norm(v.name);
     return vn === hintNorm || (vn.length >= 4 && hintNorm.length >= 4 && (vn.includes(hintNorm) || hintNorm.includes(vn)));
-  }) ?? null) as VenueRow | null;
+  }) as unknown as VenueRow[];
+  if (matches.length === 0) return null;
+  if (matches.length === 1 || !locationHint) return matches[0];
+
+  // Same-name places in different towns: score each by how well the
+  // poster's town/address matches the place's address and region.
+  const words = (locationHint.toLowerCase().match(/[a-z]{4,}/g) ?? []).map(norm).filter(Boolean);
+  const scored = matches.map((v) => {
+    const addr = norm(v.address ?? "");
+    const region = norm(v.city?.slug ?? "");
+    let s = 0;
+    for (const w of words) {
+      if (addr && addr.includes(w)) s += 2;
+      if (region && region.includes(w)) s += 1;
+    }
+    return { v, s };
+  });
+  scored.sort((x, y) => y.s - x.s);
+  return scored[0].v;
 }
 
 export async function importEventPoster(opts: {
@@ -256,10 +281,20 @@ export async function importEventPoster(opts: {
   for (const bucket of buckets.values()) {
     const bucketHints = [bucket.hint, singleBucket ? override : null].filter(Boolean) as string[];
 
-    // 1. Strict match on the bucket's hints.
+    // The town/address printed alongside this bucket's place — used both to
+    // pick between same-named places and to file a brand-new one's region.
+    const locCounts = new Map<string, number>();
+    for (const e of bucket.events) {
+      const l = (e as any).venue_location_hint?.trim();
+      if (l) locCounts.set(l, (locCounts.get(l) ?? 0) + 1);
+    }
+    const locationHint =
+      [...locCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? (singleBucket ? override : null);
+
+    // 1. Strict match on the bucket's hints, disambiguated by town.
     let venue: VenueRow | null = null;
     for (const hint of bucketHints) {
-      venue = await matchVenue(hint);
+      venue = await matchVenue(hint, locationHint);
       if (venue) break;
     }
 
@@ -277,7 +312,7 @@ export async function importEventPoster(opts: {
         if (hit) {
           const { data: full } = await sb
             .from("venues")
-            .select("id, name, slug, city_id, city:cities(slug)")
+            .select("id, name, slug, address, city_id, city:cities(slug)")
             .eq("id", hit.id)
             .maybeSingle();
           if (full) {
@@ -306,14 +341,6 @@ export async function importEventPoster(opts: {
     if (!venue) {
       const name = bucketHints[0].trim().slice(0, 200);
 
-      const locCounts = new Map<string, number>();
-      for (const e of bucket.events) {
-        const l = (e as any).venue_location_hint?.trim();
-        if (l) locCounts.set(l, (locCounts.get(l) ?? 0) + 1);
-      }
-      const locationHint =
-        [...locCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? (singleBucket ? override : null);
-
       if (!citiesCache) {
         const { data: cities } = await sb.from("cities").select("id, slug, name");
         citiesCache = cities ?? [];
@@ -340,7 +367,7 @@ export async function importEventPoster(opts: {
             venue_type: "programmes",
             auto_imported: true,
           })
-          .select("id, name, slug, city_id, city:cities(slug)")
+          .select("id, name, slug, address, city_id, city:cities(slug)")
           .single();
         if (ins) { venue = ins as unknown as VenueRow; break; }
         if (error?.code === "23505") { slug = `${baseSlug}-${i + 2}`; continue; }
