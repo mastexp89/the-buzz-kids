@@ -24,6 +24,7 @@ const ALLOWED_KINDS = new Set([
   "click_bandcamp",
   "click_share",
   "click_ticket",
+  "click_calendar",
   "click_artist",
   "click_venue",
   "click_buzzguide",
