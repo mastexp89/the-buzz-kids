@@ -99,9 +99,11 @@ export async function GET(req: Request) {
     `👨‍👧 New signups: ${signups}\n` +
     `🎪 Events added: ${eventsAdded}\n` +
     `📝 Reviews left: ${reviews}\n` +
-    `📱 App devices:\n` +
+    `📱 App devices <i>(push-registered, not store downloads)</i>:\n` +
     `  🍎 iOS — +${newIos} new · ${activeIos} active this week · ${totalIos} total\n` +
-    `  🤖 Android — +${newAndroid} new · ${activeAndroid} active this week · ${totalAndroid} total`,
+    (totalAndroid === 0
+      ? `  🤖 Android — none ⚠️ push not configured (no FCM key), so Android devices never register`
+      : `  🤖 Android — +${newAndroid} new · ${activeAndroid} active this week · ${totalAndroid} total`),
     { silent: true },
   );
 
