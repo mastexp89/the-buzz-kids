@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formatLongDate, formatEventTime, pickEventIcon } from "@/lib/utils";
 import ShareButtons from "@/components/ShareButtons";
+import TrackedLink from "@/components/TrackedLink";
 import { trackPageView } from "@/lib/track";
 import AdminEditBar from "@/components/AdminEditBar";
 import AdminExpireEventButton from "@/components/AdminExpireEventButton";
@@ -321,9 +322,27 @@ export default async function EventPage({ params }: Props) {
 
             <div className="flex flex-wrap gap-3 mt-2">
               {event.ticket_url && (
-                <a href={event.ticket_url} target="_blank" rel="noreferrer" className="btn-primary btn-lg">Get tickets →</a>
+                <TrackedLink
+                  href={event.ticket_url}
+                  kind="click_ticket"
+                  eventId={event.id}
+                  venueId={venue?.id}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn-primary btn-lg"
+                >
+                  Get tickets →
+                </TrackedLink>
               )}
-              <a href={`/api/calendar/${event.id}`} className="btn-secondary btn-lg">📅 Add to calendar</a>
+              <TrackedLink
+                href={`/api/calendar/${event.id}`}
+                kind="click_calendar"
+                eventId={event.id}
+                venueId={venue?.id}
+                className="btn-secondary btn-lg"
+              >
+                📅 Add to calendar
+              </TrackedLink>
               {venue && (
                 <Link href={`/${citySlug}/venues/${venue.slug}`} className="btn-secondary btn-lg">Place info</Link>
               )}
@@ -336,7 +355,12 @@ export default async function EventPage({ params }: Props) {
             </div>
 
             <div className="pt-3 border-t border-buzz-border/50">
-              <ShareButtons url={`${siteUrl}/${citySlug}/events/${event.id}`} title={`${event.title} at ${placeName}`} />
+              <ShareButtons
+                url={`${siteUrl}/${citySlug}/events/${event.id}`}
+                title={`${event.title} at ${placeName}`}
+                eventId={event.id}
+                venueId={venue?.id}
+              />
             </div>
 
             <div className="pt-1">

@@ -7,15 +7,44 @@ export default function ShareButtons({
   url,
   title,
   size = "md",
+  venueId,
+  artistId,
+  eventId,
 }: {
   url: string;
   title: string;
   size?: "sm" | "md";
+  // Optional analytics context — when given, each share fires a
+  // click_share beacon so /admin analytics can show what gets shared.
+  venueId?: string;
+  artistId?: string;
+  eventId?: string;
 }) {
   const [copied, setCopied] = useState(false);
 
   const text = encodeURIComponent(title);
   const enc = encodeURIComponent(url);
+
+  // Fire-and-forget share tracking. The endpoint needs a target, so this
+  // no-ops when the caller didn't pass one.
+  function trackShare() {
+    if (!venueId && !artistId && !eventId) return;
+    try {
+      const payload = JSON.stringify({ kind: "click_share", venueId, artistId, eventId });
+      if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+        navigator.sendBeacon("/api/track", new Blob([payload], { type: "application/json" }));
+      } else if (typeof fetch !== "undefined") {
+        fetch("/api/track", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: payload,
+          keepalive: true,
+        }).catch(() => {});
+      }
+    } catch {
+      // Never let analytics break a share
+    }
+  }
 
   const links = {
     whatsapp: `https://wa.me/?text=${text}%20${enc}`,
@@ -24,6 +53,7 @@ export default function ShareButtons({
   };
 
   async function copy() {
+    trackShare();
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
@@ -47,6 +77,7 @@ export default function ShareButtons({
         href={links.whatsapp}
         target="_blank"
         rel="noreferrer"
+        onClick={trackShare}
         aria-label="Share on WhatsApp"
         className={btn}
         title="WhatsApp"
@@ -58,6 +89,7 @@ export default function ShareButtons({
         href={links.twitter}
         target="_blank"
         rel="noreferrer"
+        onClick={trackShare}
         aria-label="Share on X"
         className={btn}
         title="X"
@@ -69,6 +101,7 @@ export default function ShareButtons({
         href={links.facebook}
         target="_blank"
         rel="noreferrer"
+        onClick={trackShare}
         aria-label="Share on Facebook"
         className={btn}
         title="Facebook"
