@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/service";
-import { tgApi, sendTelegram, tgEsc, tgDate, tgBotId, tgBotUsername } from "@/lib/telegram";
+import { tgApi, sendTelegram, tgEsc, tgDate, tgBotId, tgBotUsername, packUuid, unpackUuid } from "@/lib/telegram";
 import {
   resolveDefaultReviewerId,
   approveEventCore,
@@ -73,21 +73,6 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true });
 }
 
-// Telegram caps callback_data at 64 bytes — two 36-char UUIDs don't fit,
-// so pack each to 22 base64url chars ("vp:<target>:<imported>" = 48).
-function packUuid(id: string): string {
-  return Buffer.from(id.replace(/-/g, ""), "hex").toString("base64url");
-}
-function unpackUuid(s: string): string | null {
-  try {
-    const h = Buffer.from(s, "base64url").toString("hex");
-    if (h.length !== 32) return null;
-    return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
-  } catch {
-    return null;
-  }
-}
-
 function isAdminChat(chatId: unknown): boolean {
   const expected = process.env.TELEGRAM_CHAT_ID;
   return Boolean(expected && String(chatId) === String(expected));
@@ -126,6 +111,33 @@ async function handleCallback(cb: any) {
       chat_id: cb.message.chat.id,
       message_id: cb.message.message_id,
       reply_markup: { inline_keyboard: [] },
+    });
+    return;
+  }
+
+  // "Wrong place?" button on an event card → prompt for a few letters. The
+  // prompt carries the event id and force-replies (selective, so only the
+  // admin who tapped gets the reply box), feeding the search handler.
+  if (data.startsWith("ew:")) {
+    const eventId = unpackUuid(data.slice(3));
+    if (!eventId) {
+      await answer("Couldn't resolve that event.", true);
+      return;
+    }
+    await answer("Type the first few letters of the right place");
+    const who = [cb.from?.first_name, cb.from?.last_name].filter(Boolean).join(" ") || "Admin";
+    await tgApi("sendMessage", {
+      chat_id: cb.message.chat.id,
+      text:
+        `<a href="tg://user?id=${cb.from?.id}">${tgEsc(who)}</a> — which place should this event be at?\n` +
+        `Send the first few letters (e.g. <code>camp</code>) and I'll list the matches.\n` +
+        `ID: <code>${eventId}</code>`,
+      parse_mode: "HTML",
+      reply_markup: {
+        force_reply: true,
+        selective: true,
+        input_field_placeholder: "First letters of the place…",
+      },
     });
     return;
   }
