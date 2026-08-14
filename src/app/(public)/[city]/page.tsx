@@ -8,6 +8,7 @@ import CitySwitcher from "@/components/CitySwitcher";
 import SponsorBanner from "@/components/SponsorBanner";
 import WeatherStrip, { type WeatherArea } from "@/components/WeatherStrip";
 import { fetchPlaces, openDayKeysFor } from "@/lib/places";
+import { categoriesForCity, safeJsonLd } from "@/lib/city-guide";
 import { trackPageView } from "@/lib/track";
 
 export const dynamic = "force-dynamic";
@@ -71,27 +72,45 @@ export default async function CityPage({ params, searchParams }: Props) {
     dogOnly: sp.dog === "1",
   });
 
+  // Categories with real content in this city — drives the "Explore" link
+  // block and the content-gated category landing pages (never empty ones).
+  const guideCats = await categoriesForCity(supabase, city.id, 3);
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: `Things to do in ${city.name} with kids`,
+    itemListElement: (places as any[]).slice(0, 30).map((p, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: p.name,
+    })),
+  };
+
   return (
     <div>
       <section className="border-b border-buzz-border bg-grain">
         <div className="container-page py-10 sm:py-14">
           <CitySwitcher cities={cities ?? []} current={city.slug} />
           <div className="mt-4 flex flex-col gap-2">
-            <p className="eyebrow">Things to do in</p>
-            <h1 className="h-display text-5xl sm:text-7xl">
-              {city.name}<span className="text-buzz-accent">.</span>
+            <p className="eyebrow">Family days out</p>
+            <h1 className="h-display text-4xl sm:text-6xl">
+              Things to do in {city.name} with kids<span className="text-buzz-accent">.</span>
             </h1>
             {Array.isArray((city as any).nearby_areas) && (city as any).nearby_areas.length > 0 && (
               <p className="text-xs text-buzz-mute mt-1">
                 Covering {(city as any).nearby_areas.join(", ")}
               </p>
             )}
+            <p className="text-buzz-mute mt-1 max-w-2xl">
+              {places.length === 0
+                ? `We're still adding family days out in ${city.name} — check back soon.`
+                : `The best family days out in ${city.name} — ${places.length} place${places.length === 1 ? "" : "s"} to explore, from soft play and farm parks to holiday clubs and theatre. Filter by age, price and indoor or outdoor to plan your day.`}
+            </p>
             <div className="flex flex-wrap items-center gap-3 mt-1">
-              <p className="text-buzz-mute">
-                {places.length === 0
-                  ? "Nothing listed here yet."
-                  : "Places to explore."}
-              </p>
+              <Link href={`/${city.slug}/whats-on`} className="text-sm text-buzz-accent hover:text-buzz-accent2 font-medium">
+                📅 What&apos;s on in {city.name} →
+              </Link>
               <Link href={`/${city.slug}/map`} className="text-sm text-buzz-accent hover:text-buzz-accent2">
                 🗺️ Map view →
               </Link>
@@ -99,6 +118,23 @@ export default async function CityPage({ params, searchParams }: Props) {
           </div>
         </div>
       </section>
+
+      {/* Explore {City}: internal links to the content-backed category pages
+          (SEO + discovery). Only categories with real listings appear. */}
+      {guideCats.length > 0 && (
+        <section className="border-b border-buzz-border">
+          <div className="container-page py-5">
+            <p className="text-xs uppercase tracking-wider text-buzz-mute mb-2">Explore {city.name}</p>
+            <div className="flex flex-wrap gap-2">
+              {guideCats.map((c) => (
+                <Link key={c.slug} href={`/${city.slug}/${c.slug}`} className="filter-pill">
+                  {c.name} <span className="text-buzz-mute">({c.count})</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Area-targeted sponsor ad (falls back to nationwide). Renders nothing
           when none are live for this area. */}
@@ -139,6 +175,8 @@ export default async function CityPage({ params, searchParams }: Props) {
           <PlacesGrid places={places.map((p: any) => ({ ...p, city: { slug: city.slug } }))} isAdmin={isAdmin} />
         )}
       </div>
+
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
     </div>
   );
 }
