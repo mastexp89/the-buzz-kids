@@ -191,6 +191,41 @@ export async function reassignImportedEventsCore(
   return { ok: true, targetName: target.name, moved: moved ?? [] };
 }
 
+/**
+ * Move a single event to a different place — the "wrong place?" fix for
+ * events the importer matched (rather than created). Leaves status alone.
+ */
+export async function moveEventToVenueCore(
+  _reviewerId: string,
+  eventId: string,
+  targetVenueId: string,
+): Promise<
+  | { ok: true; title: string; startTime: string; status: string; venueName: string; venueSlug: string | null; citySlug: string | null }
+  | { error: string }
+> {
+  const sb = createServiceClient();
+  const [{ data: ev }, { data: target }] = await Promise.all([
+    sb.from("events").select("id, title, start_time, status, venue_id").eq("id", eventId).maybeSingle(),
+    sb.from("venues").select("id, name, slug, city:cities(slug)").eq("id", targetVenueId).maybeSingle(),
+  ]);
+  if (!ev) return { error: "Event not found (already deleted?)." };
+  if (!target) return { error: "Place not found." };
+  if (ev.venue_id === targetVenueId) return { error: `Already at ${target.name}.` };
+
+  const { error } = await sb.from("events").update({ venue_id: targetVenueId }).eq("id", eventId);
+  if (error) return { error: error.message };
+
+  return {
+    ok: true,
+    title: ev.title,
+    startTime: ev.start_time,
+    status: ev.status,
+    venueName: target.name,
+    venueSlug: target.slug ?? null,
+    citySlug: (target as any).city?.slug ?? null,
+  };
+}
+
 // ---------- Place claims (Take Ownership) ----------
 
 export async function approveVenueClaimCore(

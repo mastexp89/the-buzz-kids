@@ -186,7 +186,8 @@ export function tgNewGig(opts: {
     `📍 ${tgEsc(opts.venueName)}\n` +
     `🗓 ${tgEsc(tgDate(opts.startTime))}\n` +
     `Via ${tgEsc(opts.source)} · ${tgEsc(opts.byEmail ?? "—")}\n` +
-    `ID: <code>${opts.eventId}</code>`;
+    `ID: <code>${opts.eventId}</code>\n` +
+    `<i>Wrong place? Reply with the first few letters of the right one.</i>`;
   const buttons: TgButton[][] = opts.status === "pending"
     ? [[
         { text: "✅ Approve", callback_data: CB.approveEvent(opts.eventId) },
