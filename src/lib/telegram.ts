@@ -84,6 +84,21 @@ export async function sendTelegram(
   return result != null;
 }
 
+// Telegram caps callback_data at 64 bytes — a 36-char UUID plus a second
+// one doesn't fit, so pack each to 22 base64url chars.
+export function packUuid(id: string): string {
+  return Buffer.from(id.replace(/-/g, ""), "hex").toString("base64url");
+}
+export function unpackUuid(s: string): string | null {
+  try {
+    const h = Buffer.from(s, "base64url").toString("hex");
+    if (h.length !== 32) return null;
+    return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+  } catch {
+    return null;
+  }
+}
+
 export function tgEsc(s: string | null | undefined): string {
   return String(s ?? "")
     .replace(/&/g, "&amp;")
@@ -142,6 +157,8 @@ export const CB = {
   rejectArtistClaim: (id: string) => `ac:rj:${id}`,
   deleteSuggestion: (id: string) => `sg:del:${id}`,
   dismissAggregatorPlace: (id: string) => `ag:di:${id}`,
+  // "Wrong place?" on an event card — opens the type-to-search picker.
+  wrongVenue: (id: string) => `ew:${packUuid(id)}`,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -186,14 +203,19 @@ export function tgNewGig(opts: {
     `📍 ${tgEsc(opts.venueName)}\n` +
     `🗓 ${tgEsc(tgDate(opts.startTime))}\n` +
     `Via ${tgEsc(opts.source)} · ${tgEsc(opts.byEmail ?? "—")}\n` +
-    `ID: <code>${opts.eventId}</code>\n` +
-    `<i>Wrong place? Reply with the first few letters of the right one.</i>`;
+    `ID: <code>${opts.eventId}</code>`;
+  const wrongVenueRow: TgButton[] = [
+    { text: "📍 Wrong place? Pick another", callback_data: CB.wrongVenue(opts.eventId) },
+  ];
   const buttons: TgButton[][] = opts.status === "pending"
-    ? [[
-        { text: "✅ Approve", callback_data: CB.approveEvent(opts.eventId) },
-        { text: "❌ Reject", callback_data: CB.rejectEvent(opts.eventId) },
-      ]]
-    : [];
+    ? [
+        [
+          { text: "✅ Approve", callback_data: CB.approveEvent(opts.eventId) },
+          { text: "❌ Reject", callback_data: CB.rejectEvent(opts.eventId) },
+        ],
+        wrongVenueRow,
+      ]
+    : [wrongVenueRow];
   return sendTelegram(text, { buttons, silent: opts.status === "approved" });
 }
 
