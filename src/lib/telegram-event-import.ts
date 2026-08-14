@@ -155,6 +155,48 @@ export async function findVenueCandidates(
     .map((x) => ({ id: x.v.id, name: x.v.name }));
 }
 
+/**
+ * Type-to-search over saved places for the "wrong place?" reply flow —
+ * a few letters is enough. Prefix matches rank first, then substring;
+ * falls back to fuzzy scoring so typos still find something.
+ */
+export async function searchVenuesByQuery(
+  query: string,
+  limit = 8,
+): Promise<{ id: string; name: string; citySlug: string | null }[]> {
+  const sb = createServiceClient();
+  const term = query.trim().replace(/[%_]/g, "");
+  if (term.length < 2) return [];
+
+  const { data } = await sb
+    .from("venues")
+    .select("id, name, city:cities(slug)")
+    .eq("approved", true)
+    .ilike("name", `%${term}%`)
+    .limit(50);
+
+  const rows = (data ?? []).map((v: any) => ({
+    id: v.id as string,
+    name: v.name as string,
+    citySlug: (v.city?.slug ?? null) as string | null,
+  }));
+
+  if (rows.length > 0) {
+    const t = norm(term);
+    return rows
+      .sort((a, b) => {
+        const an = norm(a.name), bn = norm(b.name);
+        const rank = (n: string) => (n.startsWith(t) ? 0 : 1);
+        return rank(an) - rank(bn) || a.name.localeCompare(b.name);
+      })
+      .slice(0, limit);
+  }
+
+  // Nothing contained the term — fall back to typo-tolerant scoring.
+  const fuzzy = await findVenueCandidates(term, limit);
+  return fuzzy.map((v) => ({ id: v.id, name: v.name, citySlug: null }));
+}
+
 type VenueRow = {
   id: string;
   name: string;
