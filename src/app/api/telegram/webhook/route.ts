@@ -23,7 +23,7 @@ import {
   dismissAggregatorPlaceCore,
 } from "@/lib/moderation";
 import { sendAdminReplyToUser } from "@/lib/admin-reply";
-import { importEventPoster, findVenueCandidates } from "@/lib/telegram-event-import";
+import { importEventPoster, findVenueCandidates, searchVenuesByQuery } from "@/lib/telegram-event-import";
 import { tgNewGig } from "@/lib/telegram";
 import { uploadPosterFromUrl } from "@/lib/poster-storage";
 import { sendPendingEventButtons, sendAggregatorPlaceCards } from "@/lib/telegram-queue";
@@ -72,6 +72,21 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true });
 }
 
+// Telegram caps callback_data at 64 bytes — two 36-char UUIDs don't fit,
+// so pack each to 22 base64url chars ("vp:<target>:<imported>" = 48).
+function packUuid(id: string): string {
+  return Buffer.from(id.replace(/-/g, ""), "hex").toString("base64url");
+}
+function unpackUuid(s: string): string | null {
+  try {
+    const h = Buffer.from(s, "base64url").toString("hex");
+    if (h.length !== 32) return null;
+    return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+  } catch {
+    return null;
+  }
+}
+
 function isAdminChat(chatId: unknown): boolean {
   const expected = process.env.TELEGRAM_CHAT_ID;
   return Boolean(expected && String(chatId) === String(expected));
@@ -111,6 +126,47 @@ async function handleCallback(cb: any) {
       message_id: cb.message.message_id,
       reply_markup: { inline_keyboard: [] },
     });
+    return;
+  }
+
+  // Type-to-search pick: "vp:<target>:<imported>", both packed UUIDs.
+  const vpMatch = data.match(/^vp:([A-Za-z0-9_-]{22}):([A-Za-z0-9_-]{22})$/);
+  if (vpMatch) {
+    const targetId = unpackUuid(vpMatch[1]);
+    const importedId = unpackUuid(vpMatch[2]);
+    const reviewerId = await resolveDefaultReviewerId();
+    if (!targetId || !importedId || !reviewerId) {
+      await answer("Couldn't resolve that pick — use the admin queue.", true);
+      return;
+    }
+    const res = await reassignImportedEventsCore(reviewerId, importedId, targetId);
+    if ("error" in res) {
+      await answer(res.error, true);
+      return;
+    }
+    await answer(`Moved to ${res.targetName} ✅`.slice(0, 190));
+    await tgApi("editMessageReplyMarkup", {
+      chat_id: cb.message.chat.id,
+      message_id: cb.message.message_id,
+      reply_markup: { inline_keyboard: [] },
+    });
+    const mover = [cb.from?.first_name, cb.from?.last_name].filter(Boolean).join(" ") || "an admin";
+    await sendTelegram(
+      `📦 Moved ${res.moved.length} event${res.moved.length === 1 ? "" : "s"} to <b>${tgEsc(res.targetName)}</b> (by ${tgEsc(mover)}) — approve below.`,
+      { replyTo: cb.message.message_id, silent: true },
+    );
+    for (const ev of res.moved) {
+      await tgNewGig({
+        eventId: ev.id,
+        title: ev.title,
+        venueName: res.targetName,
+        startTime: ev.start_time,
+        byEmail: null,
+        status: "pending",
+        source: "poster import (place corrected)",
+      });
+    }
+    try { revalidatePath("/admin/queue"); } catch { /* ok */ }
     return;
   }
 
@@ -326,38 +382,27 @@ async function handleMessage(msg: any) {
 
     const venueIdMatch = repliedToUs ? repliedText.match(/Venue ID:\s*([0-9a-f-]{36})/i) : null;
     if (venueIdMatch) {
+      // Type a few letters → pick the right place from a list, rather than
+      // guessing at the single best match.
       const typed = msg.text.trim();
-      const reviewerId = await resolveDefaultReviewerId();
-      if (!reviewerId) return;
-      const cands = await findVenueCandidates(typed, 1);
-      if (!cands.length) {
+      const results = await searchVenuesByQuery(typed, 8);
+      if (!results.length) {
         await sendTelegram(
-          `🤔 Couldn't find a place matching “${tgEsc(typed)}” — check the name on the site and reply again, or use the admin queue.`,
+          `🤔 No saved place matches “${tgEsc(typed)}”. Try fewer letters, or check the name on the site.`,
           { replyTo: msg.message_id },
         );
         return;
       }
-      const res = await reassignImportedEventsCore(reviewerId, venueIdMatch[1], cands[0].id);
-      if ("error" in res) {
-        await sendTelegram(`❌ ${tgEsc(res.error)}`, { replyTo: msg.message_id });
-        return;
-      }
       await sendTelegram(
-        `📦 Moved ${res.moved.length} event${res.moved.length === 1 ? "" : "s"} to <b>${tgEsc(res.targetName)}</b> — approve below.`,
-        { replyTo: msg.message_id, silent: true },
+        `🔎 <b>${results.length} place${results.length === 1 ? "" : "s"} matching “${tgEsc(typed)}”</b> — tap the right one and I'll move the event${results.length === 1 ? "" : "s"} there:`,
+        {
+          replyTo: msg.message_id,
+          buttons: results.map((v) => [{
+            text: `📍 ${v.name}${v.citySlug ? ` (${v.citySlug})` : ""}`.slice(0, 60),
+            callback_data: `vp:${packUuid(v.id)}:${packUuid(venueIdMatch[1])}`,
+          }]),
+        },
       );
-      for (const ev of res.moved) {
-        await tgNewGig({
-          eventId: ev.id,
-          title: ev.title,
-          venueName: res.targetName,
-          startTime: ev.start_time,
-          byEmail: null,
-          status: "pending",
-          source: "poster import (place corrected)",
-        });
-      }
-      try { revalidatePath("/admin/queue"); } catch { /* ok */ }
       return;
     }
 
@@ -520,7 +565,7 @@ async function handleEventSubmission(
         `${lines}\n` +
         `Via ${tgEsc(senderLabel)}\n` +
         `Approving publishes the place AND the event${v.created.length === 1 ? "" : "s"}; discarding deletes both.\n` +
-        `Wrong place? Reply to this message with the correct place name and I'll move the event${v.created.length === 1 ? "" : "s"} there.\n` +
+        `Wrong place? Reply to this message with the first few letters of the right one and I'll show you matching places to pick from.\n` +
         `Venue ID: <code>${v.venueId}</code>`,
         {
           buttons: [
