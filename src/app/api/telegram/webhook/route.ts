@@ -12,6 +12,7 @@ import {
   approveVenueWithGigsCore,
   discardImportedVenueCore,
   reassignImportedEventsCore,
+  moveEventToVenueCore,
   approveVenueClaimCore,
   rejectVenueClaimCore,
   approveArtistClaimCore,
@@ -126,6 +127,53 @@ async function handleCallback(cb: any) {
       message_id: cb.message.message_id,
       reply_markup: { inline_keyboard: [] },
     });
+    return;
+  }
+
+  // Move one already-created event to another place: "em:<venue>:<event>".
+  const emMatch = data.match(/^em:([A-Za-z0-9_-]{22}):([A-Za-z0-9_-]{22})$/);
+  if (emMatch) {
+    const targetId = unpackUuid(emMatch[1]);
+    const eventId = unpackUuid(emMatch[2]);
+    const reviewerId = await resolveDefaultReviewerId();
+    if (!targetId || !eventId || !reviewerId) {
+      await answer("Couldn't resolve that pick — use the admin queue.", true);
+      return;
+    }
+    const res = await moveEventToVenueCore(reviewerId, eventId, targetId);
+    if ("error" in res) {
+      await answer(res.error, true);
+      return;
+    }
+    await answer(`Moved to ${res.venueName} ✅`.slice(0, 190));
+    await tgApi("editMessageReplyMarkup", {
+      chat_id: cb.message.chat.id,
+      message_id: cb.message.message_id,
+      reply_markup: { inline_keyboard: [] },
+    });
+    const mover = [cb.from?.first_name, cb.from?.last_name].filter(Boolean).join(" ") || "an admin";
+    await sendTelegram(
+      `📦 <b>${tgEsc(res.title)}</b> moved to <b>${tgEsc(res.venueName)}</b> (by ${tgEsc(mover)}).`,
+      { replyTo: cb.message.message_id, silent: true },
+    );
+    // Re-post the card at the correct place so the old one can't be
+    // approved by mistake (its buttons were just removed).
+    await tgNewGig({
+      eventId,
+      title: res.title,
+      venueName: res.venueName,
+      startTime: res.startTime,
+      byEmail: null,
+      status: res.status === "approved" ? "approved" : "pending",
+      source: "place corrected",
+    });
+    try {
+      revalidatePath("/admin/queue");
+      if (res.citySlug) {
+        revalidatePath(`/${res.citySlug}`);
+        if (res.venueSlug) revalidatePath(`/${res.citySlug}/venues/${res.venueSlug}`);
+      }
+    } catch { /* ok */ }
     return;
   }
 
@@ -400,6 +448,33 @@ async function handleMessage(msg: any) {
           buttons: results.map((v) => [{
             text: `📍 ${v.name}${v.citySlug ? ` (${v.citySlug})` : ""}`.slice(0, 60),
             callback_data: `vp:${packUuid(v.id)}:${packUuid(venueIdMatch[1])}`,
+          }]),
+        },
+      );
+      return;
+    }
+
+    // Reply to an EVENT card (its own line reads "ID: <uuid>", so the
+    // new-place card's "Venue ID:" can't match here) → place search that
+    // moves that one event.
+    const eventIdMatch = repliedToUs ? repliedText.match(/(?:^|\n)ID:\s*([0-9a-f-]{36})/i) : null;
+    if (eventIdMatch) {
+      const typed = msg.text.trim();
+      const results = await searchVenuesByQuery(typed, 8);
+      if (!results.length) {
+        await sendTelegram(
+          `🤔 No saved place matches “${tgEsc(typed)}”. Try fewer letters, or check the name on the site.`,
+          { replyTo: msg.message_id },
+        );
+        return;
+      }
+      await sendTelegram(
+        `🔎 <b>${results.length} place${results.length === 1 ? "" : "s"} matching “${tgEsc(typed)}”</b> — tap the right one and I'll move this event there:`,
+        {
+          replyTo: msg.message_id,
+          buttons: results.map((v) => [{
+            text: `📍 ${v.name}${v.citySlug ? ` (${v.citySlug})` : ""}`.slice(0, 60),
+            callback_data: `em:${packUuid(v.id)}:${packUuid(eventIdMatch[1])}`,
           }]),
         },
       );
