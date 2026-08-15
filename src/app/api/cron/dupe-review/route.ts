@@ -80,7 +80,13 @@ export async function GET(req: Request) {
         const similarTitle =
           na === nb ||
           (na.length >= 6 && nb.length >= 6 && (na.includes(nb) || nb.includes(na)));
-        if (sameHour || similarTitle) {
+        // Same activity, same place, hours apart is a legitimate repeat
+        // session (morning + afternoon soft play, two show times) — not a
+        // duplicate. Only treat matching titles as suspect when they're
+        // close in time; a real duplicate lands within the hour.
+        const minutesApart =
+          Math.abs(new Date(a.start_time).getTime() - new Date(b.start_time).getTime()) / 60000;
+        if (sameHour || (similarTitle && minutesApart <= 90)) {
           pairs.push([a, b]);
           used.add(a.id);
           used.add(b.id);
