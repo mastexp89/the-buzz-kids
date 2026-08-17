@@ -25,8 +25,10 @@ update public.venues
    set google_photo_url = null
  where google_photo_url like '%googleusercontent.com%';
 
+-- NB: venues.gallery_image_urls is NOT NULL (defaults to '{}'), so empty the
+-- array rather than nulling it.
 update public.venues
-   set gallery_image_urls = null
+   set gallery_image_urls = '{}'::text[]
  where gallery_image_urls is not null
    and array_to_string(gallery_image_urls, ',') like '%googleusercontent.com%';
 
@@ -36,7 +38,7 @@ update public.stays
  where photo_url like '%googleusercontent.com%';
 
 update public.stays
-   set gallery_image_urls = null
+   set gallery_image_urls = '{}'::text[]
  where gallery_image_urls is not null
    and array_to_string(gallery_image_urls, ',') like '%googleusercontent.com%';
 
