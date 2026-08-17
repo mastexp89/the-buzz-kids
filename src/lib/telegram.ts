@@ -193,8 +193,13 @@ export function tgNewGig(opts: {
   byEmail: string | null;
   status: "pending" | "approved";
   source: string;
+  // True when the event is pending the PLACE OWNER's approval (claimed
+  // place) rather than ours — we're told, but it's not our call.
+  awaitingOwner?: boolean;
 }) {
-  const head = opts.status === "pending"
+  const head = opts.awaitingOwner
+    ? "🎪 <b>New event — with the place owner</b>"
+    : opts.status === "pending"
     ? "🎪 <b>New event — needs approval</b>"
     : "🎪 <b>New event added</b>";
   const text =
@@ -203,11 +208,20 @@ export function tgNewGig(opts: {
     `📍 ${tgEsc(opts.venueName)}\n` +
     `🗓 ${tgEsc(tgDate(opts.startTime))}\n` +
     `Via ${tgEsc(opts.source)} · ${tgEsc(opts.byEmail ?? "—")}\n` +
+    (opts.awaitingOwner
+      ? `<i>${tgEsc(opts.venueName)} owns this page — they've been emailed to approve it. No action needed unless they don't.</i>\n`
+      : "") +
     `ID: <code>${opts.eventId}</code>`;
   const wrongVenueRow: TgButton[] = [
     { text: "📍 Wrong place? Pick another", callback_data: CB.wrongVenue(opts.eventId) },
   ];
-  const buttons: TgButton[][] = opts.status === "pending"
+  const buttons: TgButton[][] = opts.awaitingOwner
+    ? [
+        // Override only — the place owner is the intended approver.
+        [{ text: "✅ Approve on their behalf", callback_data: CB.approveEvent(opts.eventId) }],
+        wrongVenueRow,
+      ]
+    : opts.status === "pending"
     ? [
         [
           { text: "✅ Approve", callback_data: CB.approveEvent(opts.eventId) },
@@ -216,7 +230,10 @@ export function tgNewGig(opts: {
         wrongVenueRow,
       ]
     : [wrongVenueRow];
-  return sendTelegram(text, { buttons, silent: opts.status === "approved" });
+  return sendTelegram(text, {
+    buttons,
+    silent: opts.status === "approved" || !!opts.awaitingOwner,
+  });
 }
 
 export function tgVenueSuggestion(opts: {

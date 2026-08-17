@@ -183,6 +183,8 @@ export async function submitGig(formData: FormData): Promise<SubmitGigResult> {
       venueId: venue.id,
       eventId: created.id,
       status,
+      // Claimed place → the OWNER approves this one, not us.
+      awaitingOwner: !autoApprove && !!venue.owner_id,
     }).catch(() => {});
 
     // Only ping the venue owner if there is one AND the gig is awaiting approval

@@ -301,6 +301,8 @@ export function notifyPendingGig(opts: {
   // it went live immediately or is pending.
   eventId?: string;
   status?: "pending" | "approved";
+  // True when a claimed place's owner is the one who approves this.
+  awaitingOwner?: boolean;
 }) {
   if (opts.eventId) {
     tgNewGig({
@@ -311,6 +313,7 @@ export function notifyPendingGig(opts: {
       byEmail: opts.submitterEmail,
       status: opts.status ?? "pending",
       source: "public submission",
+      awaitingOwner: opts.awaitingOwner,
     }).catch(() => {});
   }
   return sendBrandedEmail({
