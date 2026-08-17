@@ -13,6 +13,8 @@ import {
   discardImportedVenueCore,
   reassignImportedEventsCore,
   moveEventToVenueCore,
+  setVenueCityCore,
+  listCities,
   approveVenueClaimCore,
   rejectVenueClaimCore,
   approveArtistClaimCore,
@@ -112,6 +114,65 @@ async function handleCallback(cb: any) {
       message_id: cb.message.message_id,
       reply_markup: { inline_keyboard: [] },
     });
+    return;
+  }
+
+  // "Change region" on a new-place card → list the regions as buttons.
+  if (data.startsWith("vr0:")) {
+    const venueId = unpackUuid(data.slice(4));
+    if (!venueId) {
+      await answer("Couldn't resolve that place.", true);
+      return;
+    }
+    await answer("Pick the right region");
+    const cities = await listCities();
+    const rows: { text: string; callback_data: string }[][] = [];
+    for (let i = 0; i < cities.length; i += 2) {
+      rows.push(
+        cities.slice(i, i + 2).map((c) => ({
+          text: `📍 ${c.name}`,
+          callback_data: `vr:${packUuid(c.id)}:${packUuid(venueId)}`,
+        })),
+      );
+    }
+    await sendTelegram(`🌍 <b>Which region is this place in?</b>`, {
+      replyTo: cb.message.message_id,
+      buttons: rows,
+    });
+    return;
+  }
+
+  // Region picked: "vr:<city>:<venue>".
+  const vrMatch = data.match(/^vr:([A-Za-z0-9_-]{22}):([A-Za-z0-9_-]{22})$/);
+  if (vrMatch) {
+    const cityId = unpackUuid(vrMatch[1]);
+    const venueId = unpackUuid(vrMatch[2]);
+    const reviewerId = await resolveDefaultReviewerId();
+    if (!cityId || !venueId || !reviewerId) {
+      await answer("Couldn't resolve that pick — use the admin queue.", true);
+      return;
+    }
+    const res = await setVenueCityCore(reviewerId, venueId, cityId);
+    if ("error" in res) {
+      await answer(res.error, true);
+      return;
+    }
+    await answer(`Moved to ${res.cityName} ✅`.slice(0, 190));
+    await tgApi("editMessageReplyMarkup", {
+      chat_id: cb.message.chat.id,
+      message_id: cb.message.message_id,
+      reply_markup: { inline_keyboard: [] },
+    });
+    const who = [cb.from?.first_name, cb.from?.last_name].filter(Boolean).join(" ") || "an admin";
+    await sendTelegram(
+      `🌍 <b>${tgEsc(res.venueName)}</b> is now filed under <b>${tgEsc(res.cityName)}</b> (by ${tgEsc(who)}).`,
+      { replyTo: cb.message.message_id, silent: true },
+    );
+    try {
+      revalidatePath("/admin/queue");
+      revalidatePath(`/${res.citySlug}`);
+      if (res.venueSlug) revalidatePath(`/${res.citySlug}/venues/${res.venueSlug}`);
+    } catch { /* ok */ }
     return;
   }
 
@@ -660,6 +721,7 @@ async function handleEventSubmission(
               { text: "✅ Approve place + events", callback_data: `vn:ok:${v.venueId}` },
               { text: "🗑 Discard", callback_data: `vn:del:${v.venueId}` },
             ],
+            [{ text: `🌍 Change region (now: ${v.citySlug ?? "—"})`, callback_data: `vr0:${packUuid(v.venueId)}` }],
             ...v.candidates.map((c, i) => [
               { text: `📍 It's ${c.name.slice(0, 40)}`, callback_data: `vm:${i}:${v.venueId}` },
             ]),

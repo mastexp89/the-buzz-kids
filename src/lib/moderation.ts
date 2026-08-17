@@ -192,6 +192,42 @@ export async function reassignImportedEventsCore(
 }
 
 /**
+ * Re-file a place under a different region — the fix for the poster
+ * importer's Dundee fallback when a poster shows no usable address.
+ */
+export async function setVenueCityCore(
+  _reviewerId: string,
+  venueId: string,
+  cityId: string,
+): Promise<{ ok: true; venueName: string; cityName: string; citySlug: string; venueSlug: string | null } | { error: string }> {
+  const sb = createServiceClient();
+  const [{ data: venue }, { data: city }] = await Promise.all([
+    sb.from("venues").select("id, name, slug").eq("id", venueId).maybeSingle(),
+    sb.from("cities").select("id, name, slug").eq("id", cityId).maybeSingle(),
+  ]);
+  if (!venue) return { error: "Place not found." };
+  if (!city) return { error: "Region not found." };
+
+  const { error } = await sb.from("venues").update({ city_id: cityId }).eq("id", venueId);
+  if (error) return { error: error.message };
+
+  return {
+    ok: true,
+    venueName: venue.name,
+    cityName: city.name,
+    citySlug: city.slug,
+    venueSlug: venue.slug ?? null,
+  };
+}
+
+/** Regions for the "change region" picker, in display order. */
+export async function listCities(): Promise<{ id: string; name: string; slug: string }[]> {
+  const sb = createServiceClient();
+  const { data } = await sb.from("cities").select("id, name, slug").order("name");
+  return data ?? [];
+}
+
+/**
  * Move a single event to a different place — the "wrong place?" fix for
  * events the importer matched (rather than created). Leaves status alone.
  */
