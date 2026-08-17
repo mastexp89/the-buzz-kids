@@ -38,3 +38,21 @@ export async function runImageRestore(): Promise<RestoreRunResult> {
   if (restored > 0) revalidatePath("/");
   return { ok: true, processed, restored, remaining, failures: failures.slice(0, 40) };
 }
+
+// Clear the "already tried" mark on venues we still have no image for, so a
+// fresh pass can retry them (e.g. after improving how we fetch).
+export async function resetFailedAttempts(): Promise<{ ok: boolean; reset: number; error?: string }> {
+  if (!(await requireAdmin())) return { ok: false, reset: 0, error: "Admins only." };
+  const sb = createServiceClient();
+  const { data, error } = await sb
+    .from("venues")
+    .update({ image_restore_attempt: null })
+    .eq("approved", true)
+    .is("cover_photo_url", null)
+    .not("website", "is", null)
+    .not("image_restore_attempt", "is", null)
+    .select("id");
+  if (error) return { ok: false, reset: 0, error: error.message };
+  revalidatePath("/admin/restore-images");
+  return { ok: true, reset: (data ?? []).length };
+}
