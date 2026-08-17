@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { runImageRestore } from "./actions";
+import { runImageRestore, resetFailedAttempts } from "./actions";
 
 export default function RunRestore({ startRemaining }: { startRemaining: number }) {
   const router = useRouter();
@@ -35,11 +35,33 @@ export default function RunRestore({ startRemaining }: { startRemaining: number 
 
   const pct = stats && stats.processed > 0 ? Math.round((stats.restored / stats.processed) * 100) : 0;
 
+  async function retryFailed() {
+    setBusy(true); setError(null);
+    try {
+      const r = await resetFailedAttempts();
+      if (r.error) { setError(r.error); setBusy(false); return; }
+      setBusy(false);
+      if (r.reset > 0) await run();
+      else setError("Nothing to retry.");
+    } catch (e: any) {
+      setError(e?.message ?? "Retry failed");
+      setBusy(false);
+    }
+  }
+
   return (
     <div>
-      <button onClick={run} disabled={busy} className="btn-primary text-sm disabled:opacity-50">
-        {busy ? "Restoring images…" : startRemaining > 0 ? `🖼️ Restore images (${startRemaining} to do)` : "🖼️ Restore images"}
-      </button>
+      <div className="flex gap-2 flex-wrap items-center">
+        <button onClick={run} disabled={busy} className="btn-primary text-sm disabled:opacity-50">
+          {busy ? "Restoring images…" : startRemaining > 0 ? `🖼️ Restore images (${startRemaining} to do)` : "🖼️ Restore images"}
+        </button>
+        <button onClick={retryFailed} disabled={busy} className="btn-secondary text-sm disabled:opacity-50">
+          🔁 Retry the ones that failed
+        </button>
+      </div>
+      <p className="text-[11px] text-buzz-mute mt-1.5">
+        Many sites block bots outright — we now retry those as a normal browser, so a retry pass picks up a lot of them.
+      </p>
       {busy && (
         <p className="text-xs text-buzz-mute mt-2">
           Reading each venue&apos;s own website and re-hosting their picture — keep this tab open. Free (no paid API).
