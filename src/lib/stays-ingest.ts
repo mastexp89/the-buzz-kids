@@ -92,13 +92,21 @@ function postcodeOf(a: string | null): string | null {
   const m = a && /([A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})/i.exec(a);
   return m ? m[1].toUpperCase().replace(/\s+/, " ") : null;
 }
+// Google's place-photo CDN now blocks hotlinking (403 to browsers AND to
+// Vercel's optimizer), and its photos aren't licensed for us to store, so
+// keeping these URLs just guarantees broken images later. Drop them — stays
+// show the placeholder until a picture comes from the property's own site.
+function isDeadGooglePhoto(u: string): boolean {
+  return /googleusercontent\.com/i.test(u);
+}
+
 function photosOf(item: any, max = 4): string[] {
   const out: string[] = [];
   for (const f of [item?.imageUrls, item?.images]) {
     if (Array.isArray(f)) {
       for (const e of f) {
         const u = typeof e === "string" ? e : e?.imageUrl;
-        if (u && !out.includes(u)) out.push(u);
+        if (u && !isDeadGooglePhoto(u) && !out.includes(u)) out.push(u);
         if (out.length >= max) return out;
       }
     }

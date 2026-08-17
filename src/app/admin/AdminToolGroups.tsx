@@ -174,6 +174,12 @@ export default function AdminToolGroups({ pendingCount, suggestionsCount = 0 }: 
           description: "Toggle a region public / hidden",
         },
         {
+          href: "/admin/restore-images",
+          label: "Restore images",
+          emoji: "🖼️",
+          description: "Google blocked our photo links — re-host pictures from each venue's own site (free)",
+        },
+        {
           href: "/admin/cron-runs",
           label: "Cron runs",
           emoji: "⏱️",
