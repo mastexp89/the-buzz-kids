@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { extractEvents, type ExtractedEvent } from "@/lib/extraction";
 import { uploadPosterFromUrl } from "@/lib/poster-storage";
+import { tgNewGig } from "@/lib/telegram";
 import { revalidatePath } from "next/cache";
 
 const ALLOWED_ROLES = new Set(["venue_owner", "artist", "event_organiser", "admin"]);
@@ -26,7 +27,7 @@ async function requireUser() {
     .eq("id", user.id)
     .maybeSingle();
   if (!prof || !ALLOWED_ROLES.has(prof.role)) return null;
-  return { userId: user.id, role: prof.role as string };
+  return { userId: user.id, role: prof.role as string, email: user.email ?? null };
 }
 
 export type DraftEvent = {
@@ -408,6 +409,28 @@ export async function publishPosterDrafts(opts: {
         ignoreDuplicates: true,
       });
     }
+  }
+
+  // Tell the admins group. This path used to publish silently, so poster
+  // uploads never showed up alongside the typed-in submissions.
+  const uploaderLabel =
+    ctx.role === "venue_owner" ? "place poster upload"
+    : ctx.role === "artist" ? "provider poster upload"
+    : ctx.role === "event_organiser" ? "organiser poster upload"
+    : "admin poster upload";
+  for (let i = 0; i < created.length; i++) {
+    const d = draftsToInsert[i]?.d;
+    if (!d) continue;
+    await tgNewGig({
+      eventId: created[i].id,
+      title: d.title.trim(),
+      venueName: venue.name,
+      startTime: d.starts_at,
+      byEmail: ctx.email,
+      status,
+      source: uploaderLabel,
+      method: "ai",
+    }).catch(() => {});
   }
 
   if (status === "approved") {

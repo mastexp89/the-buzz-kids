@@ -239,6 +239,7 @@ async function handleCallback(cb: any) {
       byEmail: null,
       status: res.status === "approved" ? "approved" : "pending",
       source: "place corrected",
+      method: "ai",
     });
     try {
       revalidatePath("/admin/queue");
@@ -285,6 +286,7 @@ async function handleCallback(cb: any) {
         byEmail: null,
         status: "pending",
         source: "poster import (place corrected)",
+        method: "ai",
       });
     }
     try { revalidatePath("/admin/queue"); } catch { /* ok */ }
@@ -338,6 +340,7 @@ async function handleCallback(cb: any) {
         byEmail: null,
         status: "pending",
         source: "poster import (place corrected)",
+        method: "ai",
       });
     }
     try { revalidatePath("/admin/queue"); } catch { /* ok */ }
@@ -740,6 +743,7 @@ async function handleEventSubmission(
         byEmail: null,
         status: "pending",
         source: senderLabel,
+        method: "ai",
       });
     }
   }
