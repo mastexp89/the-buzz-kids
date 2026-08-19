@@ -193,6 +193,10 @@ export function tgNewGig(opts: {
   byEmail: string | null;
   status: "pending" | "approved";
   source: string;
+  // How the details got here: read off a poster by the AI, or typed in by
+  // hand. AI rows are worth a second look — dates and names can be misread
+  // — so the card says which up front.
+  method?: "ai" | "manual";
   // True when the event is pending the PLACE OWNER's approval (claimed
   // place) rather than ours — we're told, but it's not our call.
   awaitingOwner?: boolean;
@@ -208,6 +212,11 @@ export function tgNewGig(opts: {
     `📍 ${tgEsc(opts.venueName)}\n` +
     `🗓 ${tgEsc(tgDate(opts.startTime))}\n` +
     `Via ${tgEsc(opts.source)} · ${tgEsc(opts.byEmail ?? "—")}\n` +
+    (opts.method === "ai"
+      ? "🤖 <b>AI poster read</b> — check the date and name\n"
+      : opts.method === "manual"
+      ? "✍️ <b>Typed in by hand</b>\n"
+      : "") +
     (opts.awaitingOwner
       ? `<i>${tgEsc(opts.venueName)} owns this page — they've been emailed to approve it. No action needed unless they don't.</i>\n`
       : "") +

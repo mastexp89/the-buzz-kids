@@ -303,6 +303,9 @@ export function notifyPendingGig(opts: {
   status?: "pending" | "approved";
   // True when a claimed place's owner is the one who approves this.
   awaitingOwner?: boolean;
+  // Callers are the typed-in submission form; AI poster uploads go through
+  // publishPosterDrafts and notify from there.
+  method?: "ai" | "manual";
 }) {
   if (opts.eventId) {
     tgNewGig({
@@ -313,6 +316,7 @@ export function notifyPendingGig(opts: {
       byEmail: opts.submitterEmail,
       status: opts.status ?? "pending",
       source: "public submission",
+      method: opts.method ?? "manual",
       awaitingOwner: opts.awaitingOwner,
     }).catch(() => {});
   }
