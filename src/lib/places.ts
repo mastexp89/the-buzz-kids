@@ -76,6 +76,10 @@ export async function fetchPlaces(supabase: SupabaseClient, opts: PlaceQuery): P
   const CARD_COLUMNS =
     "id, name, slug, description, address, " +
     "cover_photo_url, image_url, gallery_image_urls, logo_url, google_photo_url, google_photo_attribution, " +
+    // NOTE: image_source/-license/-attribution/-source_url are added to this
+    // list in a follow-up once sql/099 has run — selecting a column that
+    // doesn't exist yet would 400 every listing query.
+
     "accessibility, age_min, age_max, setting, is_free, price_from, price_note, latitude, longitude, dog_friendly, " +
     "google_rating, google_rating_count";
 

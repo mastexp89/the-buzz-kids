@@ -33,6 +33,10 @@ export default async function RestoreImagesPage() {
   if (todoRes.error) columnMissing = true;
   else todo = todoRes.count ?? 0;
 
+  // sql/099 (provenance + licensing) is a separate migration.
+  const provRes = await sb.from("venues").select("image_source").limit(1);
+  const provenanceMissing = !!provRes.error;
+
   if (!columnMissing) {
     const { count: c1 } = await sb.from("venues").select("id", { count: "exact", head: true })
       .eq("approved", true).not("cover_photo_url", "is", null);
@@ -64,6 +68,13 @@ export default async function RestoreImagesPage() {
             <span className="text-xs rounded-full border border-buzz-border px-3 py-1">🔄 To try: <strong>{todo}</strong></span>
             <span className="text-xs rounded-full border border-buzz-border px-3 py-1">🚫 No website to try: <strong>{noWebsite}</strong></span>
           </div>
+
+          {provenanceMissing && (
+            <div className="rounded-xl px-4 py-3 text-sm mb-4" style={{ background: "#FFF6E5", color: "#8a5a00" }}>
+              ⚠ Run <code>sql/099_image_provenance.sql</code> in Supabase to enable &ldquo;Swap to licensed photos&rdquo;
+              (it stores each image&apos;s source, licence and required credit).
+            </div>
+          )}
 
           <div className="card p-4">
             <RunRestore startRemaining={todo} />

@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { restoreImageBatch, type RestoreBatchResult } from "@/lib/venue-images";
+import { legalImageBatch } from "@/lib/commons-images";
 import { revalidatePath } from "next/cache";
 
 async function requireAdmin(): Promise<boolean> {
@@ -37,6 +38,35 @@ export async function runImageRestore(): Promise<RestoreRunResult> {
 
   if (restored > 0) revalidatePath("/");
   return { ok: true, processed, restored, remaining, failures: failures.slice(0, 40) };
+}
+
+export type LegalRunResult = {
+  ok: boolean; processed: number; swapped: number; remaining: number;
+  failures: { name: string; reason: string }[]; error?: string;
+};
+
+// Swap website-harvested images (and fill blanks) with openly-licensed
+// Wikimedia Commons photos. Loops within the route's budget; the client calls
+// it repeatedly until `remaining` is 0.
+export async function runLegalImages(): Promise<LegalRunResult> {
+  if (!(await requireAdmin())) {
+    return { ok: false, processed: 0, swapped: 0, remaining: 0, failures: [], error: "Admins only." };
+  }
+  const sb = createServiceClient();
+  const start = Date.now();
+  let processed = 0, swapped = 0, remaining = 0;
+  const failures: { name: string; reason: string }[] = [];
+
+  while (Date.now() - start < 200_000) {
+    const r = await legalImageBatch(sb, 10);
+    processed += r.processed;
+    swapped += r.swapped;
+    remaining = r.remaining;
+    failures.push(...r.failures);
+    if (r.processed === 0) break;
+  }
+  if (swapped > 0) revalidatePath("/");
+  return { ok: true, processed, swapped, remaining, failures: failures.slice(0, 40) };
 }
 
 // Clear the "already tried" mark on venues we still have no image for, so a
