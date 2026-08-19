@@ -228,6 +228,19 @@ export default async function VenuePage({ params }: Props) {
                 {(venue as any).google_photo_attribution} · Google
               </span>
             )}
+            {/* CC BY / BY-SA require a visible credit + licence, so this is
+                not optional decoration — it's what makes the use lawful. */}
+            {(venue as any).image_source === "commons" && (venue as any).image_attribution && (
+              <a
+                href={(venue as any).image_source_url ?? "https://commons.wikimedia.org"}
+                target="_blank"
+                rel="noopener nofollow"
+                className="absolute bottom-1.5 right-2.5 text-[11px] text-white/90 hover:text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]"
+              >
+                📷 {(venue as any).image_attribution}
+                {(venue as any).image_license ? ` · ${(venue as any).image_license}` : ""} · Wikimedia Commons
+              </a>
+            )}
           </div>
         )}
 

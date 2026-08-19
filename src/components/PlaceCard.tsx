@@ -77,6 +77,14 @@ export default function PlaceCard({ place, citySlug }: { place: any; citySlug: s
             {place.google_photo_attribution} · Google
           </span>
         )}
+        {/* Openly-licensed photo — CC BY / BY-SA require the credit to travel
+            with the image, including on listing thumbnails. */}
+        {place.image_source === "commons" && place.image_attribution && (
+          <span className="absolute bottom-1 right-2 text-[10px] text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] max-w-[85%] truncate">
+            📷 {place.image_attribution}
+            {place.image_license ? ` · ${place.image_license}` : ""}
+          </span>
+        )}
         {place.google_rating != null && (
           <span className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-black/60 backdrop-blur-sm text-white text-[11px] font-semibold px-2 py-1 shadow-sm">
             <span className="text-amber-400" aria-hidden>★</span>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { runImageRestore, resetFailedAttempts } from "./actions";
+import { runImageRestore, resetFailedAttempts, runLegalImages } from "./actions";
 
 export default function RunRestore({ startRemaining }: { startRemaining: number }) {
   const router = useRouter();
@@ -35,6 +35,30 @@ export default function RunRestore({ startRemaining }: { startRemaining: number 
 
   const pct = stats && stats.processed > 0 ? Math.round((stats.restored / stats.processed) * 100) : 0;
 
+  const [legal, setLegal] = useState<{ processed: number; swapped: number; remaining: number } | null>(null);
+  const [legalDone, setLegalDone] = useState(false);
+
+  async function swapToLicensed() {
+    setBusy(true); setLegalDone(false); setError(null); setFailures([]);
+    let processed = 0, swapped = 0;
+    try {
+      for (;;) {
+        const r = await runLegalImages();
+        if (r.error) { setError(r.error); break; }
+        processed += r.processed;
+        swapped += r.swapped;
+        setLegal({ processed, swapped, remaining: r.remaining });
+        setFailures((f) => [...f, ...r.failures].slice(0, 40));
+        router.refresh();
+        if (r.remaining === 0 || r.processed === 0) { setLegalDone(true); break; }
+      }
+    } catch (e: any) {
+      setError(e?.message ?? "Swap failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function retryFailed() {
     setBusy(true); setError(null);
     try {
@@ -62,6 +86,25 @@ export default function RunRestore({ startRemaining }: { startRemaining: number 
       <p className="text-[11px] text-buzz-mute mt-1.5">
         Many sites block bots outright — we now retry those as a normal browser, so a retry pass picks up a lot of them.
       </p>
+
+      {/* The safe route — replaces risky website images with licensed ones. */}
+      <div className="mt-4 pt-4 border-t border-buzz-border/60">
+        <button onClick={swapToLicensed} disabled={busy} className="btn-primary text-sm disabled:opacity-50">
+          {busy ? "Swapping…" : "⚖️ Swap to licensed photos"}
+        </button>
+        <p className="text-[11px] text-buzz-mute mt-1.5 max-w-xl">
+          Replaces images copied from venue websites (the kind that drew the Alamy claim) with openly-licensed
+          Wikimedia Commons photos, and fills any venue that still has none. The photographer and licence are stored
+          and credited on the page, as those licences require. <strong>Recommended.</strong>
+        </p>
+        {legal && (
+          <p className="text-sm mt-2" style={{ color: legalDone ? "#3B6D11" : undefined }}>
+            {legalDone ? "✅ Finished — " : "Working… "}
+            checked <strong>{legal.processed}</strong> · swapped to licensed <strong>{legal.swapped}</strong>
+            {legal.remaining > 0 ? ` · ${legal.remaining} to go` : ""}.
+          </p>
+        )}
+      </div>
       {busy && (
         <p className="text-xs text-buzz-mute mt-2">
           Reading each venue&apos;s own website and re-hosting their picture — keep this tab open. Free (no paid API).
