@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Pin the workspace root. A stray package-lock.json further up the tree made
+  // Turbopack infer the wrong root, which 404'd every /api route in local dev
+  // (pages still worked, so it looked like a routing bug).
+  turbopack: { root: __dirname },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "**.supabase.co" },
