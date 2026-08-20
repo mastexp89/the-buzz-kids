@@ -113,8 +113,17 @@ export async function GET(req: NextRequest) {
       const permsJson: any = await perms.json();
       const granted = (permsJson?.data ?? [])
         .filter((p: any) => p.status === "granted").map((p: any) => p.permission);
+      // Fingerprint (not the token) so we can tell whether Vercel actually
+      // picked up a NEW value after a redeploy — identical fingerprint means
+      // the env var never changed, whatever was pasted into the dashboard.
+      const { createHash } = await import("node:crypto");
+      const fingerprint = createHash("sha256").update(token).digest("hex").slice(0, 8);
+
       return NextResponse.json({
         ok: !whoJson?.error,
+        configuredPageId: pageId,
+        tokenFingerprint: fingerprint,
+        tokenLength: token.length,
         tokenBelongsTo: whoJson?.name ?? null,
         tokenId: whoJson?.id ?? null,
         matchesConfiguredPage: whoJson?.id === pageId,
