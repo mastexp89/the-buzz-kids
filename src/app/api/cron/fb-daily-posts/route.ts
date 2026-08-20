@@ -40,6 +40,8 @@ const SITE = "https://www.thebuzzkids.co.uk";
 const TZ = "Europe/London";             // cities table has no timezone column; all Scottish
 const MAX_PER_POST = 8;                 // one national roundup, spread across areas
 const MAX_PER_AREA = 1;                 // maximum geographic spread
+// Below this we'll pad with ordinary sessions; above it, quality wins.
+const MIN_PER_POST = 6;
 // Our home patch: always give Dundee a slot when it has anything on, before
 // the rotation fills the rest of the post.
 const HOME_AREA_SLUG = "dundee";
@@ -371,32 +373,40 @@ export async function GET(req: NextRequest) {
   const areaIds = [...new Set(candidates.map((c) => c.cityId))];
   const rotated = areaIds.map((_, i) => areaIds[(i + dayNumber) % areaIds.length]);
 
+  // Pick the best thing on in EACH area, then take the most special of those
+  // across the whole country — rather than walking a fixed set of areas and
+  // accepting whatever they happen to have. Otherwise the post fills up with
+  // exhibitions simply because today's rotated areas had nothing else on.
   const usedTypes = new Set<string>();
-  // Two passes over the rotated areas. The first accepts only genuinely special
-  // events, so galas and one-offs claim the slots; the second only runs if the
-  // post is still short, falling back to the everyday sessions.
-  for (const pass of [1, 2] as const) {
-    for (const areaId of rotated) {
-      if (picks.length >= MAX_PER_POST) break;
-      const inArea = candidates
-        .filter((c) => c.cityId === areaId && takeable(c) && !picks.includes(c))
-        .filter((c) => (pass === 1 ? specialness(c) >= SPECIAL_ENOUGH : true))
-        .sort((a, b) => specialness(b) - specialness(a));
-      if (inArea.length === 0) continue;
+  const bestPerArea = new Map<string, Cand>();
+  for (const c of candidates) {
+    if (!takeable(c) || picks.includes(c)) continue;
+    const cur = bestPerArea.get(c.cityId);
+    if (!cur || specialness(c) > specialness(cur)) bestPerArea.set(c.cityId, c);
+  }
 
-      const typeIsFresh = (c: Cand) =>
-        !usedTypes.has(genresOf(c.e)[0] ?? pickEventIcon(c.e.title, []));
-      // Among equally special options, prefer an unused activity type — then
-      // one that has a real poster.
-      const best = specialness(inArea[0]);
-      const top = inArea.filter((c) => specialness(c) === best);
-      let chosen: Cand = top.find(typeIsFresh) ?? top[0];
-      for (const c of top.slice(0, 3)) {
-        if (await isPosterShaped(c.e.image_url)) { chosen = c; break; }
-      }
-      usedTypes.add(genresOf(chosen.e)[0] ?? pickEventIcon(chosen.e.title, []));
-      take(chosen);
-    }
+  // Rotation now only breaks ties between equally special events, so the post
+  // still varies day to day without letting a dull area hold a slot.
+  const rotationRank = new Map(rotated.map((id, idx) => [id, idx]));
+  const ordered = [...bestPerArea.values()].sort((a, b) => {
+    const d = specialness(b) - specialness(a);
+    if (d !== 0) return d;
+    return (rotationRank.get(a.cityId) ?? 0) - (rotationRank.get(b.cityId) ?? 0);
+  });
+
+  for (const c of ordered) {
+    if (picks.length >= MAX_PER_POST) break;
+    // Once the post is respectably full, stop padding it with everyday
+    // sessions — six good picks beat eight with filler.
+    if (specialness(c) < SPECIAL_ENOUGH && picks.length >= MIN_PER_POST) break;
+    if (!takeable(c)) continue;
+    const type = genresOf(c.e)[0] ?? pickEventIcon(c.e.title, []);
+    // Skip a repeat activity type while genuinely different options remain.
+    if (usedTypes.has(type) && ordered.some((o) => !picks.includes(o) && takeable(o) &&
+        !usedTypes.has(genresOf(o.e)[0] ?? pickEventIcon(o.e.title, [])) &&
+        specialness(o) >= specialness(c))) continue;
+    usedTypes.add(type);
+    take(c);
   }
 
   // Timed sessions first (they're the time-sensitive ones), all-day runs after.
