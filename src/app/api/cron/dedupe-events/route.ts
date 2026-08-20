@@ -42,24 +42,47 @@ export async function GET(req: Request) {
   const fromIso = new Date().toISOString();
   const toIso = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
 
-  // Pull every upcoming event in window. ~thousands at most; manageable.
-  const { data: events, error: evErr } = await sb
-    .from("events")
-    .select("id, venue_id, title, start_time, description, image_url, auto_imported_from, auto_import_confidence, created_at")
-    .gte("start_time", fromIso)
-    .lte("start_time", toIso)
-    .neq("status", "rejected");
+  // Pull every event still live in the window. TWO queries merged, because
+  // "upcoming" is not just "starts in the future": a multi-day run that began
+  // weeks ago but is still going (end_date in the future) is exactly the kind
+  // of listing that gets re-scraped into duplicates, and the old start_time-only
+  // filter never scanned those at all. (Two simple queries rather than one .or()
+  // — a nested .or() silently returns zero rows through supabase-js.)
+  const todayYmd = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+  const COLS =
+    "id, venue_id, title, start_time, end_date, description, image_url, auto_imported_from, auto_import_confidence, created_at";
+  const [upcomingRes, ongoingRes] = await Promise.all([
+    sb.from("events").select(COLS)
+      .gte("start_time", fromIso).lte("start_time", toIso).neq("status", "rejected"),
+    sb.from("events").select(COLS)
+      .gte("end_date", todayYmd).lt("start_time", fromIso).neq("status", "rejected"),
+  ]);
+  const evErr = upcomingRes.error ?? ongoingRes.error;
+  const mergedById = new Map<string, any>();
+  for (const row of [...(upcomingRes.data ?? []), ...(ongoingRes.data ?? [])]) {
+    mergedById.set((row as any).id, row);
+  }
+  const events = [...mergedById.values()];
   if (evErr) return NextResponse.json({ error: `Fetch events: ${evErr.message}` }, { status: 500 });
   if (!events || events.length === 0) {
     return NextResponse.json({ ok: true, scanned: 0, dupGroups: 0, removed: 0 });
   }
 
-  // Group events by venue_id + start hour
+  // Group by venue_id + start DAY (not hour). Re-scrapes of the same listing
+  // routinely land on different times — the Charleton duplicates sat at 23:00,
+  // 08:00 and 09:00 — so an hour-level key put copies of one event into
+  // separate groups and never compared them. A multi-day run is keyed by its
+  // end_date instead, since copies of it disagree about the start.
+  //
+  // venue_id stays in the key deliberately: the same title at DIFFERENT venues
+  // is usually legitimate (a film showing at five cinemas), not a duplicate.
   const groups = new Map<string, typeof events>();
   for (const e of events) {
     const t = new Date(e.start_time);
-    const hourKey = `${t.getUTCFullYear()}-${pad(t.getUTCMonth() + 1)}-${pad(t.getUTCDate())}T${pad(t.getUTCHours())}`;
-    const key = `${e.venue_id}|${hourKey}`;
+    const dayKey = (e as any).end_date
+      ? `run:${(e as any).end_date}`
+      : `${t.getUTCFullYear()}-${pad(t.getUTCMonth() + 1)}-${pad(t.getUTCDate())}`;
+    const key = `${e.venue_id}|${dayKey}`;
     const list = groups.get(key) ?? [];
     list.push(e);
     groups.set(key, list);
