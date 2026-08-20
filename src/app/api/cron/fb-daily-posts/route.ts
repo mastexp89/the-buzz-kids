@@ -403,49 +403,6 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  const imageUrl = await buildAndStorePostImage(sb, {
-    citySlug: onlyCity ?? "scotland",
-    cityName: onlyCity ? (cities ?? [])[0]?.name ?? "Scotland" : "Scotland",
-    dateLabel, ymd, lines: imageLines,
-    totalToday: candidates.length, venueCount: areaCount,
-    logoUrl: `${SITE}/logo.png`,
-  });
-
-  if (preview) {
-    return NextResponse.json({
-      ok: true, preview: true, previewImage: imageUrl, message,
-      picked: picks.length, onToday: candidates.length,
-    });
-  }
-
-  // Upload photos UNPUBLISHED, then create a feed post attaching them: the
-  // photo endpoint's `caption` doesn't support @-mentions, the feed endpoint's
-  // `message` does. Falls back to a link post if everything fails, so an image
-  // problem never costs us the post.
-  //
-  // Our summary card goes FIRST (it's the lead image in the feed), followed by
-  // the actual event posters — a multi-photo post takes far more feed space and
-  // the real posters are what catch a parent's eye. Any poster that won't
-  // upload is simply skipped.
-  const uploadPhoto = async (photoUrl: string): Promise<string | null> => {
-    try {
-      const up = await fetch(`https://graph.facebook.com/v21.0/${pageId}/photos`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: photoUrl, published: false, access_token: token }),
-      });
-      const upJson: any = await up.json();
-      return up.ok && upJson.id ? (upJson.id as string) : null;
-    } catch {
-      return null;
-    }
-  };
-
-  const mediaIds: string[] = [];
-  if (imageUrl) {
-    const id = await uploadPhoto(imageUrl);
-    if (id) mediaIds.push(id);
-  }
   // Posters for the featured events, in the same order as the caption lines.
   //
   // Only actual POSTERS, not photographs. Every event image here is
@@ -477,6 +434,51 @@ export async function GET(req: NextRequest) {
     } catch {
       continue; // unreachable/undecodable — just don't attach it
     }
+  }
+
+  const imageUrl = await buildAndStorePostImage(sb, {
+    citySlug: onlyCity ?? "scotland",
+    cityName: onlyCity ? (cities ?? [])[0]?.name ?? "Scotland" : "Scotland",
+    dateLabel, ymd, lines: imageLines,
+    totalToday: candidates.length, venueCount: areaCount,
+    logoUrl: `${SITE}/logo.png`,
+  });
+
+  if (preview) {
+    return NextResponse.json({
+      ok: true, preview: true, previewImage: imageUrl, message,
+      picked: picks.length, onToday: candidates.length,
+      postersThatQualify: posterUrls.length, posterUrls,
+    });
+  }
+
+  // Upload photos UNPUBLISHED, then create a feed post attaching them: the
+  // photo endpoint's `caption` doesn't support @-mentions, the feed endpoint's
+  // `message` does. Falls back to a link post if everything fails, so an image
+  // problem never costs us the post.
+  //
+  // Our summary card goes FIRST (it's the lead image in the feed), followed by
+  // the actual event posters — a multi-photo post takes far more feed space and
+  // the real posters are what catch a parent's eye. Any poster that won't
+  // upload is simply skipped.
+  const uploadPhoto = async (photoUrl: string): Promise<string | null> => {
+    try {
+      const up = await fetch(`https://graph.facebook.com/v21.0/${pageId}/photos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: photoUrl, published: false, access_token: token }),
+      });
+      const upJson: any = await up.json();
+      return up.ok && upJson.id ? (upJson.id as string) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const mediaIds: string[] = [];
+  if (imageUrl) {
+    const id = await uploadPhoto(imageUrl);
+    if (id) mediaIds.push(id);
   }
   for (const p of posterUrls) {
     const id = await uploadPhoto(p);
