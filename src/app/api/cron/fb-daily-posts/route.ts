@@ -184,7 +184,7 @@ export async function GET(req: NextRequest) {
     return null;
   };
 
-  type Cand = { e: any; when: Date; cityId: string; cityName: string; venueName: string };
+  type Cand = { e: any; when: Date; allDay: boolean; cityId: string; cityName: string; venueName: string };
   const candidates: Cand[] = [];
   for (const e of (rawEvents ?? []) as any[]) {
     // Attached to a place → that place must be approved; standalone → its own
@@ -207,8 +207,13 @@ export async function GET(req: NextRequest) {
     const expired = !e.end_date && endsAt.getTime() <= now.getTime();
     if (expired) continue;
 
+    // An exhibition / "summer season" that began before today isn't a 10am
+    // session — it's open all day. Labelling it with the series' start time
+    // both misleads and makes every line read "10am".
+    const allDay = !!e.end_date && new Date(e.start_time) < dayStart;
+
     candidates.push({
-      e, when, cityId,
+      e, when, allDay, cityId,
       cityName: city.name,
       venueName: v?.name ?? e.location_name ?? "",
     });
@@ -268,7 +273,11 @@ export async function GET(req: NextRequest) {
     take(chosen);
   }
 
-  picks.sort((a, b) => a.when.getTime() - b.when.getTime());
+  // Timed sessions first (they're the time-sensitive ones), all-day runs after.
+  picks.sort((a, b) => {
+    if (a.allDay !== b.allDay) return a.allDay ? 1 : -1;
+    return a.when.getTime() - b.when.getTime();
+  });
   if (picks.length < 2) {
     return NextResponse.json({ ok: true, dry, ranAt: now.toISOString(), results: [{ skipped: `only ${picks.length} on today` }] });
   }
@@ -287,7 +296,7 @@ export async function GET(req: NextRequest) {
     const fbid = c.e.venue?.facebook_page_id;
     const place = tagged && fbid ? `@[${fbid}]` : c.venueName;
     const at = place ? ` @ ${place}` : "";
-    return `${star}${timeLabel(c.when)} — ${c.e.title}${free}${at} · ${c.cityName}`;
+    return `${star}${c.allDay ? "All day" : timeLabel(c.when)} — ${c.e.title}${free}${at} · ${c.cityName}`;
   };
 
   const lines = picks.map((c) => lineFor(c, false));
@@ -295,7 +304,7 @@ export async function GET(req: NextRequest) {
   const taggedCount = picks.filter((c) => c.e.venue?.facebook_page_id).length;
 
   const imageLines: PostLine[] = picks.map((c) => ({
-    time: timeLabel(c.when),
+    time: c.allDay ? "All day" : timeLabel(c.when),
     title: c.e.title,
     venue: c.venueName,
     area: c.cityName,
