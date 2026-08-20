@@ -326,11 +326,43 @@ export async function GET(req: NextRequest) {
   };
   const isPosterShaped = async (u: unknown) => (await shapeOf(u)) === "poster";
 
+  // How newsworthy is this? A daily roundup should showcase what's genuinely ON
+  // today — a gala, a character visit, a one-off workshop — not the everyday
+  // furniture (weekly soft-play sessions, open swims, a museum exhibition that
+  // runs for three months). Those are always available, so they read as filler.
+  const runLengthDays = (e: any): number => {
+    if (!e.end_date) return 0;
+    const start = new Date(e.start_time);
+    const end = new Date(`${e.end_date}T23:59:59`);
+    return Math.max(0, Math.round((end.getTime() - start.getTime()) / 86_400_000));
+  };
+  const GENERIC_RE =
+    /\b(session|sessions|open play|drop[- ]?in|soft play|softplay|swim|swimming|bounce|opening|open day|playtime|stay and play|toddler group|term time)\b/i;
+  const SPECIAL_RE =
+    /\b(gala|fayre|fair|festival|show|workshop|party|special|character|meet|launch|celebration|trail|competition|parade|circus|panto|screening|premiere|takeover|fun day|market)\b/i;
+
+  const specialness = (c: Cand): number => {
+    const e = c.e;
+    const run = runLengthDays(e);
+    let score: number;
+    if (isRecurring(e.recurrence_pattern)) score = 10;   // a weekly club
+    else if (run === 0) score = 100;                     // a true one-off
+    else if (run <= 2) score = 85;                       // a weekend
+    else if (run <= 7) score = 45;                       // a holiday-week run
+    else score = 5;                                      // a months-long exhibition
+    const title = String(e.title ?? "");
+    if (GENERIC_RE.test(title)) score -= 30;
+    if (SPECIAL_RE.test(title)) score += 25;
+    return score;
+  };
+  // At or above this, an event is worth leading a post with.
+  const SPECIAL_ENOUGH = 45;
+
   // Home patch first (after promos): Dundee always gets a slot when something
   // is on there, so our own city never rotates out of the post.
-  const homePick = candidates.find(
-    (c) => c.citySlug === HOME_AREA_SLUG && takeable(c) && !picks.includes(c),
-  );
+  const homePick = candidates
+    .filter((c) => c.citySlug === HOME_AREA_SLUG && takeable(c) && !picks.includes(c))
+    .sort((a, b) => specialness(b) - specialness(a))[0];
   if (homePick && picks.length < MAX_PER_POST) take(homePick);
 
   // Daily rotation: offset the area order by the day number so a different set
@@ -340,27 +372,31 @@ export async function GET(req: NextRequest) {
   const rotated = areaIds.map((_, i) => areaIds[(i + dayNumber) % areaIds.length]);
 
   const usedTypes = new Set<string>();
-  for (const areaId of rotated) {
-    if (picks.length >= MAX_PER_POST) break;
-    const inArea = candidates.filter((c) => c.cityId === areaId && takeable(c) && !picks.includes(c));
-    if (inArea.length === 0) continue;
-    // Prefer an activity type we haven't used yet, so the post reads varied —
-    // and among equals prefer one that HAS an image, since a post carrying
-    // real posters is far more eye-catching than the card alone. (Shape is
-    // checked later; this just improves the odds of having one to attach.)
-    const typeIsFresh = (c: Cand) =>
-      !usedTypes.has(genresOf(c.e)[0] ?? pickEventIcon(c.e.title, []));
+  // Two passes over the rotated areas. The first accepts only genuinely special
+  // events, so galas and one-offs claim the slots; the second only runs if the
+  // post is still short, falling back to the everyday sessions.
+  for (const pass of [1, 2] as const) {
+    for (const areaId of rotated) {
+      if (picks.length >= MAX_PER_POST) break;
+      const inArea = candidates
+        .filter((c) => c.cityId === areaId && takeable(c) && !picks.includes(c))
+        .filter((c) => (pass === 1 ? specialness(c) >= SPECIAL_ENOUGH : true))
+        .sort((a, b) => specialness(b) - specialness(a));
+      if (inArea.length === 0) continue;
 
-    // Prefer a pick whose image is an actual poster — checked here rather than
-    // after the fact, otherwise an area's first candidate (often a landscape
-    // snap) wins the slot and the post ends up with nothing to attach.
-    let chosen: Cand | undefined;
-    for (const c of inArea.slice(0, 4)) {
-      if (await isPosterShaped(c.e.image_url)) { chosen = c; break; }
+      const typeIsFresh = (c: Cand) =>
+        !usedTypes.has(genresOf(c.e)[0] ?? pickEventIcon(c.e.title, []));
+      // Among equally special options, prefer an unused activity type — then
+      // one that has a real poster.
+      const best = specialness(inArea[0]);
+      const top = inArea.filter((c) => specialness(c) === best);
+      let chosen: Cand = top.find(typeIsFresh) ?? top[0];
+      for (const c of top.slice(0, 3)) {
+        if (await isPosterShaped(c.e.image_url)) { chosen = c; break; }
+      }
+      usedTypes.add(genresOf(chosen.e)[0] ?? pickEventIcon(chosen.e.title, []));
+      take(chosen);
     }
-    chosen = chosen ?? inArea.find(typeIsFresh) ?? inArea[0];
-    usedTypes.add(genresOf(chosen.e)[0] ?? pickEventIcon(chosen.e.title, []));
-    take(chosen);
   }
 
   // Timed sessions first (they're the time-sensitive ones), all-day runs after.
@@ -429,6 +465,7 @@ export async function GET(req: NextRequest) {
       results: [{
         message, link,
         picked: picks.length, onToday: candidates.length, areasWithSomethingOn: areaCount,
+        specialPicks: picks.filter((c) => specialness(c) >= SPECIAL_ENOUGH).length,
         areas: picks.map((c) => c.cityName),
         imagesAvailable: picks.filter((c) => typeof c.e.image_url === "string" && /^https?:\/\//.test(c.e.image_url)).length,
         imageLines,
