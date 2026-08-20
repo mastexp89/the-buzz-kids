@@ -76,12 +76,17 @@ export async function renderDailyPostPng(opts: {
   // The national roundup runs to ~8 lines; tighten type and spacing past 6 so
   // everything still fits the 1080 square without clipping the footer.
   const dense = lines.length > 6;
-  const rowGap = dense ? 11 : 16;
-  const titleSize = dense ? 28 : 31;
-  const metaSize = dense ? 22 : 24;
-  const timeSize = dense ? 26 : 29;
-  const timeWidth = dense ? 124 : 138;
-  const listTop = dense ? 30 : 40;
+  const rowGap = dense ? 8 : 16;
+  const titleSize = dense ? 27 : 31;
+  const metaSize = dense ? 21 : 24;
+  const timeSize = dense ? 25 : 29;
+  const timeWidth = dense ? 118 : 138;
+  const listTop = dense ? 20 : 40;
+  // 8 rows overflowed the square and clipped the footer, so the whole frame
+  // tightens (not just the rows) once the list is long.
+  const pad = dense ? 52 : 68;
+  const logoSize = dense ? 132 : 158;
+  const footerTop = dense ? 16 : 22;
 
   const el = (
     <div
@@ -91,7 +96,7 @@ export async function renderDailyPostPng(opts: {
         display: "flex",
         flexDirection: "column",
         position: "relative",
-        padding: 68,
+        padding: pad,
         background: "linear-gradient(160deg, #FFFFFF 0%, #F2F9FE 55%, #E8F2FA 100%)",
         color: INK,
         fontFamily: "system-ui, sans-serif",
@@ -125,7 +130,7 @@ export async function renderDailyPostPng(opts: {
 
       {/* brand + headline */}
       <div style={{ display: "flex", alignItems: "flex-start", gap: 26 }}>
-        <img src={logoUrl} width={158} height={158} style={{ objectFit: "contain" }} />
+        <img src={logoUrl} width={logoSize} height={logoSize} style={{ objectFit: "contain" }} />
         <div style={{ display: "flex", flexDirection: "column", flex: 1, marginTop: 8 }}>
           <div
             style={{
@@ -151,9 +156,9 @@ export async function renderDailyPostPng(opts: {
       {showScale && (
         <div
           style={{
-            display: "flex", alignItems: "center", gap: 12, marginTop: 24,
+            display: "flex", alignItems: "center", gap: 12, marginTop: dense ? 16 : 24,
             background: "rgba(31,169,224,0.10)", border: `1px solid rgba(31,169,224,0.40)`,
-            borderRadius: 16, padding: "13px 20px", alignSelf: "flex-start",
+            borderRadius: 16, padding: dense ? "9px 18px" : "13px 20px", alignSelf: "flex-start",
           }}
         >
           <div style={{ display: "flex", fontSize: 29, fontWeight: 900, color: BLUE }}>
@@ -222,7 +227,7 @@ export async function renderDailyPostPng(opts: {
       <div
         style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
-          marginTop: "auto", borderTop: "1px solid rgba(22,32,42,0.14)", paddingTop: 22,
+          marginTop: "auto", borderTop: "1px solid rgba(22,32,42,0.14)", paddingTop: footerTop,
         }}
       >
         <div style={{ display: "flex", flexDirection: "column" }}>
