@@ -174,6 +174,12 @@ export default function AdminToolGroups({ pendingCount, suggestionsCount = 0 }: 
           description: "Toggle a region public / hidden",
         },
         {
+          href: "/admin/venue-fb-ids",
+          label: "Facebook Page IDs",
+          emoji: "🔖",
+          description: "Paste places' FB Page IDs so the daily roundup post can @-tag them",
+        },
+        {
           href: "/admin/restore-images",
           label: "Restore images",
           emoji: "🖼️",
