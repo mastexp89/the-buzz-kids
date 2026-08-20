@@ -114,23 +114,40 @@ export async function GET(req: NextRequest) {
   // Pull every candidate in one query: anything that could touch today —
   // starting today, a multi-day run that hasn't ended, or a live recurring
   // series. Then decide per-row whether it actually lands today.
-  const { data: rawEvents } = await sb
-    .from("events")
-    .select(`id, title, start_time, end_time, end_date, recurrence_pattern, recurrence_until,
+  // Three straightforward queries merged, rather than one clever .or().
+  // A single .or() containing nested and(...) groups silently returned ZERO
+  // rows through supabase-js (the same filter worked when called directly),
+  // and because the error was ignored it looked like "nothing is on" — the
+  // post would just never go out. Simple queries fail loudly instead.
+  const EVENT_SELECT = `id, title, start_time, end_time, end_date, recurrence_pattern, recurrence_until,
              cancelled, status, is_free, cover_charge, age_min, age_max, location_name, image_url,
              highlighted_until, weekend_boost_until,
              venue:venues(id, name, city_id, approved, facebook_page_id),
              city:cities(id, slug, name, active),
-             event_genres(genre:genres(slug))`)
-    .eq("status", "approved")
-    .eq("cancelled", false)
-    .or(
-      `and(start_time.gte.${dayStart.toISOString()},start_time.lte.${dayEnd.toISOString()}),` +
-      `end_date.gte.${ymd},` +
-      `recurrence_until.gte.${ymd},` +
-      `and(recurrence_pattern.not.is.null,recurrence_until.is.null)`,
-    )
-    .limit(2000);
+             event_genres(genre:genres(slug))`;
+
+  const base = () =>
+    sb.from("events").select(EVENT_SELECT).eq("status", "approved").eq("cancelled", false);
+
+  const [startsToday, multiDay, recurring] = await Promise.all([
+    base()
+      .gte("start_time", dayStart.toISOString())
+      .lte("start_time", dayEnd.toISOString())
+      .limit(1000),
+    base().gte("end_date", ymd).limit(1000),
+    base().not("recurrence_pattern", "is", null).limit(1000),
+  ]);
+
+  const queryErrors = [startsToday.error, multiDay.error, recurring.error]
+    .filter(Boolean)
+    .map((e: any) => e.message);
+
+  // Merge, de-duplicating by id (a multi-day recurring event hits two queries).
+  const byId = new Map<string, any>();
+  for (const res of [startsToday, multiDay, recurring]) {
+    for (const e of (res.data ?? []) as any[]) byId.set(e.id, e);
+  }
+  const rawEvents = [...byId.values()];
 
   // The occurrence that lands TODAY, keeping the series' time of day.
   const todaysOccurrence = (e: any): Date | null => {
@@ -193,7 +210,7 @@ export async function GET(req: NextRequest) {
     // would mean the query itself failed — very different problems.
     return NextResponse.json({
       ok: true, dry, ranAt: now.toISOString(),
-      results: [{ skipped: "nothing on today", rawRows: (rawEvents ?? []).length, ymd }],
+      results: [{ skipped: "nothing on today", rawRows: rawEvents.length, ymd, queryErrors }],
     });
   }
 
