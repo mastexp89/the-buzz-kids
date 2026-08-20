@@ -387,7 +387,7 @@ export async function GET(req: NextRequest) {
         message, link,
         picked: picks.length, onToday: candidates.length, areasWithSomethingOn: areaCount,
         areas: picks.map((c) => c.cityName),
-        postersAvailable: picks.filter((c) => typeof c.e.image_url === "string" && /^https?:\/\//.test(c.e.image_url)).length,
+        imagesAvailable: picks.filter((c) => typeof c.e.image_url === "string" && /^https?:\/\//.test(c.e.image_url)).length,
         imageLines,
       }],
     });
@@ -437,13 +437,37 @@ export async function GET(req: NextRequest) {
     if (id) mediaIds.push(id);
   }
   // Posters for the featured events, in the same order as the caption lines.
-  const posterUrls = Array.from(
-    new Set(
-      picks
-        .map((c) => c.e.image_url)
-        .filter((u: any): u is string => typeof u === "string" && /^https?:\/\//.test(u)),
-    ),
-  ).slice(0, MAX_POSTERS);
+  //
+  // Only actual POSTERS, not photographs. Every event image here is
+  // event-specific (none duplicate the venue photo), but many are generic
+  // scraped snaps — a stock shot of a swimming pool does nothing for a kids'
+  // roundup. Designed flyers are portrait or square; photographs are almost
+  // always landscape, so shape is a reliable, cheap discriminator.
+  const posterUrls: string[] = [];
+  const seenPoster = new Set<string>();
+  for (const c of picks) {
+    if (posterUrls.length >= MAX_POSTERS) break;
+    const u = c.e.image_url;
+    if (typeof u !== "string" || !/^https?:\/\//.test(u) || seenPoster.has(u)) continue;
+    seenPoster.add(u);
+    try {
+      const res = await fetch(u, {
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; TheBuzzBot/1.0; +https://thebuzzkids.co.uk)" },
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!res.ok) continue;
+      const buf = Buffer.from(await res.arrayBuffer());
+      const { default: sharp } = await import("sharp");
+      const meta = await sharp(buf).metadata();
+      const w = meta.width ?? 0;
+      const h = meta.height ?? 0;
+      if (w < 300 || h < 300) continue;          // too small to be a poster
+      if (h / w < 0.95) continue;                 // landscape → a photo, not a flyer
+      posterUrls.push(u);
+    } catch {
+      continue; // unreachable/undecodable — just don't attach it
+    }
+  }
   for (const p of posterUrls) {
     const id = await uploadPhoto(p);
     if (id) mediaIds.push(id);
