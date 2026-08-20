@@ -15,6 +15,34 @@ export function pickEventIcon(
   const tags = new Set(genreSlugs.map((s) => s.toLowerCase()));
   const t = (title || "").toLowerCase();
 
+  // Kids/family genres first — these are the ones this site actually uses.
+  // (The nightlife mappings below are inherited from The Buzz Guide and match
+  // almost nothing here, so without this block everything fell through to the
+  // generic ticket icon.)
+  if (tags.has("soft-play")) return "🧸";
+  if (tags.has("swimming")) return "🏊";
+  if (tags.has("trampoline")) return "🤸";
+  if (tags.has("farm-animals")) return "🐄";
+  if (tags.has("zoo-aquarium")) return "🦁";
+  if (tags.has("play-park")) return "🛝";
+  if (tags.has("museum-gallery")) return "🏛️";
+  if (tags.has("library")) return "📚";
+  if (tags.has("arts-crafts")) return "🎨";
+  if (tags.has("stem-coding")) return "🤖";
+  if (tags.has("forest-nature")) return "🌲";
+  if (tags.has("outdoor-adventure")) return "🧗";
+  if (tags.has("toddler-group")) return "👶";
+  if (tags.has("sensory")) return "✨";
+  if (tags.has("free-play")) return "🧩";
+  if (tags.has("holiday-club")) return "🎒";
+  if (tags.has("sports-camp")) return "🏅";
+  if (tags.has("football")) return "⚽";
+  if (tags.has("cinema")) return "🎬";
+  if (tags.has("theatre") || tags.has("drama")) return "🎭";
+  if (tags.has("music-singing")) return "🎵";
+  if (tags.has("fun-fair") || tags.has("days-out")) return "🎡";
+  if (tags.has("seasonal")) return "🎉";
+
   // Genre-based (most reliable signal)
   if (tags.has("sports")) return "📺";
   if (tags.has("karaoke") || tags.has("open-mic")) return "🎤";
@@ -45,6 +73,20 @@ export function pickEventIcon(
   if (/\bdj\b/.test(t)) return "🎧";
   if (/dance/.test(t)) return "💃";
   if (/live music|gig\b|acoustic|band\b/.test(t)) return "♪";
+
+  // Kids title heuristics, for events with no useful genre tag.
+  if (/soft\s*play|softplay/.test(t)) return "🧸";
+  if (/swim|pool/.test(t)) return "🏊";
+  if (/trampolin|bounce|inflatable/.test(t)) return "🤸";
+  if (/farm|animal/.test(t)) return "🐄";
+  if (/zoo|aquarium|sea life/.test(t)) return "🦁";
+  if (/museum|gallery|exhibition/.test(t)) return "🏛️";
+  if (/library|bookbug|story\s*time/.test(t)) return "📚";
+  if (/craft|paint|make/.test(t)) return "🎨";
+  if (/forest|nature|woodland|ranger/.test(t)) return "🌲";
+  if (/toddler|baby|babies/.test(t)) return "👶";
+  if (/holiday club|camp/.test(t)) return "🎒";
+  if (/park|playground/.test(t)) return "🛝";
 
   // Fallback: neutral event ticket, NOT a music note — we don't know if
   // it's music, and assuming music is misleading for community events.
