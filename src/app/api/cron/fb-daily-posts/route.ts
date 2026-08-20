@@ -119,10 +119,20 @@ export async function GET(req: NextRequest) {
   // rows through supabase-js (the same filter worked when called directly),
   // and because the error was ignored it looked like "nothing is on" — the
   // post would just never go out. Simple queries fail loudly instead.
+  // facebook_page_id (sql/100) is OPTIONAL — it only enables @-tagging. Probe
+  // for it rather than selecting it blindly: asking for a column that doesn't
+  // exist fails the whole query, which would stop the post going out over a
+  // feature that's dormant anyway.
+  const probe = await sb.from("venues").select("facebook_page_id").limit(1);
+  const canTag = !probe.error;
+  const venueCols = canTag
+    ? "id, name, city_id, approved, facebook_page_id"
+    : "id, name, city_id, approved";
+
   const EVENT_SELECT = `id, title, start_time, end_time, end_date, recurrence_pattern, recurrence_until,
              cancelled, status, is_free, cover_charge, age_min, age_max, location_name, image_url,
              highlighted_until, weekend_boost_until,
-             venue:venues(id, name, city_id, approved, facebook_page_id),
+             venue:venues(${venueCols}),
              city:cities(id, slug, name, active),
              event_genres(genre:genres(slug))`;
 
@@ -210,7 +220,7 @@ export async function GET(req: NextRequest) {
     // would mean the query itself failed — very different problems.
     return NextResponse.json({
       ok: true, dry, ranAt: now.toISOString(),
-      results: [{ skipped: "nothing on today", rawRows: rawEvents.length, ymd, queryErrors }],
+      results: [{ skipped: "nothing on today", rawRows: rawEvents.length, ymd, queryErrors, canTag }],
     });
   }
 
