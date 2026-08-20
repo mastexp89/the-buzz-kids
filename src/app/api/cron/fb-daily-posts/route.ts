@@ -295,6 +295,35 @@ export async function GET(req: NextRequest) {
     if (isPromoted(c.e) && takeable(c)) take(c);
   }
 
+  // Is this image a designed POSTER (portrait/square) rather than a snapshot
+  // (landscape)? Measured once per URL, with a hard budget so a long candidate
+  // list can't blow the function's time limit.
+  const shapeCache = new Map<string, boolean>();
+  let shapeBudget = 26;
+  const isPosterShaped = async (u: unknown): Promise<boolean> => {
+    if (typeof u !== "string" || !/^https?:\/\//.test(u)) return false;
+    const cached = shapeCache.get(u);
+    if (cached !== undefined) return cached;
+    if (shapeBudget <= 0) return false;
+    shapeBudget--;
+    try {
+      const res = await fetch(u, {
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; TheBuzzBot/1.0; +https://thebuzzkids.co.uk)" },
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!res.ok) { shapeCache.set(u, false); return false; }
+      const { default: sharp } = await import("sharp");
+      const meta = await sharp(Buffer.from(await res.arrayBuffer())).metadata();
+      const w = meta.width ?? 0, h = meta.height ?? 0;
+      const ok = w >= 300 && h >= 300 && h / w >= 0.95;
+      shapeCache.set(u, ok);
+      return ok;
+    } catch {
+      shapeCache.set(u, false);
+      return false;
+    }
+  };
+
   // Home patch first (after promos): Dundee always gets a slot when something
   // is on there, so our own city never rotates out of the post.
   const homePick = candidates.find(
@@ -317,15 +346,17 @@ export async function GET(req: NextRequest) {
     // and among equals prefer one that HAS an image, since a post carrying
     // real posters is far more eye-catching than the card alone. (Shape is
     // checked later; this just improves the odds of having one to attach.)
-    const hasImage = (c: Cand) =>
-      typeof c.e.image_url === "string" && /^https?:\/\//.test(c.e.image_url);
     const typeIsFresh = (c: Cand) =>
       !usedTypes.has(genresOf(c.e)[0] ?? pickEventIcon(c.e.title, []));
-    const chosen =
-      inArea.find((c) => typeIsFresh(c) && hasImage(c)) ??
-      inArea.find(typeIsFresh) ??
-      inArea.find(hasImage) ??
-      inArea[0];
+
+    // Prefer a pick whose image is an actual poster — checked here rather than
+    // after the fact, otherwise an area's first candidate (often a landscape
+    // snap) wins the slot and the post ends up with nothing to attach.
+    let chosen: Cand | undefined;
+    for (const c of inArea.slice(0, 4)) {
+      if (await isPosterShaped(c.e.image_url)) { chosen = c; break; }
+    }
+    chosen = chosen ?? inArea.find(typeIsFresh) ?? inArea[0];
     usedTypes.add(genresOf(chosen.e)[0] ?? pickEventIcon(chosen.e.title, []));
     take(chosen);
   }
@@ -417,23 +448,7 @@ export async function GET(req: NextRequest) {
     const u = c.e.image_url;
     if (typeof u !== "string" || !/^https?:\/\//.test(u) || seenPoster.has(u)) continue;
     seenPoster.add(u);
-    try {
-      const res = await fetch(u, {
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; TheBuzzBot/1.0; +https://thebuzzkids.co.uk)" },
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (!res.ok) continue;
-      const buf = Buffer.from(await res.arrayBuffer());
-      const { default: sharp } = await import("sharp");
-      const meta = await sharp(buf).metadata();
-      const w = meta.width ?? 0;
-      const h = meta.height ?? 0;
-      if (w < 300 || h < 300) continue;          // too small to be a poster
-      if (h / w < 0.95) continue;                 // landscape → a photo, not a flyer
-      posterUrls.push(u);
-    } catch {
-      continue; // unreachable/undecodable — just don't attach it
-    }
+    if (await isPosterShaped(u)) posterUrls.push(u);
   }
 
   const imageUrl = await buildAndStorePostImage(sb, {
