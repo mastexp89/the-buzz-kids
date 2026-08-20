@@ -298,31 +298,33 @@ export async function GET(req: NextRequest) {
   // Is this image a designed POSTER (portrait/square) rather than a snapshot
   // (landscape)? Measured once per URL, with a hard budget so a long candidate
   // list can't blow the function's time limit.
-  const shapeCache = new Map<string, boolean>();
+  type Shape = "poster" | "photo" | "unusable";
+  const shapeCache = new Map<string, Shape>();
   let shapeBudget = 26;
-  const isPosterShaped = async (u: unknown): Promise<boolean> => {
-    if (typeof u !== "string" || !/^https?:\/\//.test(u)) return false;
+  const shapeOf = async (u: unknown): Promise<Shape> => {
+    if (typeof u !== "string" || !/^https?:\/\//.test(u)) return "unusable";
     const cached = shapeCache.get(u);
     if (cached !== undefined) return cached;
-    if (shapeBudget <= 0) return false;
+    if (shapeBudget <= 0) return "unusable";
     shapeBudget--;
+    let out: Shape = "unusable";
     try {
       const res = await fetch(u, {
         headers: { "User-Agent": "Mozilla/5.0 (compatible; TheBuzzBot/1.0; +https://thebuzzkids.co.uk)" },
         signal: AbortSignal.timeout(10_000),
       });
-      if (!res.ok) { shapeCache.set(u, false); return false; }
-      const { default: sharp } = await import("sharp");
-      const meta = await sharp(Buffer.from(await res.arrayBuffer())).metadata();
-      const w = meta.width ?? 0, h = meta.height ?? 0;
-      const ok = w >= 300 && h >= 300 && h / w >= 0.95;
-      shapeCache.set(u, ok);
-      return ok;
-    } catch {
-      shapeCache.set(u, false);
-      return false;
-    }
+      if (res.ok) {
+        const { default: sharp } = await import("sharp");
+        const meta = await sharp(Buffer.from(await res.arrayBuffer())).metadata();
+        const w = meta.width ?? 0, h = meta.height ?? 0;
+        // Tiny images are broken placeholders (we see 49x25 in the data).
+        if (w >= 300 && h >= 300) out = h / w >= 0.95 ? "poster" : "photo";
+      }
+    } catch { /* leave unusable */ }
+    shapeCache.set(u, out);
+    return out;
   };
+  const isPosterShaped = async (u: unknown) => (await shapeOf(u)) === "poster";
 
   // Home patch first (after promos): Dundee always gets a slot when something
   // is on there, so our own city never rotates out of the post.
@@ -442,14 +444,21 @@ export async function GET(req: NextRequest) {
   // roundup. Designed flyers are portrait or square; photographs are almost
   // always landscape, so shape is a reliable, cheap discriminator.
   const posterUrls: string[] = [];
+  const photoUrls: string[] = [];
   const seenPoster = new Set<string>();
   for (const c of picks) {
     if (posterUrls.length >= MAX_POSTERS) break;
     const u = c.e.image_url;
     if (typeof u !== "string" || !/^https?:\/\//.test(u) || seenPoster.has(u)) continue;
     seenPoster.add(u);
-    if (await isPosterShaped(u)) posterUrls.push(u);
+    const shape = await shapeOf(u);
+    if (shape === "poster") posterUrls.push(u);
+    else if (shape === "photo") photoUrls.push(u);
   }
+  // Real posters lead. Most event images are landscape photos, so on days with
+  // few posters fall back to decent-quality photos rather than posting the card
+  // alone — broken/tiny images are excluded either way.
+  const attachUrls = [...posterUrls, ...photoUrls].slice(0, MAX_POSTERS);
 
   const imageUrl = await buildAndStorePostImage(sb, {
     citySlug: onlyCity ?? "scotland",
@@ -463,7 +472,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       ok: true, preview: true, previewImage: imageUrl, message,
       picked: picks.length, onToday: candidates.length,
-      postersThatQualify: posterUrls.length, posterUrls,
+      postersThatQualify: posterUrls.length, photosAsFallback: photoUrls.length,
+      willAttach: attachUrls.length, posterUrls,
     });
   }
 
@@ -495,7 +505,7 @@ export async function GET(req: NextRequest) {
     const id = await uploadPhoto(imageUrl);
     if (id) mediaIds.push(id);
   }
-  for (const p of posterUrls) {
+  for (const p of attachUrls) {
     const id = await uploadPhoto(p);
     if (id) mediaIds.push(id);
   }
