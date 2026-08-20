@@ -49,7 +49,6 @@
       "schedule": "*/5 * * * *"
     },
     {
-      "_comment": "Daily Facebook roundup — ONE national post. 07:30 UTC = 8:30am BST (school-run o'clock, when parents are planning the day). Vercel crons are UTC and do NOT shift with BST, so this is 7:30am in winter.",
       "path": "/api/cron/fb-daily-posts",
       "schedule": "30 7 * * *"
     }

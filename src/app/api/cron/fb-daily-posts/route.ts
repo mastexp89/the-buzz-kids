@@ -17,6 +17,10 @@
 //   FB_PAGE_ID            — the Page's numeric id
 //   FB_PAGE_ACCESS_TOKEN  — long-lived PAGE token (not a user token)
 //
+// Schedule (vercel.json): "30 7 * * *" — Vercel crons run in UTC and do NOT
+// shift with BST, so that is 8:30am UK in summer, 7:30am in winter. Aimed at
+// the school run, when parents are deciding what to do with the day.
+//
 // Query params:
 //   ?dry=1      — build the caption, post nothing (returns it as JSON)
 //   ?preview=1  — also render + store the image, return its URL, post nothing
