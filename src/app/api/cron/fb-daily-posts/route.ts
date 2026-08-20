@@ -313,9 +313,19 @@ export async function GET(req: NextRequest) {
     if (picks.length >= MAX_PER_POST) break;
     const inArea = candidates.filter((c) => c.cityId === areaId && takeable(c) && !picks.includes(c));
     if (inArea.length === 0) continue;
-    // Prefer an activity type we haven't used yet, so the post reads varied.
-    const fresh = inArea.find((c) => !usedTypes.has(genresOf(c.e)[0] ?? pickEventIcon(c.e.title, [])));
-    const chosen = fresh ?? inArea[0];
+    // Prefer an activity type we haven't used yet, so the post reads varied —
+    // and among equals prefer one that HAS an image, since a post carrying
+    // real posters is far more eye-catching than the card alone. (Shape is
+    // checked later; this just improves the odds of having one to attach.)
+    const hasImage = (c: Cand) =>
+      typeof c.e.image_url === "string" && /^https?:\/\//.test(c.e.image_url);
+    const typeIsFresh = (c: Cand) =>
+      !usedTypes.has(genresOf(c.e)[0] ?? pickEventIcon(c.e.title, []));
+    const chosen =
+      inArea.find((c) => typeIsFresh(c) && hasImage(c)) ??
+      inArea.find(typeIsFresh) ??
+      inArea.find(hasImage) ??
+      inArea[0];
     usedTypes.add(genresOf(chosen.e)[0] ?? pickEventIcon(chosen.e.title, []));
     take(chosen);
   }
