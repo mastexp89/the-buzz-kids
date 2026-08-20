@@ -436,6 +436,12 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  // Attach the summary card ONLY. Facebook crops every image in a multi-photo
+  // album into a grid cell, which chopped the card's header and footer — and
+  // the card IS the content. Posters stay measured (below) so they can be
+  // reinstated or moved into a first comment later, but they are not attached.
+  const ATTACH_EVENT_IMAGES = false;
+
   // Posters for the featured events, in the same order as the caption lines.
   //
   // Only actual POSTERS, not photographs. Every event image here is
@@ -458,7 +464,7 @@ export async function GET(req: NextRequest) {
   // Real posters lead. Most event images are landscape photos, so on days with
   // few posters fall back to decent-quality photos rather than posting the card
   // alone — broken/tiny images are excluded either way.
-  const attachUrls = [...posterUrls, ...photoUrls].slice(0, MAX_POSTERS);
+  const attachUrls = ATTACH_EVENT_IMAGES ? [...posterUrls, ...photoUrls].slice(0, MAX_POSTERS) : [];
 
   const imageUrl = await buildAndStorePostImage(sb, {
     citySlug: onlyCity ?? "scotland",

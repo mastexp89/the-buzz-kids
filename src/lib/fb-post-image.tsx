@@ -4,7 +4,10 @@
 // in the post caption, then uploaded to the media bucket so Facebook can fetch
 // it by URL. Free — no image model, no paid API.
 //
-// Square (1080×1080): most vertical space in a mobile feed.
+// 1080×1350 (4:5) — the tallest ratio Facebook renders without cropping, so a
+// single-image post takes the most vertical space in a mobile feed and all 8
+// listings fit comfortably. (Attached in a multi-photo album it would be
+// cropped to a grid cell, which is why the card is posted on its own.)
 //
 // Kids palette is light & bright (the Guide's is black/gold). satori quirk:
 // the CSS `inset` shorthand is ignored, so every absolute layer sets explicit
@@ -36,7 +39,7 @@ export type PostLine = {
 // Playful honeycomb — keeps the "Buzz" bee cue, but drawn in soft brand blue
 // on a light background instead of the Guide's gold-on-black. One SVG data URI
 // for the whole sheet (satori tiles background images unreliably).
-function honeycombDataUri(size = 1080, r = 58): string {
+function honeycombDataUri(size = 1350, r = 58): string {
   const w = Math.sqrt(3) * r;
   const vStep = 1.5 * r;
   const hex = (cx: number, cy: number) =>
@@ -75,18 +78,19 @@ export async function renderDailyPostPng(opts: {
   const citySize = cityName.length > 9 ? 88 : 112;
   // The national roundup runs to ~8 lines; tighten type and spacing past 6 so
   // everything still fits the 1080 square without clipping the footer.
+  // The canvas is 1350 tall now, so 8 lines no longer need to be squeezed.
   const dense = lines.length > 6;
-  const rowGap = dense ? 8 : 16;
-  const titleSize = dense ? 27 : 31;
-  const metaSize = dense ? 21 : 24;
-  const timeSize = dense ? 25 : 29;
-  const timeWidth = dense ? 118 : 138;
-  const listTop = dense ? 20 : 40;
+  const rowGap = dense ? 18 : 22;
+  const titleSize = dense ? 31 : 34;
+  const metaSize = dense ? 24 : 26;
+  const timeSize = dense ? 29 : 32;
+  const timeWidth = dense ? 138 : 150;
+  const listTop = dense ? 34 : 42;
   // 8 rows overflowed the square and clipped the footer, so the whole frame
   // tightens (not just the rows) once the list is long.
-  const pad = dense ? 52 : 68;
-  const logoSize = dense ? 132 : 158;
-  const footerTop = dense ? 16 : 22;
+  const pad = dense ? 64 : 68;
+  const logoSize = dense ? 158 : 158;
+  const footerTop = dense ? 24 : 24;
 
   const el = (
     <div
@@ -105,16 +109,16 @@ export async function renderDailyPostPng(opts: {
       {/* honeycomb, kept faint so listings stay readable */}
       <div
         style={{
-          position: "absolute", top: 0, left: 0, width: 1080, height: 1080,
+          position: "absolute", top: 0, left: 0, width: 1080, height: 1350,
           display: "flex", opacity: 0.13,
           backgroundImage: `url(${honeycombDataUri()})`,
-          backgroundSize: "1080px 1080px",
+          backgroundSize: "1080px 1350px",
         }}
       />
       {/* white veil so the lower half (the text) sits on near-plain paper */}
       <div
         style={{
-          position: "absolute", top: 0, left: 0, width: 1080, height: 1080, display: "flex",
+          position: "absolute", top: 0, left: 0, width: 1080, height: 1350, display: "flex",
           background:
             "linear-gradient(170deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.72) 42%, rgba(255,255,255,0.95) 76%)",
         }}
@@ -244,7 +248,7 @@ export async function renderDailyPostPng(opts: {
     </div>
   );
 
-  const res = new ImageResponse(el, { width: 1080, height: 1080 });
+  const res = new ImageResponse(el, { width: 1080, height: 1350 });
   return Buffer.from(await res.arrayBuffer());
 }
 
