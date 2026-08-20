@@ -89,6 +89,43 @@ export async function GET(req: NextRequest) {
 
   const pageId = process.env.FB_PAGE_ID;
   const token = process.env.FB_PAGE_ACCESS_TOKEN;
+
+  // ?check=1 — verify the Facebook credentials WITHOUT posting anything. Asks
+  // Graph who the token belongs to, so we can confirm it's a PAGE token for the
+  // right Page before the cron ever fires unattended. Never echoes the token.
+  if (url.searchParams.get("check") === "1") {
+    if (!pageId || !token) {
+      return NextResponse.json({
+        ok: false,
+        hasPageId: !!pageId,
+        hasToken: !!token,
+        error: "FB_PAGE_ID / FB_PAGE_ACCESS_TOKEN not visible to the server (set them in Vercel Production, then redeploy).",
+      });
+    }
+    try {
+      const who = await fetch(
+        `https://graph.facebook.com/v21.0/me?fields=id,name&access_token=${encodeURIComponent(token)}`,
+      );
+      const whoJson: any = await who.json();
+      const perms = await fetch(
+        `https://graph.facebook.com/v21.0/me/permissions?access_token=${encodeURIComponent(token)}`,
+      );
+      const permsJson: any = await perms.json();
+      const granted = (permsJson?.data ?? [])
+        .filter((p: any) => p.status === "granted").map((p: any) => p.permission);
+      return NextResponse.json({
+        ok: !whoJson?.error,
+        tokenBelongsTo: whoJson?.name ?? null,
+        tokenId: whoJson?.id ?? null,
+        matchesConfiguredPage: whoJson?.id === pageId,
+        isPageToken: whoJson?.id === pageId,
+        grantedPermissions: granted,
+        error: whoJson?.error?.message ?? null,
+      });
+    } catch (e: any) {
+      return NextResponse.json({ ok: false, error: e?.message ?? "check failed" });
+    }
+  }
   if (!dry && !preview && (!pageId || !token)) {
     return NextResponse.json(
       { ok: false, error: "FB_PAGE_ID / FB_PAGE_ACCESS_TOKEN env vars not set." },
