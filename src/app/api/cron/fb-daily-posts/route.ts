@@ -45,10 +45,10 @@ const MAX_PROMOTED = 2;                 // paid slots can't take over the post
 // lunch. With no end_time, assume 2 hours rather than the Guide's "open until
 // the venue shuts", so the post never lists something that has finished.
 const DEFAULT_DURATION_MIN = 120;
-// Event posters attached after our summary card. Facebook allows up to 10
-// photos on a feed post; we keep it to a handful so the album stays scannable
-// and the uploads finish well inside maxDuration.
-const MAX_POSTERS = 5;
+// Event posters attached after our summary card — one for every pick that has
+// one. Facebook allows 10 photos per feed post and we pick 8, so card + 8
+// posters still fits, and the uploads finish inside maxDuration.
+const MAX_POSTERS = MAX_PER_POST;
 
 function timeLabel(d: Date): string {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -165,20 +165,10 @@ export async function GET(req: NextRequest) {
   // rows through supabase-js (the same filter worked when called directly),
   // and because the error was ignored it looked like "nothing is on" — the
   // post would just never go out. Simple queries fail loudly instead.
-  // facebook_page_id (sql/100) is OPTIONAL — it only enables @-tagging. Probe
-  // for it rather than selecting it blindly: asking for a column that doesn't
-  // exist fails the whole query, which would stop the post going out over a
-  // feature that's dormant anyway.
-  const probe = await sb.from("venues").select("facebook_page_id").limit(1);
-  const canTag = !probe.error;
-  const venueCols = canTag
-    ? "id, name, city_id, approved, facebook_page_id"
-    : "id, name, city_id, approved";
-
   const EVENT_SELECT = `id, title, start_time, end_time, end_date, recurrence_pattern, recurrence_until,
              cancelled, status, is_free, cover_charge, age_min, age_max, location_name, image_url,
              highlighted_until, weekend_boost_until,
-             venue:venues(${venueCols}),
+             venue:venues(id, name, city_id, approved),
              city:cities(id, slug, name, active),
              event_genres(genre:genres(slug))`;
 
@@ -271,7 +261,7 @@ export async function GET(req: NextRequest) {
     // would mean the query itself failed — very different problems.
     return NextResponse.json({
       ok: true, dry, ranAt: now.toISOString(),
-      results: [{ skipped: "nothing on today", rawRows: rawEvents.length, ymd, queryErrors, canTag }],
+      results: [{ skipped: "nothing on today", rawRows: rawEvents.length, ymd, queryErrors }],
     });
   }
 
@@ -336,18 +326,17 @@ export async function GET(req: NextRequest) {
     return `${weekday} ${ordinal(d.getUTCDate())} ${month}`;
   })();
 
-  const lineFor = (c: Cand, tagged: boolean) => {
+  // NOTE: no @-tagging. Facebook rejects Page mentions from apps that haven't
+  // been through Meta App Review (confirmed on The Buzz Guide, 21 Aug 2026), so
+  // attempting it only risked a rejected post and a retry. Plain names instead.
+  const lineFor = (c: Cand) => {
     const star = isPromoted(c.e) ? "⭐ " : "";
     const free = c.e.is_free ? " (free)" : "";
-    const fbid = c.e.venue?.facebook_page_id;
-    const place = tagged && fbid ? `@[${fbid}]` : c.venueName;
-    const at = place ? ` @ ${place}` : "";
+    const at = c.venueName ? ` @ ${c.venueName}` : "";
     return `${star}${c.allDay ? "All day" : timeLabel(c.when)} — ${c.e.title}${free}${at} · ${c.cityName}`;
   };
 
-  const lines = picks.map((c) => lineFor(c, false));
-  const linesTagged = picks.map((c) => lineFor(c, true));
-  const taggedCount = picks.filter((c) => c.e.venue?.facebook_page_id).length;
+  const lines = picks.map((c) => lineFor(c));
 
   const imageLines: PostLine[] = picks.map((c) => ({
     time: c.allDay ? "All day" : timeLabel(c.when),
@@ -367,14 +356,13 @@ export async function GET(req: NextRequest) {
   const tail =
     `\n\nLoads more — find what's on near you:`;
   const message = head + lines.join("\n") + tail;
-  const messageTagged = head + linesTagged.join("\n") + tail;
   const link = onlyCity ? `${SITE}/${onlyCity}/whats-on` : `${SITE}/browse?tab=events`;
 
   if (dry && !preview) {
     return NextResponse.json({
       ok: true, dry: true, ranAt: now.toISOString(),
       results: [{
-        message, messageTagged, venuesTagged: taggedCount, link,
+        message, link,
         picked: picks.length, onToday: candidates.length, areasWithSomethingOn: areaCount,
         areas: picks.map((c) => c.cityName),
         postersAvailable: picks.filter((c) => typeof c.e.image_url === "string" && /^https?:\/\//.test(c.e.image_url)).length,
@@ -458,13 +446,7 @@ export async function GET(req: NextRequest) {
   };
 
   try {
-    let attempt = await publish(taggedCount > 0 ? messageTagged : message);
-    let taggedUsed = taggedCount > 0;
-    // A rejected mention must not cost us the post — retry once, plain.
-    if (!attempt.ok && taggedCount > 0) {
-      attempt = await publish(message);
-      taggedUsed = false;
-    }
+    const attempt = await publish(message);
     const json: any = attempt.json;
     if (!attempt.ok) {
       return NextResponse.json({
@@ -478,7 +460,6 @@ export async function GET(req: NextRequest) {
         posted: json.id, picked: picks.length, onToday: candidates.length,
         areas: picks.map((c) => c.cityName), withImage: !!mediaId,
         photosAttached: mediaIds.length, postersAttached: Math.max(0, mediaIds.length - 1),
-        venuesTagged: taggedUsed ? taggedCount : 0,
       }],
     });
   } catch (e: any) {

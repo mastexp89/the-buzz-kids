@@ -1,4 +1,15 @@
 -- ============================================================
+-- SUPERSEDED (21 Aug 2026): Facebook REJECTS Page mentions from apps that
+-- haven't been through Meta App Review — confirmed on The Buzz Guide. The
+-- daily roundup therefore posts plain venue names and never attempts tagging,
+-- and the admin screen for pasting IDs has been removed.
+--
+-- The column below is harmless and stays (it costs nothing and the data is
+-- useful if Meta ever approves mentions); this file is kept for history. There
+-- is nothing to run here for the Facebook posting feature to work.
+-- ============================================================
+
+-- ============================================================
 -- Facebook Page IDs for venues, so the daily roundup post can @-tag them.
 --
 -- Tagging works by putting @[<numeric page id>] in the post message. A tagged
