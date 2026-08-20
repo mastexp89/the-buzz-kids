@@ -40,6 +40,9 @@ const SITE = "https://www.thebuzzkids.co.uk";
 const TZ = "Europe/London";             // cities table has no timezone column; all Scottish
 const MAX_PER_POST = 8;                 // one national roundup, spread across areas
 const MAX_PER_AREA = 1;                 // maximum geographic spread
+// Our home patch: always give Dundee a slot when it has anything on, before
+// the rotation fills the rest of the post.
+const HOME_AREA_SLUG = "dundee";
 const MAX_PROMOTED = 2;                 // paid slots can't take over the post
 // Kids activities are daytime and short — a 10am soft-play session is over by
 // lunch. With no end_time, assume 2 hours rather than the Guide's "open until
@@ -220,7 +223,7 @@ export async function GET(req: NextRequest) {
     return null;
   };
 
-  type Cand = { e: any; when: Date; allDay: boolean; cityId: string; cityName: string; venueName: string };
+  type Cand = { e: any; when: Date; allDay: boolean; cityId: string; citySlug: string; cityName: string; venueName: string };
   const candidates: Cand[] = [];
   for (const e of (rawEvents ?? []) as any[]) {
     // Attached to a place → that place must be approved; standalone → its own
@@ -250,6 +253,7 @@ export async function GET(req: NextRequest) {
 
     candidates.push({
       e, when, allDay, cityId,
+      citySlug: city.slug,
       cityName: city.name,
       venueName: v?.name ?? e.location_name ?? "",
     });
@@ -291,6 +295,13 @@ export async function GET(req: NextRequest) {
     if (isPromoted(c.e) && takeable(c)) take(c);
   }
 
+  // Home patch first (after promos): Dundee always gets a slot when something
+  // is on there, so our own city never rotates out of the post.
+  const homePick = candidates.find(
+    (c) => c.citySlug === HOME_AREA_SLUG && takeable(c) && !picks.includes(c),
+  );
+  if (homePick && picks.length < MAX_PER_POST) take(homePick);
+
   // Daily rotation: offset the area order by the day number so a different set
   // of areas leads each day (deterministic, so re-runs match).
   const dayNumber = Math.floor(new Date(`${ymd}T00:00:00Z`).getTime() / 86_400_000);
@@ -326,14 +337,25 @@ export async function GET(req: NextRequest) {
     return `${weekday} ${ordinal(d.getUTCDate())} ${month}`;
   })();
 
+  // Facebook has no rich text, so a bold headline means Unicode "bold" glyphs.
+  // Screen readers handle those badly, so it is used ONLY on the one headline
+  // line — never on the listings, which stay plain readable text.
+  const BOLD_A = 0x1d5d4; // 𝗔 — mathematical sans-serif bold capital A
+  const toBold = (t: string) =>
+    t.replace(/[A-Z]/g, (ch) => String.fromCodePoint(BOLD_A + (ch.charCodeAt(0) - 65)));
+
   // NOTE: no @-tagging. Facebook rejects Page mentions from apps that haven't
   // been through Meta App Review (confirmed on The Buzz Guide, 21 Aug 2026), so
   // attempting it only risked a rejected post and a retry. Plain names instead.
+  // Two lines per pick: what it is, then where. Far easier to scan than one
+  // long run-on line, and the activity icon gives the eye something to catch.
   const lineFor = (c: Cand) => {
     const star = isPromoted(c.e) ? "⭐ " : "";
-    const free = c.e.is_free ? " (free)" : "";
-    const at = c.venueName ? ` @ ${c.venueName}` : "";
-    return `${star}${c.allDay ? "All day" : timeLabel(c.when)} — ${c.e.title}${free}${at} · ${c.cityName}`;
+    const free = c.e.is_free ? " · FREE" : "";
+    const icon = pickEventIcon(c.e.title, genresOf(c.e));
+    const when = c.allDay ? "All day" : timeLabel(c.when);
+    const where = c.venueName ? `${c.venueName}, ${c.cityName}` : c.cityName;
+    return `${star}${icon} ${when} · ${c.e.title}${free}` + "\n" + `     📍 ${where}`;
   };
 
   const lines = picks.map((c) => lineFor(c));
@@ -351,11 +373,11 @@ export async function GET(req: NextRequest) {
 
   const areaCount = new Set(candidates.map((c) => c.cityId)).size;
   const head =
-    `🐝 WHAT'S ON FOR THE KIDS TODAY\n${dateLabel}\n\n` +
+    `🐝 ${toBold("WHAT'S ON FOR THE KIDS TODAY")}\n${dateLabel}\n\n` +
     `A few ideas from around Scotland 👇\n\n`;
   const tail =
     `\n\nLoads more — find what's on near you:`;
-  const message = head + lines.join("\n") + tail;
+  const message = head + lines.join("\n\n") + tail;
   const link = onlyCity ? `${SITE}/${onlyCity}/whats-on` : `${SITE}/browse?tab=events`;
 
   if (dry && !preview) {
