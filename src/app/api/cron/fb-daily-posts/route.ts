@@ -436,11 +436,12 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // Attach the summary card ONLY. Facebook crops every image in a multi-photo
-  // album into a grid cell, which chopped the card's header and footer — and
-  // the card IS the content. Posters stay measured (below) so they can be
-  // reinstated or moved into a first comment later, but they are not attached.
-  const ATTACH_EVENT_IMAGES = false;
+  // Attach the event images alongside the card. Facebook's album layout varies
+  // with photo count: with ~5 photos the first image gets a TALL slot (the card
+  // shows in full), with 3 it is squeezed into a cropped cell. The card is now
+  // rendered 4:5, which matches that tall slot, so it survives the crop — and
+  // the posters are what catch a parent's eye in the feed.
+  const ATTACH_EVENT_IMAGES = true;
 
   // Posters for the featured events, in the same order as the caption lines.
   //
