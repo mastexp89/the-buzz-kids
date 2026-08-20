@@ -177,28 +177,40 @@ async function handleCallback(cb: any) {
   }
 
   // "Wrong place?" button on an event card → prompt for a few letters. The
-  // prompt carries the event id and force-replies (selective, so only the
-  // admin who tapped gets the reply box), feeding the search handler.
+  // prompt carries the event id, feeding the search handler below.
+  //
+  // Deliberately NOT force_reply. In a group Telegram re-opens the reply box
+  // every time anyone enters the chat until that specific prompt is answered,
+  // so one ignored prompt haunts the group forever — there's no API to
+  // withdraw it. Plain message + an explicit dismiss button instead.
   if (data.startsWith("ew:")) {
     const eventId = unpackUuid(data.slice(3));
     if (!eventId) {
       await answer("Couldn't resolve that event.", true);
       return;
     }
-    await answer("Type the first few letters of the right place");
+    await answer("Reply to my prompt with the first few letters");
     const who = [cb.from?.first_name, cb.from?.last_name].filter(Boolean).join(" ") || "Admin";
     await tgApi("sendMessage", {
       chat_id: cb.message.chat.id,
       text:
         `<a href="tg://user?id=${cb.from?.id}">${tgEsc(who)}</a> — which place should this event be at?\n` +
-        `Send the first few letters (e.g. <code>camp</code>) and I'll list the matches.\n` +
+        `↩️ <b>Reply to this message</b> with the first few letters (e.g. <code>camp</code>) and I'll list the matches.\n` +
         `ID: <code>${eventId}</code>`,
       parse_mode: "HTML",
       reply_markup: {
-        force_reply: true,
-        selective: true,
-        input_field_placeholder: "First letters of the place…",
+        inline_keyboard: [[{ text: "✖️ Never mind", callback_data: "ewx" }]],
       },
+    });
+    return;
+  }
+
+  // Dismiss an unanswered "which place?" prompt.
+  if (data === "ewx") {
+    await answer("Cancelled");
+    await tgApi("deleteMessage", {
+      chat_id: cb.message.chat.id,
+      message_id: cb.message.message_id,
     });
     return;
   }
