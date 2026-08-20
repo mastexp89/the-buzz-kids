@@ -436,12 +436,18 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // Attach the event images alongside the card. Facebook's album layout varies
-  // with photo count: with ~5 photos the first image gets a TALL slot (the card
-  // shows in full), with 3 it is squeezed into a cropped cell. The card is now
-  // rendered 4:5, which matches that tall slot, so it survives the crop — and
-  // the posters are what catch a parent's eye in the feed.
-  const ATTACH_EVENT_IMAGES = true;
+  // Post the summary card ON ITS OWN.
+  //
+  // Facebook decides album layout from the photo COUNT, and crops each image to
+  // fit its cell. With 5 photos the card happened to land in a tall left column
+  // and survived; with 3 it was cropped to a centre strip, losing the logo,
+  // the city and the footer. That is not something we control, and the card is
+  // the content — it already lists all 8 events. A lone 4:5 image is never
+  // cropped and takes the most feed space, so it always looks right.
+  //
+  // Event images are still measured/classified below; flip this to true (or
+  // move them into a first comment, which is not cropped) if wanted.
+  const ATTACH_EVENT_IMAGES = false;
 
   // Posters for the featured events, in the same order as the caption lines.
   //
