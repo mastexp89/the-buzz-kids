@@ -188,7 +188,13 @@ export async function GET(req: NextRequest) {
   }
 
   if (candidates.length === 0) {
-    return NextResponse.json({ ok: true, dry, ranAt: now.toISOString(), results: [{ skipped: "nothing on today" }] });
+    // Report the raw row count too: "nothing on today" late in the evening is
+    // correct (everything has finished), but a zero here with zero raw rows
+    // would mean the query itself failed — very different problems.
+    return NextResponse.json({
+      ok: true, dry, ranAt: now.toISOString(),
+      results: [{ skipped: "nothing on today", rawRows: (rawEvents ?? []).length, ymd }],
+    });
   }
 
   // ── Pick the line-up ──────────────────────────────────────────────
