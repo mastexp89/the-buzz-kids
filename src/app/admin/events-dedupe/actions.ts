@@ -31,7 +31,9 @@ async function requireAdmin() {
 }
 
 function normaliseTitle(t: string): string {
-  return String(t || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+  // Keep in lockstep with the dedupe cron: "&" and "and" must collapse to the
+  // same key, or re-scrapes of one event never cluster.
+  return String(t || "").toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "");
 }
 
 // Strip aggregation count suffixes so titles that only differ in the

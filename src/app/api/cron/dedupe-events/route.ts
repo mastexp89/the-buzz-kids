@@ -219,7 +219,10 @@ function pad(n: number) {
 }
 
 function normaliseTitle(t: string): string {
-  return (t || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+  // "&" and "and" must collapse to the same thing: stripping punctuation alone
+  // left "Hunt & Challenge" and "Hunt and Challenge" with different keys, so
+  // re-scrapes of one event never clustered.
+  return (t || "").toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "");
 }
 
 // Strip aggregation count suffixes so titles that only differ in the
