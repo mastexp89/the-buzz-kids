@@ -7,6 +7,21 @@
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const MODEL = process.env.ANTHROPIC_EXTRACTION_MODEL ?? "claude-sonnet-4-6";
 
+// The one exception to "no side effects" above: an exhausted credit balance
+// takes down every AI path at once and is otherwise invisible (callers just
+// show "poster reading unavailable"). Fire a single throttled Telegram alert
+// so we hear about it in the group rather than from a quiet Errors count.
+//
+// Lazy-imported so the Supabase + Telegram modules stay off the cold-start
+// path for callers that never hit an Anthropic error, and wrapped so alerting
+// can never break extraction itself.
+async function alertOnAnthropicFailure(err: unknown): Promise<void> {
+  try {
+    const { noteAnthropicFailure } = await import("@/lib/ai-alerts");
+    await noteAnthropicFailure(err);
+  } catch { /* best-effort */ }
+}
+
 // Single retry-with-backoff helper shared by every Anthropic call in
 // this file. Anthropic rate-limits free / low-tier orgs at 30k input
 // tokens/min; with image-heavy requests we can blow past that and
@@ -45,7 +60,9 @@ async function callAnthropicWithRetry(apiKey: string, body: object): Promise<Res
     await new Promise((r) => setTimeout(r, waitMs));
   }
   const text = lastErrorText || (res ? await res.text() : "no response");
-  throw new Error(`Anthropic ${res?.status ?? "?"}: ${text.slice(0, 400)}`);
+  const err = new Error(`Anthropic ${res?.status ?? "?"}: ${text.slice(0, 400)}`);
+  await alertOnAnthropicFailure(err);
+  throw err;
 }
 
 export type ExtractionInput = {
@@ -489,7 +506,9 @@ RULES
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Anthropic ${res.status}: ${text.slice(0, 300)}`);
+    const err = new Error(`Anthropic ${res.status}: ${text.slice(0, 300)}`);
+    await alertOnAnthropicFailure(err);
+    throw err;
   }
   const json: any = await res.json();
   const block = (json.content ?? []).find((b: any) => b.type === "text");
@@ -558,7 +577,9 @@ RULES
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Anthropic ${res.status}: ${text.slice(0, 200)}`);
+    const err = new Error(`Anthropic ${res.status}: ${text.slice(0, 200)}`);
+    await alertOnAnthropicFailure(err);
+    throw err;
   }
   const json: any = await res.json();
   const textBlock = (json.content ?? []).find((b: any) => b.type === "text");
