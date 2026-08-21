@@ -76,13 +76,44 @@ export async function GET(req: Request) {
   //
   // venue_id stays in the key deliberately: the same title at DIFFERENT venues
   // is usually legitimate (a film showing at five cinemas), not a duplicate.
+  // A standalone copy (no venue) of an event that also exists attached to a
+  // venue is the same listing scraped twice — but they key into different
+  // groups, so the merge never sees them. Re-home a standalone onto the venue's
+  // key when the match is unambiguous.
+  //
+  // Deliberately strict: the normalised titles must be EXACTLY equal (not the
+  // fuzzy overlap used within a group), the day must match, and exactly ONE
+  // venue may claim that title+day. That last condition is what protects
+  // touring shows and films — "Toto the Ninja Cat" at four theatres has four
+  // claimants, so nothing is re-homed.
+  const dayKeyOf = (e: any): string => {
+    const t = new Date(e.start_time);
+    return e.end_date
+      ? `run:${e.end_date}`
+      : `${t.getUTCFullYear()}-${pad(t.getUTCMonth() + 1)}-${pad(t.getUTCDate())}`;
+  };
+  const venueClaims = new Map<string, Set<string>>();
+  for (const e of events) {
+    if (!e.venue_id) continue;
+    if (isGenericTitle(e.title)) continue;      // never re-home on a placeholder title
+    const k = `${dedupeKey(e.title)}|${dayKeyOf(e)}`;
+    if (dedupeKey(e.title).length < 10) continue; // too vague to be sure
+    (venueClaims.get(k) ?? venueClaims.set(k, new Set()).get(k)!).add(e.venue_id);
+  }
+  const rehomed = new Map<string, string>(); // event id -> venue id it was grouped under
+  for (const e of events) {
+    if (e.venue_id) continue;
+    const claimants = venueClaims.get(`${dedupeKey(e.title)}|${dayKeyOf(e)}`);
+    if (claimants && claimants.size === 1) rehomed.set(e.id, [...claimants][0]);
+  }
+
   const groups = new Map<string, typeof events>();
   for (const e of events) {
     const t = new Date(e.start_time);
     const dayKey = (e as any).end_date
       ? `run:${(e as any).end_date}`
       : `${t.getUTCFullYear()}-${pad(t.getUTCMonth() + 1)}-${pad(t.getUTCDate())}`;
-    const key = `${e.venue_id}|${dayKey}`;
+    const key = `${rehomed.get(e.id) ?? e.venue_id}|${dayKey}`;
     const list = groups.get(key) ?? [];
     list.push(e);
     groups.set(key, list);
@@ -331,6 +362,11 @@ function pickWinner<T extends {
   created_at: string | null;
 }>(events: T[]): T {
   return [...events].sort((a, b) => {
+    // An event attached to a venue beats a standalone copy of it — the venue
+    // gives us the address, map, opening hours and the listing on its page.
+    const aVenue = (a as any).venue_id ? 1 : 0;
+    const bVenue = (b as any).venue_id ? 1 : 0;
+    if (aVenue !== bVenue) return bVenue - aVenue;
     // Specific title beats generic placeholder ("Andrew Acoustic" beats "Live Music")
     const aGeneric = isGenericTitle(a.title) ? 1 : 0;
     const bGeneric = isGenericTitle(b.title) ? 1 : 0;
