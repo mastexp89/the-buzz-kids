@@ -35,6 +35,17 @@
   .mini:disabled{opacity:.5;cursor:not-allowed;}
   .toggle{display:flex;align-items:center;gap:9px;font-size:13px;margin-top:10px;cursor:pointer;user-select:none;}
   .toggle input{accent-color:var(--acc);width:16px;height:16px;}
+  /* Cleaned entrant list, so the names can be eyeballed before drawing. */
+  .revhead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:14px 0 6px;}
+  .revlist{max-height:230px;overflow:auto;border:1px solid var(--line);border-radius:10px;background:var(--field);}
+  .revrow{display:flex;align-items:center;gap:8px;padding:6px 10px;font-size:13px;border-bottom:1px solid var(--line);}
+  .revrow:last-child{border-bottom:none;}
+  .revrow .n{color:var(--mut);font-variant-numeric:tabular-nums;min-width:22px;font-size:12px;}
+  .revrow .nm{flex:1;color:var(--text);word-break:break-word;}
+  .revrow button{border:none;background:transparent;color:var(--mut);cursor:pointer;font-size:15px;line-height:1;padding:2px 4px;border-radius:6px;}
+  .revrow button:hover{color:#e5484d;}
+  .revrow.out .nm{text-decoration:line-through;opacity:.45;}
+  .minibtn{border:1px solid var(--line);background:var(--field);color:var(--text);font-size:12px;font-weight:700;border-radius:8px;padding:5px 10px;cursor:pointer;}
   .stats{margin-top:12px;font-size:13px;color:var(--mut);}
   .stats b{color:var(--text);} .stats span{color:var(--line);}
   .msg{font-size:12.5px;line-height:1.5;margin-top:10px;padding:9px 11px;border-radius:9px;}
@@ -106,6 +117,20 @@
         </div>
         <p class="hint" id="pthint"></p>
         <textarea id="ent" rows="7"></textarea>
+
+        <!-- Parsed names, so they can be checked (and bad parses dropped)
+             before the draw runs. -->
+        <div id="reviewwrap" class="hide">
+          <div class="revhead">
+            <span class="lab" style="margin:0">Entrants found <span id="revcount"></span></span>
+            <span style="display:flex;gap:6px">
+              <button type="button" class="minibtn" id="copynames">Copy list</button>
+              <button type="button" class="minibtn" id="restorenames">Restore removed</button>
+            </span>
+          </div>
+          <div class="revlist" id="review"></div>
+          <p class="hint" id="revhint">One entry per person — if someone commented twice they appear once. Tap ✕ to drop anyone the parser picked up by mistake.</p>
+        </div>
       </div>
 
       <div class="stats"><b id="uniq">0</b> entrants <span>·</span> <b id="extra">—</b></div>
@@ -212,7 +237,7 @@ const $=(id)=>document.getElementById(id);
 const cv=$("cv"),ctx=cv.getContext("2d");
 const state={
   source:"fb", themeKey:"guide", title:THEMES.guide.title,
-  pasteType:"fb", raw:"",
+  pasteType:"fb", raw:"", excluded:new Set(),
   fbEntrants:[], filters:{mustLike:false,mustTag:false},
   phase:"idle", winner:null, drawSeed:"", videoUrl:"",
   checks:{liked:false,tagged:false}
@@ -237,8 +262,16 @@ function recompute(){
     }
   }else{
     const p=state.pasteType==="fb"?parseFacebook(state.raw):parseList(state.raw);
-    pool=p.entries;
-    extra=`${p.dupes} duplicates removed`;
+    // Parsed names are shown for review; anything ticked off is excluded from
+    // the draw but stays visible (struck through) so nothing vanishes silently.
+    pool=p.entries.filter(e=>!state.excluded.has(e.id));
+    const dropped=p.entries.length-pool.length;
+    // "duplicates" read as though the list had repeated names in it; what it
+    // actually counts is people who commented more than once, collapsed to a
+    // single entry. Say that.
+    extra=(p.dupes?`${p.dupes} repeat comment${p.dupes===1?"":"s"} merged`:"one entry per person")
+      +(dropped?` · ${dropped} removed by you`:"");
+    renderReview(p.entries);
   }
   $("uniq").textContent=pool.length;
   $("extra").textContent=extra;
@@ -441,6 +474,36 @@ function buildThemes(){
   });
 }
 
+/* ---- entrant review list (paste mode) ---- */
+function renderReview(entries){
+  const wrap=$("reviewwrap"), box=$("review");
+  if(!entries.length){wrap.classList.add("hide");box.innerHTML="";return;}
+  wrap.classList.remove("hide");
+  const kept=entries.filter(e=>!state.excluded.has(e.id)).length;
+  $("revcount").textContent=`(${kept}${kept!==entries.length?` of ${entries.length}`:""})`;
+  box.innerHTML="";
+  let n=0;
+  entries.forEach((e)=>{
+    const out=state.excluded.has(e.id);
+    if(!out)n++;
+    const row=document.createElement("div");
+    row.className="revrow"+(out?" out":"");
+    const num=document.createElement("span");num.className="n";num.textContent=out?"—":n+".";
+    const nm=document.createElement("span");nm.className="nm";nm.textContent=e.name;
+    const btn=document.createElement("button");btn.type="button";
+    btn.textContent=out?"↺":"✕";btn.title=out?"Put back in the draw":"Remove from the draw";
+    btn.addEventListener("click",()=>{
+      if(out)state.excluded.delete(e.id);else state.excluded.add(e.id);
+      recompute();
+    });
+    row.append(num,nm,btn);box.appendChild(row);
+  });
+}
+function currentNamesText(){
+  return pool.map((e,i)=>`${i+1}. ${e.name}`).join("
+");
+}
+
 /* ---- source + paste-type UI ---- */
 function applySource(){
   document.querySelectorAll("#src button").forEach(b=>b.classList.toggle("on",b.dataset.src===state.source));
@@ -461,7 +524,14 @@ $("ttl").value=state.title;
 $("ttl").addEventListener("input",(e)=>{state.title=e.target.value;state.titleAuto=false;if(state.phase==="idle")drawIdle();});
 document.querySelectorAll("#src button").forEach(b=>b.addEventListener("click",()=>{state.source=b.dataset.src;applySource();}));
 document.querySelectorAll("#pt button").forEach(b=>b.addEventListener("click",()=>{state.pasteType=b.dataset.type;applyPasteType();recompute();}));
-$("ent").addEventListener("input",(e)=>{state.raw=e.target.value;recompute();});
+$("ent").addEventListener("input",(e)=>{state.raw=e.target.value;state.excluded.clear();recompute();});
+$("copynames").addEventListener("click",async()=>{
+  const btn=$("copynames");
+  try{await navigator.clipboard.writeText(currentNamesText());btn.textContent="Copied";}
+  catch{btn.textContent="Copy failed";}
+  setTimeout(()=>{btn.textContent="Copy list";},1400);
+});
+$("restorenames").addEventListener("click",()=>{state.excluded.clear();recompute();});
 $("loadposts").addEventListener("click",loadPosts);
 $("postsel").addEventListener("change",loadEntrants);
 $("mustlike").addEventListener("change",(e)=>{state.filters.mustLike=e.target.checked;recompute();});
