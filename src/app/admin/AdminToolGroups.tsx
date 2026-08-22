@@ -16,6 +16,7 @@ type Tool = {
   description?: string;
   badge?: number; // when > 0, rendered as an orange pill on the tile
   paid?: boolean; // renders a £ chip — this tool calls a paid API (Google/Apify/AI)
+  external?: boolean; // a plain page rather than an admin route — opens in a new tab
 };
 
 type Group = {
@@ -174,6 +175,13 @@ export default function AdminToolGroups({ pendingCount, suggestionsCount = 0 }: 
           description: "Toggle a region public / hidden",
         },
         {
+          href: "/draw.html",
+          label: "Winner draw",
+          emoji: "🎰",
+          description: "Pull commenters from a Facebook giveaway post and draw a winner on video",
+          external: true,
+        },
+        {
           href: "/admin/restore-images",
           label: "Restore images",
           emoji: "🖼️",
@@ -226,10 +234,15 @@ export default function AdminToolGroups({ pendingCount, suggestionsCount = 0 }: 
         <div key={g.title}>
           <p className="text-xs uppercase tracking-wider text-buzz-mute mb-2">{g.title}</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-            {g.tools.map((t) => (
-              <Link
+            {g.tools.map((t) => {
+              // The draw tool is a static page, not an admin route, so it needs
+              // a plain anchor — next/link would try to client-route to it.
+              const Component: any = t.external ? "a" : Link;
+              return (
+              <Component
                 key={t.href}
                 href={t.href}
+                {...(t.external ? { target: "_blank", rel: "noopener" } : {})}
                 className="group rounded-lg border border-buzz-border bg-buzz-card hover:border-buzz-accent transition px-3 py-2.5 flex flex-col gap-0.5 min-w-0"
               >
                 <div className="flex items-center gap-2 min-w-0">
@@ -256,8 +269,9 @@ export default function AdminToolGroups({ pendingCount, suggestionsCount = 0 }: 
                 {t.description && (
                   <p className="text-xs text-buzz-mute truncate">{t.description}</p>
                 )}
-              </Link>
-            ))}
+              </Component>
+              );
+            })}
           </div>
         </div>
       ))}

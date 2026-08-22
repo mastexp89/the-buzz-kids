@@ -31,6 +31,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { pickEventIcon } from "@/lib/utils";
 import { isRecurring, recurrenceOccursInWindow } from "@/lib/recurrence";
 import { buildAndStorePostImage, type PostLine } from "@/lib/fb-post-image";
+import { sendTelegram } from "@/lib/telegram";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -80,6 +81,23 @@ function ageLabel(min: number | null, max: number | null): string | null {
   if (min != null && max != null) return `${min}–${max} yrs`;
   if (min != null) return `${min}+`;
   return `Under ${(max as number) + 1}s`;
+}
+
+// The daily post ran for two days with an expired token and nobody noticed —
+// a failed post is invisible unless you happen to look at the Page. Anything
+// that stops the post going out now pings the admins group instead.
+async function alertFailure(reason: string, detail?: string) {
+  try {
+    await sendTelegram(
+      `⚠️ <b>Daily Facebook post failed</b>
+${reason}` +
+        (detail ? `
+<code>${detail.slice(0, 300)}</code>` : "") +
+        `
+
+It will retry at 8:30am tomorrow.`,
+    );
+  } catch { /* never let alerting break the cron */ }
 }
 
 export async function GET(req: NextRequest) {
@@ -165,6 +183,7 @@ export async function GET(req: NextRequest) {
     }
   }
   if (!dry && !preview && (!pageId || !token)) {
+    await alertFailure("FB_PAGE_ID / FB_PAGE_ACCESS_TOKEN are not set on the server.");
     return NextResponse.json(
       { ok: false, error: "FB_PAGE_ID / FB_PAGE_ACCESS_TOKEN env vars not set." },
       { status: 500 },
@@ -289,6 +308,12 @@ export async function GET(req: NextRequest) {
     // Report the raw row count too: "nothing on today" late in the evening is
     // correct (everything has finished), but a zero here with zero raw rows
     // would mean the query itself failed — very different problems.
+    if (!dry && !preview) {
+      await alertFailure(
+        "Nothing was on today, so no post went out.",
+        queryErrors.length ? queryErrors.join("; ") : `${rawEvents.length} rows scanned`,
+      );
+    }
     return NextResponse.json({
       ok: true, dry, ranAt: now.toISOString(),
       results: [{ skipped: "nothing on today", rawRows: rawEvents.length, ymd, queryErrors }],
@@ -616,9 +641,12 @@ export async function GET(req: NextRequest) {
     const attempt = await publish(message);
     const json: any = attempt.json;
     if (!attempt.ok) {
+      const msg = json?.error?.message ?? `HTTP ${attempt.status}`;
+      // An expired or revoked token surfaces here — exactly the silent failure
+      // that went unnoticed for two days.
+      await alertFailure("Facebook rejected the post.", msg);
       return NextResponse.json({
-        ok: false, ranAt: now.toISOString(),
-        error: json?.error?.message ?? `HTTP ${attempt.status}`,
+        ok: false, ranAt: now.toISOString(), error: msg,
       });
     }
     return NextResponse.json({
@@ -630,6 +658,7 @@ export async function GET(req: NextRequest) {
       }],
     });
   } catch (e: any) {
+    await alertFailure("The post threw an error.", e?.message);
     return NextResponse.json({ ok: false, error: e?.message ?? "post failed" });
   }
 }
