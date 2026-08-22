@@ -107,6 +107,29 @@ export async function GET(req: NextRequest) {
         error: "FB_PAGE_ID / FB_PAGE_ACCESS_TOKEN not visible to the server (set them in Vercel Production, then redeploy).",
       });
     }
+    // Also validate the draw tool's Page tokens, so one call reports the health
+    // of every Facebook credential the site uses. Never echoes a token.
+    const probeToken = async (label: string, t?: string) => {
+      if (!t) return { name: label, set: false };
+      try {
+        const r = await fetch(
+          `https://graph.facebook.com/v21.0/me?fields=id,name&access_token=${encodeURIComponent(t)}`,
+        );
+        const j: any = await r.json();
+        return {
+          name: label, set: true, ok: !j?.error,
+          belongsTo: j?.name ?? null, id: j?.id ?? null,
+          error: j?.error?.message ?? null,
+        };
+      } catch (e: any) {
+        return { name: label, set: true, ok: false, error: e?.message ?? "check failed" };
+      }
+    };
+    const drawTokens = await Promise.all([
+      probeToken("FB_TOKEN_KIDS", process.env.FB_TOKEN_KIDS),
+      probeToken("FB_TOKEN_GUIDE", process.env.FB_TOKEN_GUIDE),
+    ]);
+
     try {
       const who = await fetch(
         `https://graph.facebook.com/v21.0/me?fields=id,name&access_token=${encodeURIComponent(token)}`,
@@ -127,6 +150,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({
         ok: !whoJson?.error,
         configuredPageId: pageId,
+        drawTokens,
         tokenFingerprint: fingerprint,
         tokenLength: token.length,
         tokenBelongsTo: whoJson?.name ?? null,
