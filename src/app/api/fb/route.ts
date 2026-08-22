@@ -113,6 +113,15 @@ export async function GET(request: NextRequest) {
         reactions.map((r: any) => (r.name || "").toLowerCase()).filter(Boolean),
       );
 
+      // Our own Page's replies are not entries. Ironically the Page is often the
+      // ONLY identity Facebook returns (see the note below), so without this the
+      // draw would be between us and nobody.
+      let selfId: string | null = null;
+      try {
+        const me: any = await gget("me", token, { fields: "id" });
+        selfId = me?.id ?? null;
+      } catch { /* not fatal */ }
+
       // top-level comments = entrants
       const comments = await pageAll(
         `${postId}/comments`, token,
@@ -125,6 +134,7 @@ export async function GET(request: NextRequest) {
         const id = from && from.id;
         const name = from && from.name;
         if (!name) { hidden++; continue; } // identity not available for this commenter
+        if (selfId && id === selfId) continue; // the Page replying to its own post
         const key = id || name.toLowerCase();
         const tagged = Array.isArray(c.message_tags) && c.message_tags.length > 0;
         const liked = (id && reactorIds.has(id)) || reactorNames.has(name.toLowerCase());
@@ -137,8 +147,17 @@ export async function GET(request: NextRequest) {
         }
       }
       const entrants = [...map.values()];
+      // When Facebook withholds most identities the tool is not broken — the
+      // app lacks advanced access (App Review + Business Verification) to read
+      // who commented on a Page post. Say so, and point at the paste fallback,
+      // rather than letting a "2 entrants" line look like a real entry count.
+      const restricted = hidden > entrants.length;
       return NextResponse.json({
         entrants,
+        restricted,
+        note: restricted
+          ? `Facebook returned identities for only ${entrants.length} of ${comments.length} comments — the rest are withheld. Reading commenters on a Page post needs advanced access (App Review + Business Verification); until then use "Paste comments".`
+          : null,
         meta: { comments: comments.length, unique: entrants.length, reactors: reactorIds.size, hidden },
       });
     }

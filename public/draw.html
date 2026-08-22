@@ -411,7 +411,12 @@ function titleFromPost(text){
     state.fbEntrants=j.entrants||[];
     const m=j.meta||{};
     const hid=m.hidden?` · ${m.hidden} hidden identities skipped`:"";
-    $("fbmsg").innerHTML=`<div class="msg ok"><b>${state.fbEntrants.length}</b> entrants · ${m.reactors||0} reactions on the post${hid}</div>`;
+    const line=`<b>${state.fbEntrants.length}</b> entrants · ${m.reactors||0} reactions on the post${hid}`;
+    // Facebook withholds commenter identities without advanced access, so a
+    // tiny entrant count here is a permissions limit, not a quiet comp.
+    $("fbmsg").innerHTML=j.restricted
+      ? `<div class="msg err">${line}<br><br><b>That is not everyone.</b> ${j.note}</div>`
+      : `<div class="msg ok">${line}</div>`;
     recompute();
   }catch(e){
     state.fbEntrants=[];recompute();
