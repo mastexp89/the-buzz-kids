@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Buzz Winner Draw</title>
+<meta name="description" content="Pick a random winner from Facebook comments for The Buzz Guide and Buzz Kids, verify who liked and tagged, and export a branded draw video." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Pacifico&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0e0e10;--surface:#161618;--field:#0a0a0b;--line:#2a2a2e;--text:#f5f5f0;--mut:#8a8a92;--acc:#fdb913;--acc-ink:#000;}
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);}
+  body{color:var(--text);font-family:"Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;}
+  .wrap{max-width:920px;margin:0 auto;padding:26px 18px 48px;}
+  .head{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:18px;}
+  .title{font-family:"Bebas Neue","Arial Narrow",sans-serif;font-size:44px;font-weight:400;letter-spacing:.02em;margin:0;line-height:1;}
+  .themes{display:flex;gap:8px;}
+  .chip{background:transparent;border:1.5px solid var(--line);color:var(--mut);padding:8px 14px;border-radius:999px;font-size:13px;font-weight:700;cursor:pointer;}
+  .chip.on{color:var(--acc);border-color:var(--acc);background:color-mix(in srgb,var(--acc) 16%,transparent);}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  @media (max-width:720px){.grid{grid-template-columns:1fr;}}
+  .lab{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);font-weight:700;margin:14px 0 6px;}
+  .lab.first{margin-top:0;}
+  input.txt,textarea,select{width:100%;background:var(--field);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:11px 12px;font-size:14px;font-family:inherit;}
+  textarea{resize:vertical;line-height:1.5;}
+  input.txt:focus,textarea:focus,select:focus{outline:2px solid var(--acc);outline-offset:1px;border-color:transparent;}
+  .seg{display:flex;gap:6px;background:var(--field);border:1px solid var(--line);border-radius:10px;padding:4px;}
+  .seg button{flex:1;padding:9px;border:none;background:transparent;color:var(--mut);font-size:13px;font-weight:700;border-radius:7px;cursor:pointer;}
+  .seg button.on{background:var(--acc);color:var(--acc-ink);}
+  .hint{font-size:12px;color:var(--mut);line-height:1.5;margin:8px 0;}
+  .row{display:flex;gap:8px;align-items:center;}
+  .mini{padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:var(--field);color:var(--text);font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;}
+  .mini:disabled{opacity:.5;cursor:not-allowed;}
+  .toggle{display:flex;align-items:center;gap:9px;font-size:13px;margin-top:10px;cursor:pointer;user-select:none;}
+  .toggle input{accent-color:var(--acc);width:16px;height:16px;}
+  .stats{margin-top:12px;font-size:13px;color:var(--mut);}
+  .stats b{color:var(--text);} .stats span{color:var(--line);}
+  .msg{font-size:12.5px;line-height:1.5;margin-top:10px;padding:9px 11px;border-radius:9px;}
+  .msg.err{background:rgba(192,57,43,.12);border:1px solid rgba(192,57,43,.4);color:#e8a59d;}
+  .msg.ok{background:color-mix(in srgb,var(--acc) 12%,transparent);border:1px solid color-mix(in srgb,var(--acc) 40%,transparent);color:var(--text);}
+  .go{width:100%;margin-top:16px;padding:15px;border:none;border-radius:12px;font-size:16px;font-weight:800;cursor:pointer;color:var(--acc-ink);background:var(--acc);box-shadow:0 6px 20px color-mix(in srgb,var(--acc) 40%,transparent);}
+  .go:disabled{opacity:.4;cursor:not-allowed;background:var(--surface);color:var(--mut);box-shadow:none;}
+  .warn{font-size:12px;color:#f0b37e;margin:10px 0 0;line-height:1.5;}
+  .stage{background:#000;border:1px solid var(--line);border-radius:14px;overflow:hidden;aspect-ratio:1;}
+  canvas{width:100%;height:100%;display:block;}
+  .out{margin-top:20px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;}
+  .out.hide{display:none;}
+  .winline{font-size:18px;margin-bottom:14px;} .winline b{color:var(--acc);}
+  .ref{font-size:12px;color:var(--mut);font-family:ui-monospace,Menlo,monospace;margin-left:6px;}
+  video{width:100%;max-width:420px;border-radius:12px;display:block;margin:0 auto 12px;background:#000;}
+  .dl{display:block;text-align:center;max-width:420px;margin:0 auto;padding:12px;border-radius:10px;background:var(--acc);color:var(--acc-ink);font-weight:800;text-decoration:none;}
+  .note{text-align:center;font-size:12px;color:var(--mut);margin:8px 0 0;}
+  .verify{margin-top:18px;border-top:1px solid var(--line);padding-top:14px;}
+  .vh{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--mut);font-weight:700;margin-bottom:10px;}
+  .vrow{display:flex;align-items:center;gap:10px;font-size:14px;padding:7px 0;cursor:pointer;position:relative;user-select:none;}
+  .vrow input{position:absolute;opacity:0;width:20px;height:20px;cursor:pointer;}
+  .box{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--line);flex:none;position:relative;}
+  .vrow.done .box{background:var(--acc);border-color:var(--acc);}
+  .vrow.done .box::after{content:"";position:absolute;left:6px;top:2px;width:5px;height:10px;border:solid var(--acc-ink);border-width:0 2.5px 2.5px 0;transform:rotate(45deg);}
+  .auto{font-size:10px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:var(--acc);border:1px solid color-mix(in srgb,var(--acc) 60%,transparent);border-radius:20px;padding:2px 7px;margin-left:auto;}
+  .actions{display:flex;gap:10px;margin-top:16px;}
+  .btn{flex:1;padding:12px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--text);font-weight:700;font-size:14px;cursor:pointer;}
+  .btn.solid{background:var(--acc);border:none;color:var(--acc-ink);}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+  .foot{margin-top:18px;font-size:12px;color:var(--mut);line-height:1.55;border-top:1px solid var(--line);padding-top:14px;}
+  .hide{display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="head">
+    <h1 class="title">Buzz Winner Draw</h1>
+    <div class="themes" id="themes"></div>
+  </header>
+
+  <div class="grid">
+    <div>
+      <label class="lab first" for="ttl">Video title</label>
+      <input class="txt" id="ttl" placeholder="e.g. The Buzz Guide Giveaway" />
+
+      <label class="lab">Entrants from</label>
+      <div class="seg" id="src">
+        <button data-src="fb" class="on">Facebook (auto)</button>
+        <button data-src="paste">Paste comments</button>
+      </div>
+
+      <!-- FACEBOOK SOURCE -->
+      <div id="fbpanel">
+        <p class="hint">Loads commenters from the selected <b id="pagename">Buzz Guide</b> post and flags who also liked the post and tagged someone. Under Facebook’s promotion rules, sharing and tagging can be <i>encouraged</i> but not required — the enforceable entry is comment + like.</p>
+        <div class="row">
+          <button class="mini" id="loadposts">Load recent posts</button>
+          <select id="postsel" class="hide"><option>Load posts first…</option></select>
+        </div>
+        <div id="fbmsg"></div>
+        <label class="toggle"><input type="checkbox" id="mustlike"> Only include entrants who <b>liked the post</b></label>
+        <label class="toggle"><input type="checkbox" id="musttag"> Only include entrants who <b>tagged someone</b></label>
+      </div>
+
+      <!-- PASTE SOURCE -->
+      <div id="pastepanel" class="hide">
+        <div class="seg" id="pt" style="margin-top:6px">
+          <button data-type="fb" class="on">Facebook comments</button>
+          <button data-type="list">Plain name list</button>
+        </div>
+        <p class="hint" id="pthint"></p>
+        <textarea id="ent" rows="7"></textarea>
+      </div>
+
+      <div class="stats"><b id="uniq">0</b> entrants <span>·</span> <b id="extra">—</b></div>
+
+      <button class="go" id="go" disabled>🎬 Start the draw</button>
+      <p class="warn" id="warn" style="display:none">Video export needs Chrome or Edge on desktop. The draw still plays here — you can screen-record it.</p>
+    </div>
+
+    <div>
+      <div class="stage"><canvas id="cv" width="1080" height="1080"></canvas></div>
+    </div>
+  </div>
+
+  <section class="out hide" id="out">
+    <div class="winline">Winner: <b id="wname"></b> <span class="ref" id="wref"></span></div>
+    <div id="videowrap"></div>
+    <div class="verify">
+      <div class="vh">Confirm the winner liked the post, then announce</div>
+      <div id="checks"></div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="again">Draw again</button>
+      <button class="btn solid" id="copy" disabled>Copy announcement</button>
+    </div>
+  </section>
+
+  <footer class="foot">
+    Compliant comp mechanics: comment + like the post (both verified automatically from Facebook), one entry per person (always handled). Sharing, tagging and following can be encouraged in the post but not required — that’s Facebook’s promotion rule, and conveniently they were never verifiable anyway.
+  </footer>
+</div>
+
+<script>
+/* ---------- fair, reproducible randomness ---------- */
+function cyrb128(str){let h1=1779033703,h2=3144134277,h3=1013904242,h4=2773480762;for(let i=0,k;i<str.length;i++){k=str.charCodeAt(i);h1=h2^Math.imul(h1^k,597399067);h2=h3^Math.imul(h2^k,2869860233);h3=h4^Math.imul(h3^k,951274213);h4=h1^Math.imul(h4^k,2716044179);}h1=Math.imul(h3^(h1>>>18),597399067);h2=Math.imul(h4^(h2>>>22),2869860233);h3=Math.imul(h1^(h3>>>17),951274213);h4=Math.imul(h2^(h4>>>19),2716044179);return (h1^h2^h3^h4)>>>0;}
+function mulberry32(a){return function(){a|=0;a=(a+0x6d2b79f5)|0;let t=Math.imul(a^(a>>>15),1|a);t=(t+Math.imul(t^(t>>>7),61|t))^t;return ((t^(t>>>14))>>>0)/4294967296;};}
+const newSeed=()=>(Date.now().toString(36)+Math.random().toString(36).slice(2,8)).toUpperCase();
+
+/* ---------- paste parsing ---------- */
+function parseList(raw){const seen=new Map();let dupes=0;for(const line of raw.split("\n")){const name=line.replace(/\s+/g," ").trim();if(!name)continue;const key=name.toLowerCase();if(seen.has(key)){dupes++;continue;}seen.set(key,{id:key,name});}return{entries:[...seen.values()],dupes};}
+const FB_BOUNDARY=/\b(reply|hide|replied|send message|see translation)\b/i;
+const FB_TIME=/^\d+\s*(s|m|h|d|w|y)$/i;
+const FB_NOISE=/^(like|love|haha|wow|sad|angry|care|follow|following|author|top fan|edited|see more|write a comment|comment as|most relevant|newest|all comments|view )/i;
+function parseFacebook(raw){const seen=new Map();let dupes=0,expect=true;for(const line of raw.split("\n")){const ln=line.replace(/\s+/g," ").trim();if(!ln)continue;if(FB_BOUNDARY.test(ln)||FB_TIME.test(ln)){expect=true;continue;}if(FB_NOISE.test(ln)||/^[\d·•.,]+$/.test(ln))continue;if(expect){const key=ln.toLowerCase();if(seen.has(key))dupes++;else seen.set(key,{id:key,name:ln});expect=false;}}return{entries:[...seen.values()],dupes};}
+
+/* ---------- themes (colours match the live Buzz sites) ---------- */
+const THEMES={
+  guide:{key:"guide",label:"The Buzz Guide",accentUi:"#fdb913",accentInk:"#000000",title:"The Buzz Guide Giveaway",tag:"The Buzz Guide",dark:true,
+    bg:(ctx)=>{const g=ctx.createLinearGradient(0,0,0,1080);g.addColorStop(0,"#161618");g.addColorStop(1,"#000000");return g;},
+    glow:"#fdb913",accent:"#fdb913",accent2:"#ec2b8f",text:"#f5f5f0",sub:"#8a8a92",window:"#fdb913",
+    confetti:["#fdb913","#ec2b8f","#27a9e1","#8cc540","#f5f5f0"]},
+  kids:{key:"kids",label:"Buzz Kids",accentUi:"#1fa9e0",accentInk:"#ffffff",title:"Buzz Kids Giveaway",tag:"Buzz Kids",dark:false,
+    bg:(ctx)=>{const g=ctx.createLinearGradient(0,0,0,1080);g.addColorStop(0,"#ffffff");g.addColorStop(1,"#d6ecf9");return g;},
+    glow:"#1fa9e0",accent:"#1fa9e0",accent2:"#ec1e8c",text:"#16202a",sub:"#647682",window:"#1fa9e0",
+    confetti:["#1fa9e0","#ec1e8c","#f9a11b","#6fa713","#fbbf24"]}
+};
+const DISPLAY='"Bebas Neue","Arial Narrow",Arial,sans-serif';
+const SCRIPT='"Pacifico","Brush Script MT",cursive';
+const UI='"Inter",system-ui,Arial,sans-serif';
+const INTRO=550,SPIN=3200,HOLD=3000,ITEM=118,CY=560,W=1080,H=1080;
+const easeOutQuart=(t)=>1-Math.pow(1-t,4);
+function fitFont(ctx,text,maxW,start,family=DISPLAY,weight=400){let s=start;do{ctx.font=`${weight} ${s}px ${family}`;if(ctx.measureText(text).width<=maxW)break;s-=3;}while(s>26);return s;}
+function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+
+function drawChrome(ctx,theme,title,sub){
+  ctx.textAlign="center";ctx.textBaseline="middle";
+  const ts=fitFont(ctx,title||"",W-160,96,DISPLAY);
+  ctx.fillStyle=theme.text;ctx.font=`400 ${ts}px ${DISPLAY}`;ctx.fillText(title||"",W/2,150);
+  ctx.fillStyle=theme.accent;roundRect(ctx,W/2-90,208,180,8,4);ctx.fill();
+  if(sub){ctx.fillStyle=theme.sub;ctx.font=`700 32px ${UI}`;ctx.fillText(sub.toUpperCase(),W/2,272);}
+  ctx.fillStyle=theme.accent;ctx.font=`400 52px ${SCRIPT}`;ctx.fillText(theme.tag,W/2,1000);
+}
+function drawReel(ctx,theme,strip,scroll){
+  ctx.save();
+  const wy=CY-82,wh=164;
+  const g=ctx.createLinearGradient(0,wy,0,wy+wh);
+  g.addColorStop(0,theme.dark?"rgba(255,255,255,.06)":"rgba(255,255,255,.55)");
+  g.addColorStop(1,theme.dark?"rgba(255,255,255,.02)":"rgba(255,255,255,.35)");
+  roundRect(ctx,80,wy,W-160,wh,28);ctx.fillStyle=g;ctx.fill();
+  ctx.lineWidth=6;ctx.strokeStyle=theme.window;ctx.shadowColor=theme.window;ctx.shadowBlur=26;ctx.stroke();ctx.shadowBlur=0;
+  roundRect(ctx,80,wy-240,W-160,wh+480,28);ctx.clip();
+  ctx.textAlign="center";ctx.textBaseline="middle";
+  const first=Math.floor((scroll-360)/ITEM);
+  for(let p=first;p<first+8;p++){
+    if(p<0||p>=strip.length)continue;
+    const y=CY+(p*ITEM-scroll);const dist=Math.abs(y-CY);if(dist>300)continue;
+    const k=Math.max(0,1-dist/300);ctx.globalAlpha=0.18+0.82*k;
+    const size=fitFont(ctx,strip[p],W-240,54+42*k,DISPLAY);
+    ctx.fillStyle=dist<62?theme.accent:theme.text;ctx.font=`400 ${size}px ${DISPLAY}`;
+    ctx.fillText(strip[p],W/2,y);
+  }
+  ctx.restore();
+}
+function drawWinner(ctx,theme,name,appear){
+  ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.fillStyle=theme.accent;ctx.font=`700 46px ${UI}`;ctx.fillText("🎉  WINNER  🎉",W/2,428);
+  const size=fitFont(ctx,name,W-130,150,DISPLAY)*(0.85+0.15*appear);
+  ctx.save();ctx.shadowColor=theme.glow;ctx.shadowBlur=48;ctx.fillStyle=theme.text;ctx.font=`400 ${size}px ${DISPLAY}`;ctx.fillText(name,W/2,585);ctx.restore();
+}
+function spawnConfetti(theme){const arr=[];for(let i=0;i<160;i++){arr.push({x:Math.random()*W,y:-Math.random()*H*0.6,vx:(Math.random()-0.5)*140,vy:140+Math.random()*260,s:10+Math.random()*16,rot:Math.random()*6.28,vr:(Math.random()-0.5)*8,c:theme.confetti[i%theme.confetti.length]});}return arr;}
+function stepConfetti(ctx,arr,dt){for(const p of arr){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=240*dt;p.rot+=p.vr*dt;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot);ctx.fillStyle=p.c;ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s*0.6);ctx.restore();}}
+
+/* ---------- app ---------- */
+const $=(id)=>document.getElementById(id);
+const cv=$("cv"),ctx=cv.getContext("2d");
+const state={
+  source:"fb", themeKey:"guide", title:THEMES.guide.title,
+  pasteType:"fb", raw:"",
+  fbEntrants:[], filters:{mustLike:false,mustTag:false},
+  phase:"idle", winner:null, drawSeed:"", videoUrl:"",
+  checks:{liked:false,tagged:false}
+};
+let pool=[],raf=0,rec=null;
+const recordSupported=!!window.MediaRecorder && !!cv.captureStream;
+function theme(){return THEMES[state.themeKey];}
+function applyThemeVars(){const t=theme();document.documentElement.style.setProperty("--acc",t.accentUi);document.documentElement.style.setProperty("--acc-ink",t.accentInk);}
+
+/* ---- build pool from the active source ---- */
+function recompute(){
+  let extra="—";
+  if(state.source==="fb"){
+    let list=state.fbEntrants.slice();
+    if(state.filters.mustLike) list=list.filter(e=>e.liked);
+    if(state.filters.mustTag) list=list.filter(e=>e.tagged);
+    pool=list;
+    if(state.fbEntrants.length){
+      const liked=state.fbEntrants.filter(e=>e.liked).length;
+      const tagged=state.fbEntrants.filter(e=>e.tagged).length;
+      extra=`${liked} liked · ${tagged} tagged`;
+    }
+  }else{
+    const p=state.pasteType==="fb"?parseFacebook(state.raw):parseList(state.raw);
+    pool=p.entries;
+    extra=`${p.dupes} duplicates removed`;
+  }
+  $("uniq").textContent=pool.length;
+  $("extra").textContent=extra;
+  $("go").disabled=pool.length===0||state.phase==="running";
+  if(state.phase==="idle")drawIdle();
+}
+
+function drawIdle(){
+  const t=theme();ctx.fillStyle=t.bg(ctx);ctx.fillRect(0,0,W,H);
+  drawChrome(ctx,t,state.title,pool.length?"Ready to draw":"Add entrants to begin");
+  ctx.save();ctx.globalAlpha=0.9;roundRect(ctx,90,CY-78,W-180,156,26);ctx.strokeStyle=t.window;ctx.lineWidth=5;ctx.stroke();ctx.restore();
+  ctx.fillStyle=t.sub;ctx.textAlign="center";ctx.textBaseline="middle";ctx.font=`700 42px ${UI}`;
+  ctx.fillText(pool.length?pool.length+" entries":"—",W/2,CY);
+}
+
+/* ---- draw + record ---- */
+function run(){
+  if(!pool.length||state.phase==="running")return;
+  cancelAnimationFrame(raf);
+  if(state.videoUrl){URL.revokeObjectURL(state.videoUrl);state.videoUrl="";}
+  state.phase="running";$("go").disabled=true;$("go").textContent="Drawing…";$("out").classList.add("hide");
+
+  const seed=newSeed();const rng=mulberry32(cyrb128(seed));const win=pool[Math.floor(rng()*pool.length)];
+  state.winner=win;state.drawSeed=seed;
+  state.checks={liked:!!win.liked,tagged:!!win.tagged};
+
+  const R=()=>pool[Math.floor(Math.random()*pool.length)].name;
+  const strip=[];const lead=58+Math.floor(Math.random()*8);
+  for(let i=0;i<lead;i++)strip.push(R());
+  const winIdx=strip.length;strip.push(win.name);
+  for(let i=0;i<5;i++)strip.push(R());
+  const finalScroll=winIdx*ITEM;
+  const startOffset=ITEM*0.5; // begin between names, in motion — never rest on a starting name
+
+  drawIdle();
+  let chunks=[];
+  if(recordSupported){
+    try{
+      const stream=cv.captureStream(30);
+      const mime=["video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"].find((t)=>MediaRecorder.isTypeSupported(t))||"";
+      rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:6000000});
+      rec.ondataavailable=(e)=>e.data.size&&chunks.push(e.data);
+      rec.onstop=()=>{state.videoUrl=URL.createObjectURL(new Blob(chunks,{type:mime||"video/webm"}));renderOut();};
+      rec.start();
+    }catch(e){rec=null;}
+  }
+
+  const t=theme();let confetti=null,last=0,start=0;
+  const loop=(now)=>{
+    if(!start){start=now;last=now;}
+    const dt=Math.min(0.05,(now-last)/1000);last=now;const el=now-start;
+    ctx.fillStyle=t.bg(ctx);ctx.fillRect(0,0,W,H);
+    if(el<INTRO+SPIN){
+      drawChrome(ctx,t,state.title,"Picking a winner…");
+      const st=el/(INTRO+SPIN);
+      const scroll=startOffset+easeOutQuart(st)*(finalScroll-startOffset);
+      drawReel(ctx,t,strip,scroll);
+    }else if(el<INTRO+SPIN+HOLD){
+      if(!confetti)confetti=spawnConfetti(t);
+      drawChrome(ctx,t,state.title,"");
+      drawWinner(ctx,t,win.name,Math.min(1,(el-INTRO-SPIN)/260));
+      stepConfetti(ctx,confetti,dt);
+    }else{
+      if(rec&&rec.state!=="inactive")rec.stop();
+      state.phase="done";$("go").textContent="🎬 Start the draw";$("go").disabled=pool.length===0;
+      renderOut();
+      return;
+    }
+    raf=requestAnimationFrame(loop);
+  };
+  raf=requestAnimationFrame(loop);
+}
+
+function announcement(){const w=state.winner;if(!w)return"";return`🎉 Congratulations ${w.name}! You're our winner.\n\nDrawn fairly at random from ${pool.length} entries. Draw ref: ${state.drawSeed}`;}
+function renderOut(){
+  if(!state.winner)return;
+  $("out").classList.remove("hide");
+  $("wname").textContent=state.winner.name;
+  $("wref").textContent="ref "+state.drawSeed;
+  const slug=theme().tag.toLowerCase().replace(/[^a-z]+/g,"-");
+  const vw=$("videowrap");
+  if(state.videoUrl){
+    vw.innerHTML=`<video src="${state.videoUrl}" controls playsinline></video>
+      <a class="dl" href="${state.videoUrl}" download="${slug}-winner-draw.webm">⬇ Download video (.webm)</a>
+      <p class="note">Uploads straight to Facebook. Post it to the page yourself with the winner.</p>`;
+  }else{
+    vw.innerHTML=recordSupported?"":`<p class="note">Recording isn’t available in this browser — screen-record the draw above instead.</p>`;
+  }
+  const fromFb=state.source==="fb";
+  const labels=[
+    ["liked","Liked the post", fromFb],
+    ["tagged","Tagged someone (optional — not required under Facebook's comp rules)", fromFb]
+  ];
+  const cc=$("checks");cc.innerHTML="";
+  labels.forEach(([k,l,auto])=>{
+    const row=document.createElement("label");row.className="vrow"+(state.checks[k]?" done":"");
+    row.innerHTML=`<input type="checkbox" ${state.checks[k]?"checked":""}><span class="box"></span> ${l}`+(auto&&state.checks[k]?`<span class="auto">from facebook</span>`:``);
+    row.querySelector("input").addEventListener("change",(e)=>{state.checks[k]=e.target.checked;row.classList.toggle("done",e.target.checked);updateCopy();});
+    cc.appendChild(row);
+  });
+  updateCopy();
+}
+function updateCopy(){$("copy").disabled=!state.checks.liked;}
+
+/* ---- Facebook data loading ---- */
+async function loadPosts(){
+  const btn=$("loadposts");btn.disabled=true;btn.textContent="Loading…";$("fbmsg").innerHTML="";
+  try{
+    const r=await fetch(`/api/fb?action=posts&page=${state.themeKey}`);
+    const j=await r.json();
+    if(j.error) throw new Error(j.error);
+    const sel=$("postsel");sel.innerHTML="";
+    (j.posts||[]).forEach((p)=>{
+      const o=document.createElement("option");o.value=p.id;
+      const d=p.created_time?new Date(p.created_time).toLocaleDateString():"";
+      o.textContent=`${d} — ${p.message}`;sel.appendChild(o);
+    });
+    if(!sel.options.length){$("fbmsg").innerHTML=`<div class="msg err">No posts returned for this page.</div>`;}
+    else{sel.classList.remove("hide");loadEntrants();}
+  }catch(e){
+    $("fbmsg").innerHTML=`<div class="msg err">${e.message}. Check the token/env var for this page, or use “Paste comments”.</div>`;
+  }finally{btn.disabled=false;btn.textContent="Reload posts";}
+}
+async function loadEntrants(){
+  const postId=$("postsel").value;if(!postId)return;
+  $("fbmsg").innerHTML=`<div class="msg ok">Reading comments and reactions…</div>`;
+  try{
+    const r=await fetch(`/api/fb?action=entrants&page=${state.themeKey}&postId=${encodeURIComponent(postId)}`);
+    const j=await r.json();
+    if(j.error) throw new Error(j.error);
+    state.fbEntrants=j.entrants||[];
+    const m=j.meta||{};
+    const hid=m.hidden?` · ${m.hidden} hidden identities skipped`:"";
+    $("fbmsg").innerHTML=`<div class="msg ok"><b>${state.fbEntrants.length}</b> entrants · ${m.reactors||0} reactions on the post${hid}</div>`;
+    recompute();
+  }catch(e){
+    state.fbEntrants=[];recompute();
+    $("fbmsg").innerHTML=`<div class="msg err">${e.message}</div>`;
+  }
+}
+
+/* ---- theme chips ---- */
+function buildThemes(){
+  const box=$("themes");box.innerHTML="";
+  Object.values(THEMES).forEach((t)=>{
+    const b=document.createElement("button");b.className="chip"+(state.themeKey===t.key?" on":"");b.textContent=t.label;b.style.setProperty("--c",t.accentUi);
+    b.addEventListener("click",()=>{
+      state.themeKey=t.key;
+      if(state.title===""||state.title===THEMES.guide.title||state.title===THEMES.kids.title){state.title=t.title;$("ttl").value=t.title;}
+      state.phase="idle";state.winner=null;$("out").classList.add("hide");
+      state.fbEntrants=[];$("postsel").classList.add("hide");$("fbmsg").innerHTML="";
+      $("pagename").textContent=t.label;
+      applyThemeVars();buildThemes();recompute();
+    });
+    box.appendChild(b);
+  });
+}
+
+/* ---- source + paste-type UI ---- */
+function applySource(){
+  document.querySelectorAll("#src button").forEach(b=>b.classList.toggle("on",b.dataset.src===state.source));
+  $("fbpanel").classList.toggle("hide",state.source!=="fb");
+  $("pastepanel").classList.toggle("hide",state.source!=="paste");
+  recompute();
+}
+function applyPasteType(){
+  document.querySelectorAll("#pt button").forEach(b=>b.classList.toggle("on",b.dataset.type===state.pasteType));
+  $("pthint").textContent=state.pasteType==="fb"?"Paste comments straight from Facebook — only the commenter’s name is kept, tags ignored.":"One name per line.";
+  $("ent").placeholder=state.pasteType==="fb"
+    ? "Jodi Henry\nLogan Garry, Toni Lumsden, Debbie Lumsden\n1w  Like  Reply  Hide\n\nGillian Ward\nJane Ward Lee Mcginnes\n2w  Like  Reply  Hide"
+    : "Jane Smith\nDavid Brown\nSarah Wilson";
+}
+
+/* ---- wire up ---- */
+$("ttl").value=state.title;
+$("ttl").addEventListener("input",(e)=>{state.title=e.target.value;if(state.phase==="idle")drawIdle();});
+document.querySelectorAll("#src button").forEach(b=>b.addEventListener("click",()=>{state.source=b.dataset.src;applySource();}));
+document.querySelectorAll("#pt button").forEach(b=>b.addEventListener("click",()=>{state.pasteType=b.dataset.type;applyPasteType();recompute();}));
+$("ent").addEventListener("input",(e)=>{state.raw=e.target.value;recompute();});
+$("loadposts").addEventListener("click",loadPosts);
+$("postsel").addEventListener("change",loadEntrants);
+$("mustlike").addEventListener("change",(e)=>{state.filters.mustLike=e.target.checked;recompute();});
+$("musttag").addEventListener("change",(e)=>{state.filters.mustTag=e.target.checked;recompute();});
+$("go").addEventListener("click",run);
+$("again").addEventListener("click",run);
+$("copy").addEventListener("click",()=>{navigator.clipboard&&navigator.clipboard.writeText(announcement()).then(()=>{$("copy").textContent="Copied";setTimeout(()=>$("copy").textContent="Copy announcement",1500);});});
+if(!recordSupported)$("warn").style.display="";
+
+applyThemeVars();buildThemes();applySource();applyPasteType();recompute();
+if(document.fonts&&document.fonts.load){
+  Promise.all([document.fonts.load('400 96px "Bebas Neue"'),document.fonts.load('400 52px "Pacifico"'),document.fonts.load('700 32px "Inter"')])
+    .then(()=>{if(state.phase==="idle")drawIdle();}).catch(()=>{});
+}
+</script>
+</body>
+</html>
