@@ -354,7 +354,9 @@ async function loadPosts(){
     (j.posts||[]).forEach((p)=>{
       const o=document.createElement("option");o.value=p.id;
       const d=p.created_time?new Date(p.created_time).toLocaleDateString():"";
-      o.textContent=`${d} — ${p.message}`;sel.appendChild(o);
+      o.textContent=`${d} — ${p.message}`;
+      o.dataset.text=p.text||p.message||"";   // used to derive the video title
+      sel.appendChild(o);
     });
     if(!sel.options.length){$("fbmsg").innerHTML=`<div class="msg err">No posts returned for this page.</div>`;}
     else{sel.classList.remove("hide");loadEntrants();}
@@ -362,8 +364,45 @@ async function loadPosts(){
     $("fbmsg").innerHTML=`<div class="msg err">${e.message}. Check the token/env var for this page, or use “Paste comments”.</div>`;
   }finally{btn.disabled=false;btn.textContent="Reload posts";}
 }
-async function loadEntrants(){
-  const postId=$("postsel").value;if(!postId)return;
+
+// Derive the video title from the chosen giveaway post — normally the prize
+// venue, e.g. "WIN a family pass to Camperdown Wildlife Centre!" -> "Camperdown
+// Wildlife Centre". Only ever a SUGGESTION: it fills the editable Video title
+// field, and once you type your own we stop overwriting it.
+function titleFromPost(text){
+  var t=(text||"").replace(/\s+/g," ").trim();
+  if(!t) return null;
+  var STOP=/^(a|an|the|to|at|for|with|from|win|winner|winners|giveaway|family|ticket|tickets|pass|passes|entry|free|lucky|new|our|this)$/i;
+  // "win ... to/at/for <Name>" — the usual giveaway phrasing. Matched
+  // case-insensitively (posts shout "WIN"), but the captured name must still
+  // start with a capital so we pick out a proper noun, not mid-sentence words.
+  var m=t.match(/\b(?:win|winning|giveaway|teamed up)\b[^.!?]{0,90}?\b(?:to|at|for|with|from)\s+((?:[A-Za-z][\w'&.-]*)(?:\s+(?:of|the|and|&|[A-Za-z][\w'&.-]*)){0,5})/i);
+  var name=m&&m[1];
+  if(name&&!/^[A-Z]/.test(name)) name=null;
+  if(!name){
+    // Otherwise the longest run of Capitalised Words in the post.
+    var runs=t.match(/(?:[A-Z][\w'&.-]*)(?:\s+(?:of|the|and|&|[A-Z][\w'&.-]*)){1,5}/g)||[];
+    runs.sort(function(a,b){return b.length-a.length;});
+    name=runs[0]||null;
+  }
+  if(!name) return null;
+  var words=name.split(/\s+/).filter(Boolean);
+  // A proper noun is capitalised, so trailing lowercase words are sentence
+  // spill-over ("HMS Unicorn Dundee to launch" -> "HMS Unicorn Dundee").
+  while(words.length>1&&/^[a-z]/.test(words[words.length-1])) words.pop();
+  while(words.length&&STOP.test(words[0])) words.shift();
+  while(words.length&&STOP.test(words[words.length-1])) words.pop();
+  var out=words.join(" ").replace(/[!,.:;\u2013\u2014-]+$/,"").trim();
+  return out.length>=3?out.slice(0,60):null;
+}async function loadEntrants(){
+  const sel=$("postsel");
+  const postId=sel.value;if(!postId)return;
+  // Title follows the chosen post, until you override it.
+  if(state.titleAuto!==false){
+    const opt=sel.options[sel.selectedIndex];
+    const derived=titleFromPost(opt&&opt.dataset?opt.dataset.text:"");
+    if(derived){state.title=derived;$("ttl").value=derived;if(state.phase==="idle")drawIdle();}
+  }
   $("fbmsg").innerHTML=`<div class="msg ok">Reading comments and reactions…</div>`;
   try{
     const r=await fetch(`/api/fb?action=entrants&page=${state.themeKey}&postId=${encodeURIComponent(postId)}`);
@@ -414,7 +453,7 @@ function applyPasteType(){
 
 /* ---- wire up ---- */
 $("ttl").value=state.title;
-$("ttl").addEventListener("input",(e)=>{state.title=e.target.value;if(state.phase==="idle")drawIdle();});
+$("ttl").addEventListener("input",(e)=>{state.title=e.target.value;state.titleAuto=false;if(state.phase==="idle")drawIdle();});
 document.querySelectorAll("#src button").forEach(b=>b.addEventListener("click",()=>{state.source=b.dataset.src;applySource();}));
 document.querySelectorAll("#pt button").forEach(b=>b.addEventListener("click",()=>{state.pasteType=b.dataset.type;applyPasteType();recompute();}));
 $("ent").addEventListener("input",(e)=>{state.raw=e.target.value;recompute();});

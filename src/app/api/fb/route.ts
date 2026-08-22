@@ -90,12 +90,16 @@ export async function GET(request: NextRequest) {
         { fields: "id,message,created_time,permalink_url", limit: "25" }, 1,
       );
       return NextResponse.json({
-        posts: posts.map((p: any) => ({
-          id: p.id,
-          message: (p.message || "(no text)").replace(/\s+/g, " ").slice(0, 90),
-          created_time: p.created_time,
-          url: p.permalink_url,
-        })),
+        posts: posts.map((p: any) => {
+          const flat = (p.message || "(no text)").replace(/\s+/g, " ");
+          return {
+            id: p.id,
+            message: flat.slice(0, 90),   // short label for the dropdown
+            text: flat.slice(0, 400),     // more of it, so the tool can derive a title
+            created_time: p.created_time,
+            url: p.permalink_url,
+          };
+        }),
       });
     }
 
