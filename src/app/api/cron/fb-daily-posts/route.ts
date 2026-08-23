@@ -404,6 +404,10 @@ export async function GET(req: NextRequest) {
     const title = String(e.title ?? "");
     if (GENERIC_RE.test(title)) score -= 30;
     if (SPECIAL_RE.test(title)) score += 25;
+    // Among long runs, the shorter one is the more timely thing to shout about:
+    // a 60-day exhibition beats one that has been up for 155 days and will
+    // still be there for months. Small nudge, so it only breaks ties.
+    if (run > 7) score -= Math.min(4, run / 40);
     return score;
   };
   // At or above this, an event is worth leading a post with.
@@ -411,14 +415,25 @@ export async function GET(req: NextRequest) {
 
   // Home patch first (after promos): Dundee always gets a slot when something
   // is on there, so our own city never rotates out of the post.
-  const homePick = candidates
+  const dayNumber = Math.floor(new Date(`${ymd}T00:00:00Z`).getTime() / 86_400_000);
+
+  // Dundee's slot: best-scoring, but rotate between equally-good options by day.
+  // Without this the same listing wins every single day — Dundee currently has
+  // no short events at all, just long exhibition runs, so the top scorer never
+  // changed and the post showed the V&A exhibition every morning.
+  const homeOptions = candidates
     .filter((c) => c.citySlug === HOME_AREA_SLUG && takeable(c) && !picks.includes(c))
-    .sort((a, b) => specialness(b) - specialness(a))[0];
+    .sort((a, b) => specialness(b) - specialness(a));
+  let homePick: Cand | undefined;
+  if (homeOptions.length) {
+    const best = specialness(homeOptions[0]);
+    const tied = homeOptions.filter((c) => specialness(c) >= best - 1);
+    homePick = tied[dayNumber % tied.length];
+  }
   if (homePick && picks.length < MAX_PER_POST) take(homePick);
 
   // Daily rotation: offset the area order by the day number so a different set
   // of areas leads each day (deterministic, so re-runs match).
-  const dayNumber = Math.floor(new Date(`${ymd}T00:00:00Z`).getTime() / 86_400_000);
   const areaIds = [...new Set(candidates.map((c) => c.cityId))];
   const rotated = areaIds.map((_, i) => areaIds[(i + dayNumber) % areaIds.length]);
 
