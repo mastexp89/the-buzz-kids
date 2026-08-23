@@ -426,9 +426,22 @@ export async function GET(req: NextRequest) {
     .sort((a, b) => specialness(b) - specialness(a));
   let homePick: Cand | undefined;
   if (homeOptions.length) {
+    // Rotate by VENUE, not just by event: V&A Dundee hosts most of Dundee's
+    // listings, so rotating events alone still showed "V&A Dundee" every day.
+    // Only venues whose best event is in the same league are eligible, so
+    // variety never drags in something markedly worse.
     const best = specialness(homeOptions[0]);
-    const tied = homeOptions.filter((c) => specialness(c) >= best - 1);
-    homePick = tied[dayNumber % tied.length];
+    const eligible = homeOptions.filter((c) => specialness(c) >= best - 30);
+    const byVenue = new Map<string, Cand[]>();
+    for (const c of eligible) {
+      const k = (c.venueName || c.e.id).toLowerCase();
+      const list = byVenue.get(k) ?? [];
+      list.push(c);
+      byVenue.set(k, list);
+    }
+    const venues = [...byVenue.keys()];
+    const pickedVenue = venues[dayNumber % venues.length];
+    homePick = (byVenue.get(pickedVenue) ?? eligible)[0];
   }
   if (homePick && picks.length < MAX_PER_POST) take(homePick);
 
