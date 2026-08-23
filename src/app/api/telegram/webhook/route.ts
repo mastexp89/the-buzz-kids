@@ -215,6 +215,25 @@ async function handleCallback(cb: any) {
     return;
   }
 
+  // "Next N" on the pending-events pager → post the next page of cards, so
+  // the whole review queue can be worked from the group without opening the
+  // site. Clears the tapped pager so old pages can't be re-run out of order.
+  const pqMatch = data.match(/^pq:(\d+)$/);
+  if (pqMatch) {
+    const offset = Number(pqMatch[1]);
+    await answer("Fetching the next batch…");
+    await tgApi("editMessageReplyMarkup", {
+      chat_id: cb.message.chat.id,
+      message_id: cb.message.message_id,
+      reply_markup: { inline_keyboard: [] },
+    });
+    const sent = await sendPendingEventButtons(5, offset);
+    if (sent === 0) {
+      await sendTelegram("✅ Nothing left in the events queue — all caught up.", { silent: true });
+    }
+    return;
+  }
+
   // Move one already-created event to another place: "em:<venue>:<event>".
   const emMatch = data.match(/^em:([A-Za-z0-9_-]{22}):([A-Za-z0-9_-]{22})$/);
   if (emMatch) {
