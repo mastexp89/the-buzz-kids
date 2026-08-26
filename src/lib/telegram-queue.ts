@@ -45,14 +45,14 @@ export async function sendAggregatorPlaceCards(limit = 5): Promise<number> {
   return (places ?? []).length;
 }
 
-export async function sendPendingEventButtons(limit = 5): Promise<number> {
+export async function sendPendingEventButtons(limit = 5, offset = 0): Promise<number> {
   const sb = createServiceClient();
-  const { data: pendingEvents } = await sb
+  const { data: pendingEvents, count } = await sb
     .from("events")
-    .select("id, title, start_time, venue:venues(name)")
+    .select("id, title, start_time, venue:venues(name)", { count: "exact" })
     .eq("status", "pending")
     .order("created_at", { ascending: true })
-    .limit(limit);
+    .range(offset, offset + limit - 1);
   for (const ev of pendingEvents ?? []) {
     await sendTelegram(
       `🎪 <b>${tgEsc(ev.title)}</b>\n` +
@@ -67,5 +67,26 @@ export async function sendPendingEventButtons(limit = 5): Promise<number> {
       },
     );
   }
-  return (pendingEvents ?? []).length;
+  // Work the whole queue from Telegram rather than bouncing to the site:
+  // once this page is done, offer the next one. Ordering is by created_at,
+  // and approving/rejecting removes rows from the pending set, so by the
+  // time "next" is tapped the earlier rows are usually gone — start the
+  // next page from 0 in that case rather than skipping past unactioned ones.
+  const sent = (pendingEvents ?? []).length;
+  const total = count ?? 0;
+  const seen = offset + sent;
+  if (sent > 0 && total > seen) {
+    const left = total - seen;
+    await sendTelegram(
+      `↕️ <b>${left} more event${left === 1 ? "" : "s"} waiting</b> — approve or reject the batch above, then pull the next ${Math.min(limit, left)}.`,
+      {
+        silent: true,
+        buttons: [[
+          { text: `▶️ Next ${Math.min(limit, left)}`, callback_data: `pq:${seen}` },
+          { text: "⏮ From the top", callback_data: "pq:0" },
+        ]],
+      },
+    );
+  }
+  return sent;
 }

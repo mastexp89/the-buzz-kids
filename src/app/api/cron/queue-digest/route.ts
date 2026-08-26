@@ -42,13 +42,23 @@ export async function GET(req: Request) {
 
   // Telegram: digest into the admins group, then the first few pending
   // events as individual messages with one-tap Approve/Reject buttons.
+  let telegramOk = false;
   try {
-    await tgQueueDigest({ events, suggestions, places, reviews });
+    telegramOk = await tgQueueDigest({ events, suggestions, places, reviews });
     if (events > 0) await sendPendingEventButtons(5);
     if (places > 0) await sendAggregatorPlaceCards(5);
-  } catch { /* best-effort */ }
+  } catch { telegramOk = false; }
 
   if (total === 0) return NextResponse.json({ ok: true, total, reviews, sent: false });
+
+  // The whole queue is now workable from the group — every batch of cards
+  // ends with a pager — so this email would be a duplicate of something
+  // already actioned in Telegram. Keep it only as a fallback for when
+  // Telegram didn't get through (bot token rotated, API down, chat id wrong),
+  // which is exactly when a silent cron would otherwise hide the queue.
+  if (telegramOk) {
+    return NextResponse.json({ ok: true, events, suggestions, places, total, sent: false, channel: "telegram" });
+  }
 
   const blocks: EmailBlock[] = [
     { kind: "h", text: "Your review queue" },
@@ -62,7 +72,7 @@ export async function GET(req: Request) {
       ],
     },
     { kind: "button", href: `${SITE}/admin`, text: "Open admin" },
-    { kind: "small", text: "You only get this when there's something waiting — an empty queue sends nothing." },
+    { kind: "small", text: "You're getting this because the Telegram digest didn't send — normally the admins group handles the queue." },
   ];
 
   const ok = await sendAdminEmail({
