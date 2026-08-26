@@ -1,18 +1,21 @@
-// Vercel Cron: once each morning, email a single digest IF there's anything
-// waiting in the review queue (pending events, edit suggestions, places to
-// add). Sends nothing when the queue is empty — no "all clear" noise.
+// Vercel Cron: once each morning, post a review-queue digest to the admins
+// Telegram group IF there's anything waiting (pending events, edit
+// suggestions, places to add, reviews). Sends nothing when the queue is
+// empty — no "all clear" noise.
+//
+// Telegram only. There used to be a daily admin email too (later a
+// Telegram-failure fallback); Dylan works the whole queue from the bot now —
+// every batch of cards ends with a pager — so the email was pure duplication
+// and has been removed. If Telegram is down the queue is still there in
+// /admin; we don't fall back to email.
 //
 // Auth: Vercel sends `Authorization: Bearer ${CRON_SECRET}`. We verify it.
 // ?dry=1 to compute counts without sending.
 
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { sendAdminEmail } from "@/lib/email";
-import { buildEmailHtml, buildEmailText, type EmailBlock } from "@/lib/email-template";
 import { tgQueueDigest } from "@/lib/telegram";
 import { sendPendingEventButtons, sendAggregatorPlaceCards } from "@/lib/telegram-queue";
-
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.thebuzzkids.co.uk";
 
 export async function GET(req: Request) {
   const auth = req.headers.get("authorization");
@@ -40,8 +43,8 @@ export async function GET(req: Request) {
   if (total === 0 && reviews === 0) return NextResponse.json({ ok: true, total, sent: false });
   if (dry) return NextResponse.json({ ok: true, events, suggestions, places, reviews, total, sent: false });
 
-  // Telegram: digest into the admins group, then the first few pending
-  // events as individual messages with one-tap Approve/Reject buttons.
+  // Telegram: digest into the admins group, then the first few pending events
+  // and aggregator places as individual cards with one-tap actions + a pager.
   let telegramOk = false;
   try {
     telegramOk = await tgQueueDigest({ events, suggestions, places, reviews });
@@ -49,37 +52,8 @@ export async function GET(req: Request) {
     if (places > 0) await sendAggregatorPlaceCards(5);
   } catch { telegramOk = false; }
 
-  if (total === 0) return NextResponse.json({ ok: true, total, reviews, sent: false });
-
-  // The whole queue is now workable from the group — every batch of cards
-  // ends with a pager — so this email would be a duplicate of something
-  // already actioned in Telegram. Keep it only as a fallback for when
-  // Telegram didn't get through (bot token rotated, API down, chat id wrong),
-  // which is exactly when a silent cron would otherwise hide the queue.
-  if (telegramOk) {
-    return NextResponse.json({ ok: true, events, suggestions, places, total, sent: false, channel: "telegram" });
-  }
-
-  const blocks: EmailBlock[] = [
-    { kind: "h", text: "Your review queue" },
-    { kind: "p", text: `Morning! You've got ${total} thing${total === 1 ? "" : "s"} waiting to review:` },
-    {
-      kind: "kv",
-      pairs: [
-        ["📅 Events to approve", events ? `${events} — /admin/queue` : null],
-        ["✏️ Edit suggestions", suggestions ? `${suggestions} — /admin/suggestions` : null],
-        ["📍 Places to add", places ? `${places} — /admin/aggregator` : null],
-      ],
-    },
-    { kind: "button", href: `${SITE}/admin`, text: "Open admin" },
-    { kind: "small", text: "You're getting this because the Telegram digest didn't send — normally the admins group handles the queue." },
-  ];
-
-  const ok = await sendAdminEmail({
-    subject: `🐝 ${total} waiting to review — The Buzz Kids`,
-    html: buildEmailHtml({ preheader: `${events} events, ${suggestions} suggestions, ${places} places`, blocks }),
-    text: buildEmailText(blocks),
+  return NextResponse.json({
+    ok: true, events, suggestions, places, reviews, total,
+    sent: telegramOk, channel: "telegram",
   });
-
-  return NextResponse.json({ ok, events, suggestions, places, total, sent: ok });
 }
