@@ -628,6 +628,87 @@ export async function setReviewStatusCore(
   return { ok: true, label };
 }
 
+/**
+ * One-tap "Approve" for an edit-suggestion / new-place lead from Telegram.
+ * Turns the freeform submission into a DRAFT place (created unapproved, so it
+ * still wants a photo + a human check before it goes public) and marks the
+ * suggestion done. The AI reader structures the messy details when it can;
+ * if it's unavailable (e.g. no Anthropic credit) we fall back to the raw
+ * fields so approve never hard-fails. Area is matched from the submission
+ * text, defaulting to Dundee — the admin fixes it while adding the photo.
+ */
+export async function approveSuggestionCore(_reviewerId: string, suggestionId: string): Promise<ModerationResult> {
+  const sb = createServiceClient();
+  const { data: sug } = await sb
+    .from("edit_suggestions")
+    .select("id, target_type, target_name, details, reason, status")
+    .eq("id", suggestionId)
+    .maybeSingle();
+  if (!sug) return { error: "Suggestion not found." };
+  if (sug.status === "done") return { ok: true, label: sug.target_name ?? undefined, redundant: true };
+
+  // Best-effort AI structuring; never let its failure block the approve.
+  let draft: any = null;
+  try {
+    const { parseSuggestion } = await import("@/lib/extraction");
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+    draft = await parseSuggestion({
+      name: sug.target_name ?? "",
+      details: sug.details ?? "",
+      reason: sug.reason,
+      today,
+    });
+  } catch {
+    draft = null;
+  }
+
+  const title = String(draft?.title || sug.target_name || "New place").trim().slice(0, 200);
+  const text = `${sug.target_name ?? ""} ${sug.details ?? ""}`.toLowerCase();
+
+  // Match the area from the parsed town or, failing that, any active area
+  // named in the raw text. Default to Dundee so approve always lands somewhere.
+  const { data: cities } = await sb.from("cities").select("id, name, slug").eq("active", true);
+  const town = String(draft?.town ?? "").toLowerCase();
+  let cityId: string | null = null;
+  for (const c of cities ?? []) {
+    const nm = String(c.name).toLowerCase();
+    if (town && (town.includes(nm) || nm.includes(town))) { cityId = c.id; break; }
+  }
+  if (!cityId) for (const c of cities ?? []) {
+    if (text.includes(String(c.name).toLowerCase())) { cityId = c.id; break; }
+  }
+  if (!cityId) cityId = (cities ?? []).find((c) => String(c.name).toLowerCase() === "dundee")?.id ?? (cities ?? [])[0]?.id ?? null;
+  if (!cityId) return { error: "No active area to file this under." };
+
+  const slugBase = title.toLowerCase().normalize("NFKD")
+    .replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "-").slice(0, 60) || "place";
+  let slug = slugBase;
+  for (let n = 2; n < 40; n++) {
+    const { data: clash } = await sb.from("venues").select("id").eq("slug", slug).maybeSingle();
+    if (!clash) break;
+    slug = `${slugBase}-${n}`;
+  }
+
+  const address = draft?.address || sug.details || null;
+  const { data: made, error } = await sb
+    .from("venues")
+    .insert({
+      name: title,
+      slug,
+      description: draft?.description ?? null,
+      address: address ? String(address).slice(0, 300) : null,
+      city_id: cityId,
+      // Unapproved: it still wants a photo + a check before it's public.
+      approved: false,
+    })
+    .select("id")
+    .single();
+  if (error) return { error: error.message };
+
+  await sb.from("edit_suggestions").update({ status: "done" }).eq("id", suggestionId);
+  return { ok: true, label: title, paths: ["/admin/suggestions", `/admin/places/${made.id}`] };
+}
+
 export async function setSuggestionStatusCore(
   _reviewerId: string,
   suggestionId: string,

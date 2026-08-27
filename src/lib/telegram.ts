@@ -146,6 +146,8 @@ export const CB = {
   approveArtist: (id: string) => `ar:ap:${id}`,
   approveReview: (id: string) => `rv:ap:${id}`,
   hideReview: (id: string) => `rv:hd:${id}`,
+  suggestionApprove: (id: string) => `sg:ap:${id}`,
+  suggestionEdit: (id: string) => `sg:ed:${id}`,
   suggestionDone: (id: string) => `sg:dn:${id}`,
   approveVenue: (id: string) => `vn:ap:${id}`,
   approveOrganiser: (id: string) => `og:ap:${id}`,
@@ -281,8 +283,9 @@ export function tgEditSuggestion(opts: {
   const buttons: TgButton[][] = [];
   const row: TgButton[] = [];
   if (opts.suggestionId) {
-    row.push({ text: "✅ Mark done", callback_data: CB.suggestionDone(opts.suggestionId) });
-    row.push({ text: "🗑 Delete", callback_data: CB.deleteSuggestion(opts.suggestionId) });
+    row.push({ text: "✅ Approve", callback_data: CB.suggestionApprove(opts.suggestionId) });
+    row.push({ text: "✏️ Edit", callback_data: CB.suggestionEdit(opts.suggestionId) });
+    row.push({ text: "❌ Reject", callback_data: CB.deleteSuggestion(opts.suggestionId) });
   }
   row.push({ text: "🔍 Review", url: `${SITE}/admin/suggestions` });
   buttons.push(row);
