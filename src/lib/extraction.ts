@@ -1094,3 +1094,110 @@ export async function extractFestivalLineup(
 
   return { slots, raw: json };
 }
+
+// ============================================================
+// Suggestion parsing
+//
+// Turn a public "tell us about this" submission into a draft an admin can
+// approve in one click. Submissions arrive as a name plus a scribble of free
+// text — "Lodge Ancient 49 7 Artillery Lane Dundee 10 - 4" — which today has
+// to be retyped by hand into an event or a place.
+//
+// Deliberately conservative: anything not actually stated comes back null and
+// is shown to the admin as missing, rather than invented. A craft fayre with
+// no date is a draft with no date, not a guess.
+// ============================================================
+
+export type ParsedSuggestion = {
+  kind: "event" | "place";     // a dated happening, or a permanent place
+  title: string;
+  description: string | null;
+  venue_name: string | null;   // where it's held
+  address: string | null;
+  town: string | null;         // used to match one of our areas
+  date: string | null;         // YYYY-MM-DD, only if actually stated
+  start_time: string | null;   // "HH:MM" 24h
+  end_time: string | null;
+  is_free: boolean | null;
+  price: string | null;
+  missing: string[];           // what a human still needs to supply
+  confidence: number;
+};
+
+export async function parseSuggestion(opts: {
+  name: string;
+  details: string;
+  reason?: string | null;
+  today: string;               // YYYY-MM-DD, anchors "this Saturday"
+}): Promise<ParsedSuggestion | null> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY env var missing.");
+
+  const sys = `You turn a short public submission to a Scottish kids' activities directory into a structured draft.
+
+TODAY: ${opts.today}
+
+Return ONLY this JSON:
+{
+  "kind": "event" | "place",
+  "title": "short plain name",
+  "description": "one neutral sentence, or null",
+  "venue_name": "the building/venue it's held at, or null",
+  "address": "street address as written, or null",
+  "town": "town or city, or null",
+  "date": "YYYY-MM-DD or null",
+  "start_time": "HH:MM 24-hour or null",
+  "end_time": "HH:MM 24-hour or null",
+  "is_free": true | false | null,
+  "price": "price as written or null",
+  "missing": ["date", "..."],
+  "confidence": 0.0-1.0
+}
+
+RULES
+- kind: "event" for a dated happening (fayre, gala, workshop, camp, show, party). "place" for somewhere permanent families can visit (soft play, farm park, museum, play park).
+- NEVER invent. If a field is not stated, use null and add its name to "missing". A Christmas fayre with no date given has date null and "date" in missing — do not guess a date.
+- Times: "10 - 4" on a daytime family event means 10:00 to 16:00. "10-4pm" likewise. Resolve am/pm sensibly for a family activity, but if genuinely ambiguous use null.
+- address: keep it as written, tidied. Split the town out into "town".
+- venue_name: the named building/hall/club if one is given ("Lodge Ancient 49"), otherwise null.
+- title: strip filler; keep it the name of the thing.
+- Return ONLY the JSON.`;
+
+  const userText = `NAME: ${opts.name}\nREASON: ${opts.reason ?? "-"}\nWHAT THEY SAID: ${opts.details}`;
+
+  const res = await callAnthropicWithRetry(apiKey, {
+    model: MODEL,
+    max_tokens: 1024,
+    system: sys,
+    messages: [{ role: "user", content: userText }],
+  });
+  const json: any = await res.json();
+  const block = (json.content ?? []).find((b: any) => b.type === "text");
+  const m = (block?.text ?? "").match(/\{[\s\S]*\}/);
+  if (!m) return null;
+  try {
+    const p = JSON.parse(m[0]);
+    const str = (v: any): string | null =>
+      typeof v === "string" && v.trim() ? v.trim() : null;
+    const hhmm = (v: any): string | null =>
+      typeof v === "string" && /^\d{2}:\d{2}$/.test(v.trim()) ? v.trim() : null;
+    const conf = Number(p.confidence);
+    return {
+      kind: p.kind === "place" ? "place" : "event",
+      title: str(p.title) ?? opts.name,
+      description: str(p.description),
+      venue_name: str(p.venue_name),
+      address: str(p.address),
+      town: str(p.town),
+      date: typeof p.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.date) ? p.date : null,
+      start_time: hhmm(p.start_time),
+      end_time: hhmm(p.end_time),
+      is_free: typeof p.is_free === "boolean" ? p.is_free : null,
+      price: str(p.price),
+      missing: Array.isArray(p.missing) ? p.missing.filter((x: any) => typeof x === "string") : [],
+      confidence: Number.isFinite(conf) ? Math.max(0, Math.min(1, conf)) : 0.5,
+    };
+  } catch {
+    return null;
+  }
+}
