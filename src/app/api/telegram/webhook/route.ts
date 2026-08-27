@@ -22,6 +22,7 @@ import {
   setReviewStatusCore,
   setSuggestionStatusCore,
   deleteSuggestionCore,
+  approveSuggestionCore,
   addAggregatorPlaceCore,
   dismissAggregatorPlaceCore,
 } from "@/lib/moderation";
@@ -215,6 +216,32 @@ async function handleCallback(cb: any) {
     return;
   }
 
+  // "Edit" on a suggestion card → prompt for a corrected name. Reply to the
+  // prompt (which carries the suggestion id) with the new name; the reply
+  // handler renames the suggestion so Approve files it under the right title.
+  // Plain message + dismiss button, never force_reply (see the ew: note).
+  if (data.startsWith("sg:ed:")) {
+    const sid = data.slice(6);
+    if (!/^[0-9a-f-]{36}$/i.test(sid)) {
+      await answer("Couldn't resolve that suggestion.", true);
+      return;
+    }
+    await answer("Reply to my prompt with the corrected name");
+    const who = [cb.from?.first_name, cb.from?.last_name].filter(Boolean).join(" ") || "Admin";
+    await tgApi("sendMessage", {
+      chat_id: cb.message.chat.id,
+      text:
+        `<a href="tg://user?id=${cb.from?.id}">${tgEsc(who)}</a> — what should this be called?
+` +
+        `↩️ <b>Reply to this message</b> with the corrected name and I'll rename it.
+` +
+        `Suggestion ID: <code>${sid}</code>`,
+      parse_mode: "HTML",
+      reply_markup: { inline_keyboard: [[{ text: "✖️ Never mind", callback_data: "ewx" }]] },
+    });
+    return;
+  }
+
   // "Next N" on the pending-events pager → post the next page of cards, so
   // the whole review queue can be worked from the group without opening the
   // site. Clears the tapped pager so old pages can't be re-run out of order.
@@ -403,6 +430,7 @@ async function handleCallback(cb: any) {
   else if (entity === "og" && verb === "ap") { result = await approveOrganiserCore(reviewerId, id); actionLabel = "Organiser approved"; }
   else if (entity === "rv" && verb === "ap") { result = await setReviewStatusCore(reviewerId, id, "approved"); actionLabel = "Review approved"; }
   else if (entity === "rv" && verb === "hd") { result = await setReviewStatusCore(reviewerId, id, "hidden"); actionLabel = "Review hidden"; positive = false; }
+  else if (entity === "sg" && verb === "ap") { result = await approveSuggestionCore(reviewerId, id); actionLabel = "Draft place created — add a photo + check the area on the site"; }
   else if (entity === "sg" && verb === "dn") { result = await setSuggestionStatusCore(reviewerId, id, "done"); actionLabel = "Suggestion marked done"; }
   else if (entity === "sg" && verb === "del") { result = await deleteSuggestionCore(reviewerId, id); actionLabel = "Suggestion deleted"; positive = false; }
   else if (entity === "vc" && verb === "ap") { result = await approveVenueClaimCore(reviewerId, id); actionLabel = "Place claim approved"; }
@@ -534,6 +562,18 @@ async function handleMessage(msg: any) {
   if (msg.text && !command.startsWith("/")) {
     const repliedToUs = msg.reply_to_message?.from?.id != null && msg.reply_to_message.from.id === tgBotId();
     const repliedText: string = msg.reply_to_message?.text ?? "";
+
+    // Reply to an Edit prompt → rename the suggestion.
+    const sugEditMatch = repliedToUs ? repliedText.match(/Suggestion ID:\s*([0-9a-f-]{36})/i) : null;
+    if (sugEditMatch) {
+      const newName = msg.text.trim().slice(0, 200);
+      if (!newName) { await sendTelegram("🤔 Send the corrected name.", { replyTo: msg.message_id }); return; }
+      const sb = createServiceClient();
+      const { error } = await sb.from("edit_suggestions").update({ target_name: newName }).eq("id", sugEditMatch[1]);
+      if (error) await sendTelegram(`❌ Couldn't rename: ${tgEsc(error.message)}`, { replyTo: msg.message_id });
+      else await sendTelegram(`✏️ Renamed to <b>${tgEsc(newName)}</b> — now tap Approve on the original card.`, { replyTo: msg.message_id });
+      return;
+    }
 
     const venueIdMatch = repliedToUs ? repliedText.match(/Venue ID:\s*([0-9a-f-]{36})/i) : null;
     if (venueIdMatch) {
