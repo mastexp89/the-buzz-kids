@@ -35,6 +35,27 @@ export async function sendAdminEmail({ subject, text, html, to, replyTo }: SendA
   const fallbackTo = process.env.ADMIN_NOTIFY_EMAIL ?? "hello@thebuzzkids.co.uk";
   const recipient = to ?? fallbackTo;
 
+  // Admin notifications go to the Telegram admins group instead of Dylan's
+  // inbox. Only mail addressed to US is diverted — this same function also
+  // sends magic links, claim decisions and replies to USERS, and those must
+  // still be emailed. If Telegram fails we fall through to email rather than
+  // dropping the notification.
+  const isForAdmin = !to || to.trim().toLowerCase() === fallbackTo.trim().toLowerCase();
+  if (isForAdmin && process.env.ADMIN_NOTIFY_CHANNEL !== "email") {
+    try {
+      const { sendTelegram, telegramConfigured } = await import("@/lib/telegram");
+      if (telegramConfigured()) {
+        const esc = (v: string) =>
+          v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const body = text.replace(/\n{3,}/g, "\n\n").trim();
+        const sent = await sendTelegram(
+          `<b>${esc(subject)}</b>\n\n${esc(body).slice(0, 3500)}`,
+        );
+        if (sent) return true;
+      }
+    } catch { /* fall through to email */ }
+  }
+
   if (!apiKey) {
     console.warn("[email] RESEND_API_KEY missing, skipping email:", subject);
     return false;

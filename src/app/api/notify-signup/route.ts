@@ -29,10 +29,15 @@ export async function POST(req: NextRequest) {
     const { tgNewsletterSignup } = await import("@/lib/telegram");
     tgNewsletterSignup({ email }).catch(() => {});
   }
+  // The Telegram ping above is the notification now — the duplicate email to
+  // Dylan is only sent when Telegram isn't configured (or email is forced).
+  const { telegramConfigured } = await import("@/lib/telegram");
+  const emailFallback =
+    process.env.ADMIN_NOTIFY_CHANNEL === "email" || !telegramConfigured();
   const resendKey = process.env.RESEND_API_KEY;
   const adminEmail = process.env.ADMIN_NOTIFY_EMAIL;
   const from = process.env.ADMIN_NOTIFY_FROM ?? "The Buzz Kids <noreply@thebuzzkids.co.uk>";
-  if (resendKey && adminEmail) {
+  if (emailFallback && resendKey && adminEmail) {
     try {
       await fetch("https://api.resend.com/emails", {
         method: "POST",
