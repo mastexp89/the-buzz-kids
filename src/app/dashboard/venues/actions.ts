@@ -28,6 +28,11 @@ export async function saveVenue(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim() || null;
   const image_url = String(formData.get("image_url") ?? "").trim() || null;
   const logo_url = String(formData.get("logo_url") ?? "").trim() || null;
+  // The main photo at the top of the venue page. It had no form field at all,
+  // so whatever an importer had put there could never be changed by hand.
+  // Setting image_source to 'upload' marks it as ours, so the licensed-image
+  // swap leaves a hand-picked photo alone.
+  const cover_photo_url = String(formData.get("cover_photo_url") ?? "").trim() || null;
   const city_id = String(formData.get("city_id") ?? "").trim();
   const opening_hours = String(formData.get("opening_hours") ?? "").trim() || null;
   const ohJsonRaw = String(formData.get("opening_hours_json") ?? "").trim();
@@ -131,7 +136,8 @@ export async function saveVenue(formData: FormData) {
       .from("venues")
       .update({
         name, description, address, postcode, phone, website, email,
-        image_url, logo_url, city_id,
+        image_url, logo_url, cover_photo_url, city_id,
+        ...(cover_photo_url ? { image_source: "upload" } : {}),
         opening_hours, opening_hours_json,
         instagram, facebook, twitter, tiktok, spotify, youtube,
         gallery_image_urls,
@@ -197,7 +203,8 @@ export async function saveVenue(formData: FormData) {
       owner_id: ownerId,
       city_id,
       name, slug, description, address, postcode, phone, website, email,
-      image_url, logo_url,
+      image_url, logo_url, cover_photo_url,
+      ...(cover_photo_url ? { image_source: "upload" } : {}),
       opening_hours, opening_hours_json,
       instagram, facebook, twitter, tiktok, spotify, youtube,
       gallery_image_urls,

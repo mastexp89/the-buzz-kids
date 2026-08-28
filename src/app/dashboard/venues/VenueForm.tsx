@@ -60,6 +60,7 @@ export default function VenueForm({
     setInfo("Filled from Google — check the details are right, then save.");
   }
   const [logoUrl, setLogoUrl] = useState(venue?.logo_url ?? "");
+  const [coverUrl, setCoverUrl] = useState((venue as any)?.cover_photo_url ?? "");
   const [gallery, setGallery] = useState<string[]>(venue?.gallery_image_urls ?? []);
   const [openingHours, setOpeningHours] = useState<OpeningHours>(
     ((venue as any)?.opening_hours_json ?? {}) as OpeningHours,
@@ -73,6 +74,7 @@ export default function VenueForm({
     setInfo(null);
     const fd = new FormData(e.currentTarget);
     fd.set("logo_url", logoUrl);
+    fd.set("cover_photo_url", coverUrl);
     fd.delete("gallery");
     gallery.forEach((u) => fd.append("gallery", u));
     // Strip empty days from opening_hours_json
@@ -293,6 +295,14 @@ export default function VenueForm({
       </div>
 
       <div className="sm:col-span-2 grid sm:grid-cols-2 gap-4 border-t border-buzz-border/60 pt-5 mt-2">
+        <div>
+          <label className="label">Main photo</label>
+          <p className="help mb-2">
+            The big picture at the top of your page. Landscape works best. Replacing it here
+            keeps it — the automatic photo finder won&apos;t overwrite one you&apos;ve chosen.
+          </p>
+          <ImageUploader folder="venues" value={coverUrl} onChange={setCoverUrl} />
+        </div>
         <div>
           <label className="label">Logo (square)</label>
           <p className="help mb-2">Square brand logo — shown next to your venue name. PNG with transparent background works best.</p>

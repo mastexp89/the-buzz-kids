@@ -184,6 +184,7 @@ export async function legalImageBatch(
     .select("id, name, latitude, longitude")
     .eq("approved", true)
     .is("image_legal_attempt", null)
+    // Never touch a photo someone chose by hand (image_source 'upload').
     .or("image_source.eq.website,cover_photo_url.is.null")
     .limit(limit);
 
@@ -218,6 +219,7 @@ export async function legalImageBatch(
     .select("id", { count: "exact", head: true })
     .eq("approved", true)
     .is("image_legal_attempt", null)
+    // Never touch a photo someone chose by hand (image_source 'upload').
     .or("image_source.eq.website,cover_photo_url.is.null");
 
   return { processed: rows.length, swapped, remaining: count ?? 0, failures };
