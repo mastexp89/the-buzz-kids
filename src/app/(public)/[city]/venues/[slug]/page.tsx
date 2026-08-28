@@ -214,14 +214,22 @@ export default async function VenuePage({ params }: Props) {
         )}
 
         {heroPhoto && (
-          <div className="mt-6 relative h-40 sm:h-56 rounded-2xl overflow-hidden border border-buzz-border bg-buzz-surface">
-            {/* Fill the banner edge-to-edge (object-cover) so there are no
-                blurred side-bars from portrait/narrow photos. Landscape venue
-                photos — the common case from Google — sit in perfectly. */}
+          <div className="mt-6 relative h-56 sm:h-72 rounded-2xl overflow-hidden border border-buzz-border bg-buzz-surface">
+            {/* The banner used to object-cover, which cropped so hard you often
+                couldn't tell what you were looking at (a logo became three
+                letters). Show the WHOLE image with object-contain, and fill the
+                dead space with a blurred copy of itself so there are no empty
+                side-bars — the reason cover was chosen in the first place. */}
+            <img
+              src={heroPhoto}
+              alt=""
+              aria-hidden
+              className="absolute inset-0 h-full w-full object-cover scale-110 blur-2xl opacity-40"
+            />
             <img
               src={heroPhoto}
               alt={venue.name}
-              className="absolute inset-0 h-full w-full object-cover"
+              className="absolute inset-0 h-full w-full object-contain"
             />
             {heroIsGoogle && (venue as any).google_photo_attribution && (
               <span className="absolute bottom-1.5 right-2.5 text-[11px] text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">
@@ -245,11 +253,13 @@ export default async function VenuePage({ params }: Props) {
         )}
 
         {venue.logo_url && (
-          <div className="mt-6 -mb-2">
-            <div
-              className="w-20 h-20 rounded-2xl bg-buzz-surface border-2 border-buzz-bg shadow-2xl shadow-black/50"
-              style={{ backgroundImage: `url(${venue.logo_url})`, backgroundSize: "contain", backgroundPosition: "center", backgroundRepeat: "no-repeat" }}
-              aria-label={`${venue.name} logo`}
+          <div className="mt-6">
+            {/* Now the page's lead image, so it gets room to breathe: white
+                card, padding, and object-contain so nothing is cropped. */}
+            <img
+              src={venue.logo_url}
+              alt={`${venue.name} logo`}
+              className="h-28 sm:h-32 w-auto max-w-[min(100%,20rem)] object-contain rounded-2xl bg-white border border-buzz-border p-3 shadow-sm"
             />
           </div>
         )}
