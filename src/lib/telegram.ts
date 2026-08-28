@@ -186,6 +186,31 @@ export function tgNewSignup(opts: {
   );
 }
 
+/**
+ * The region a place sits in, e.g. "Perth" — so a card reads
+ * "King James — Perth" and there's no ambiguity between same-named places in
+ * different towns. Looked up from the event rather than threaded through every
+ * caller: every tgNewGig call site already has the event id, and several take
+ * their place name from a moderation core that doesn't carry the city. Lazy
+ * import keeps Supabase off the cold-start path for senders that never need
+ * it; any failure just omits the region.
+ */
+async function venueRegionForEvent(eventId: string): Promise<string | null> {
+  try {
+    const { createServiceClient } = await import("@/lib/supabase/service");
+    const sb = createServiceClient();
+    const { data } = await sb
+      .from("events")
+      .select("venue:venues(city:cities(name))")
+      .eq("id", eventId)
+      .maybeSingle();
+    const name = (data as any)?.venue?.city?.name;
+    return typeof name === "string" && name.trim() ? name.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
 /** New event on the site — pending ones get Approve/Reject buttons. */
 export function tgNewGig(opts: {
   eventId: string;
@@ -203,6 +228,22 @@ export function tgNewGig(opts: {
   // place) rather than ours — we're told, but it's not our call.
   awaitingOwner?: boolean;
 }) {
+  return sendNewEventCard(opts);
+}
+
+async function sendNewEventCard(opts: {
+  eventId: string;
+  title: string;
+  venueName: string;
+  startTime: string | null;
+  byEmail: string | null;
+  status: "pending" | "approved";
+  source: string;
+  method?: "ai" | "manual";
+  awaitingOwner?: boolean;
+}) {
+  const region = await venueRegionForEvent(opts.eventId);
+  const venueLine = region ? `${opts.venueName} — ${region}` : opts.venueName;
   const head = opts.awaitingOwner
     ? "🎪 <b>New event — with the place owner</b>"
     : opts.status === "pending"
@@ -211,7 +252,7 @@ export function tgNewGig(opts: {
   const text =
     `${head}\n` +
     `<b>${tgEsc(opts.title)}</b>\n` +
-    `📍 ${tgEsc(opts.venueName)}\n` +
+    `📍 ${tgEsc(venueLine)}\n` +
     `🗓 ${tgEsc(tgDate(opts.startTime))}\n` +
     `Via ${tgEsc(opts.source)} · ${tgEsc(opts.byEmail ?? "—")}\n` +
     (opts.method === "ai"
