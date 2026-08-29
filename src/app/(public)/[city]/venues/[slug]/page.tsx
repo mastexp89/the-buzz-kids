@@ -355,8 +355,19 @@ export default async function VenuePage({ params }: Props) {
             </div>
             {venue.address && (
               <div className="text-sm leading-relaxed">
-                {venue.address}<br />
-                {venue.postcode && <span className="text-buzz-mute">{venue.postcode}</span>}
+                {venue.address}
+                {/* Only show the postcode on its own line when the address
+                    doesn't already contain it — otherwise it reads as
+                    "Newton Stewart DG8 7BE / DG8 7BE" (report M-01). */}
+                {venue.postcode &&
+                  !venue.address.replace(/\s+/g, "").toUpperCase().includes(
+                    venue.postcode.replace(/\s+/g, "").toUpperCase(),
+                  ) && (
+                    <>
+                      <br />
+                      <span className="text-buzz-mute">{venue.postcode}</span>
+                    </>
+                  )}
               </div>
             )}
             {((venue as any).nearest_bus_stop || (venue as any).nearest_rail_station) && (
