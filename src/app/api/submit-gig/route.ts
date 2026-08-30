@@ -156,7 +156,10 @@ async function runBearerSubmit(
       .single();
     if (!venue) return NextResponse.json({ error: "That venue could not be found." }, { status: 404 });
 
-    const autoApprove = !venue.owner_id;
+    // Owner posting on their own claimed page auto-approves too — only a
+    // third party submitting to a claimed venue waits on the owner.
+    const submitterOwnsVenue = !!userId && venue.owner_id === userId;
+    const autoApprove = !venue.owner_id || submitterOwnsVenue;
     const status = autoApprove ? "approved" : "pending";
 
     const { data: created, error } = await admin

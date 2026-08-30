@@ -111,7 +111,10 @@ export async function submitGig(formData: FormData): Promise<SubmitGigResult> {
 
     // If the venue has no owner (unclaimed / auto-imported), the gig auto-approves
     // and goes live immediately. If there's an owner, it still needs their approval.
-    const autoApprove = !venue.owner_id;
+    // Owner posting on their own claimed page auto-approves too — only a
+    // third party submitting to a claimed venue waits on the owner.
+    const submitterOwnsVenue = venue.owner_id === user.id;
+    const autoApprove = !venue.owner_id || submitterOwnsVenue;
     const status = autoApprove ? "approved" : "pending";
 
     // Dedupe: refuse to insert if an event with an overlapping title already
