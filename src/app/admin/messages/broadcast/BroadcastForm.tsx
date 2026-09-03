@@ -28,10 +28,26 @@ export default function BroadcastForm({
   // Anonymous = phones with the app installed but no user signed in.
   // Only meaningful when push is enabled.
   const [includeAnonymous, setIncludeAnonymous] = useState(false);
+  // Review-request preset: the tapped push opens the app's rate-us screen
+  // (deep-link type "review") instead of the inbox.
+  const [reviewMode, setReviewMode] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ sent: number; emailed: number; pushed: number; skipped: number } | null>(null);
 
   const appOnly = mode === "app";
+
+  const SUGGESTED_TITLE = "Enjoying The Buzz Kids?";
+  const SUGGESTED_BODY =
+    "Tap to leave us a quick review — it helps other families across Scotland find great days out. Thank you! ⭐";
+
+  function toggleReview(on: boolean) {
+    setReviewMode(on);
+    // Fill in friendly default wording, but never clobber what they've typed.
+    if (on) {
+      if (!pushTitle.trim()) setPushTitle(SUGGESTED_TITLE);
+      if (!body.trim()) setBody(SUGGESTED_BODY);
+    }
+  }
 
   function send(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -39,8 +55,11 @@ export default function BroadcastForm({
     setResult(null);
     if (!body.trim()) return;
     if (appOnly) {
+      const tapDest = reviewMode
+        ? "Tapping it opens the in-app rate-us screen, with a button to the App/Play Store."
+        : "";
       if (!confirm(
-        "Send this as a push notification to EVERY phone with the app installed (signed in or not)?\n\nNo inbox message or email — push only. This cannot be undone."
+        `Send this as a push notification to EVERY phone with the app installed (signed in or not)?\n\n${tapDest}\n\nNo inbox message or email — push only. This cannot be undone.`
       )) return;
     } else {
       const recipientCount = counts[role] ?? 0;
@@ -62,6 +81,7 @@ export default function BroadcastForm({
         pushTitle: pushTitle.trim() || undefined,
         includeAnonymous: !appOnly && pushToo && includeAnonymous,
         appOnly,
+        linkType: appOnly && reviewMode ? "review" : "broadcast",
       });
       if ("error" in r) setError(r.error);
       else setResult({ sent: r.sent, emailed: r.emailed, pushed: r.pushed, skipped: r.skipped });
@@ -126,6 +146,24 @@ export default function BroadcastForm({
           </button>
         </div>
       </div>
+
+      {appOnly && (
+        <label className="flex items-start gap-2 text-sm rounded-lg border border-buzz-border p-3">
+          <input
+            type="checkbox"
+            checked={reviewMode}
+            onChange={(e) => toggleReview(e.target.checked)}
+            className="mt-1"
+          />
+          <span>
+            ⭐ <strong>Review request</strong> — tapping the notification opens the in-app
+            &ldquo;rate us&rdquo; screen, with a one-tap button to the App&nbsp;/&nbsp;Play Store.
+            {reviewMode && (
+              <span className="block text-buzz-mute mt-1">Suggested wording filled in below — edit as you like.</span>
+            )}
+          </span>
+        </label>
+      )}
 
       {!appOnly && (
       <div>
