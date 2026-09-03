@@ -360,6 +360,10 @@ export async function broadcastMessage(opts: {
   // (signed-in and anonymous alike) and nothing else — no inbox rows,
   // no emails. For app announcements ("we've launched X").
   appOnly?: boolean;
+  // Where a tapped push deep-links in the app. "broadcast" (default) opens
+  // the in-app inbox; "review" opens the store-review prompt screen. Must
+  // match a case in the app's notificationToHref (lib/push.ts).
+  linkType?: "broadcast" | "review";
 }): Promise<BroadcastResult> {
   const ctx = await requireDylanAdmin();
   if (!ctx) return { error: "Not authorised." };
@@ -368,13 +372,15 @@ export async function broadcastMessage(opts: {
   if (!trimmed) return { error: "Message can't be empty." };
   if (trimmed.length > 5000) return { error: "Message too long." };
 
+  const linkType = opts.linkType ?? "broadcast";
+
   if (opts.appOnly) {
     const { sendPushToAllDevices } = await import("@/lib/push");
     const result = await sendPushToAllDevices(
       {
         title: opts.pushTitle?.trim() || "The Buzz Kids",
         body: trimmed.length > 120 ? `${trimmed.slice(0, 117).trim()}…` : trimmed,
-    data: { type: "broadcast" },
+    data: { type: linkType },
       },
       { includeAnonymous: true },
     );
@@ -431,7 +437,7 @@ export async function broadcastMessage(opts: {
     const pushPayload = {
       title: opts.pushTitle?.trim() || "Message from The Buzz Kids",
       body: trimmed.length > 120 ? `${trimmed.slice(0, 117).trim()}…` : trimmed,
-    data: { type: "broadcast" },
+    data: { type: linkType },
     };
     if (opts.includeAnonymous) {
       // "Everyone with the app" — both signed-in (filtered by role
