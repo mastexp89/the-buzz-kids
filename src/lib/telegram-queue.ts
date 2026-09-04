@@ -49,14 +49,17 @@ export async function sendPendingEventButtons(limit = 5, offset = 0): Promise<nu
   const sb = createServiceClient();
   const { data: pendingEvents, count } = await sb
     .from("events")
-    .select("id, title, start_time, venue:venues(name)", { count: "exact" })
+    .select("id, title, start_time, location_name, venue:venues(name)", { count: "exact" })
     .eq("status", "pending")
     .order("created_at", { ascending: true })
     .range(offset, offset + limit - 1);
   for (const ev of pendingEvents ?? []) {
+    // Aggregator imports often carry the venue as plain text in location_name
+    // without a linked venue row yet — fall back to it so the card isn't blank.
+    const venueName = (ev.venue as any)?.name ?? (ev as any).location_name ?? "—";
     await sendTelegram(
       `🎪 <b>${tgEsc(ev.title)}</b>\n` +
-      `📍 ${tgEsc((ev.venue as any)?.name ?? "—")} · 🗓 ${tgEsc(tgDate(ev.start_time))}\n` +
+      `📍 ${tgEsc(venueName)} · 🗓 ${tgEsc(tgDate(ev.start_time))}\n` +
       `ID: <code>${ev.id}</code>`,
       {
         silent: true,

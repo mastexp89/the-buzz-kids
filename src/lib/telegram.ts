@@ -116,6 +116,7 @@ export function tgDate(iso: string | null | undefined): string {
     weekday: "short",
     day: "numeric",
     month: "short",
+    year: "numeric",
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
@@ -129,7 +130,15 @@ export function tgDate(iso: string | null | undefined): string {
     : day % 10 === 3 ? "rd"
     : "th";
   const time = `${get("hour")}:${get("minute")}${get("dayPeriod").toLowerCase()}`;
-  return `${get("weekday")} ${day}${suffix} ${get("month")}, ${time}`;
+  // Only show the year when it isn't the current one, so a far-future date
+  // (e.g. a panto next May) can't be mistaken for one that's imminent.
+  const year = get("year");
+  const thisYear = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    year: "numeric",
+  }).format(new Date());
+  const yearPart = year && year !== thisYear ? ` ${year}` : "";
+  return `${get("weekday")} ${day}${suffix} ${get("month")}${yearPart}, ${time}`;
 }
 
 // ---------------------------------------------------------------------------
