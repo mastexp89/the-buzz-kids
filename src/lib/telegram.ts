@@ -152,6 +152,7 @@ export function tgDate(iso: string | null | undefined): string {
 export const CB = {
   approveEvent: (id: string) => `ev:ap:${id}`,
   rejectEvent: (id: string) => `ev:rj:${id}`,
+  sendToGuide: (id: string) => `ev:2g:${id}`,
   approveArtist: (id: string) => `ar:ap:${id}`,
   approveReview: (id: string) => `rv:ap:${id}`,
   hideReview: (id: string) => `rv:hd:${id}`,
@@ -288,6 +289,7 @@ async function sendNewEventCard(opts: {
           { text: "✅ Approve", callback_data: CB.approveEvent(opts.eventId) },
           { text: "❌ Reject", callback_data: CB.rejectEvent(opts.eventId) },
         ],
+        [{ text: "➡️ Send to the Guide", callback_data: CB.sendToGuide(opts.eventId) }],
         wrongVenueRow,
       ]
     : [wrongVenueRow];

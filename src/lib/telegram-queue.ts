@@ -63,10 +63,13 @@ export async function sendPendingEventButtons(limit = 5, offset = 0): Promise<nu
       `ID: <code>${ev.id}</code>`,
       {
         silent: true,
-        buttons: [[
-          { text: "✅ Approve", callback_data: `ev:ap:${ev.id}` },
-          { text: "❌ Reject", callback_data: `ev:rj:${ev.id}` },
-        ]],
+        buttons: [
+          [
+            { text: "✅ Approve", callback_data: `ev:ap:${ev.id}` },
+            { text: "❌ Reject", callback_data: `ev:rj:${ev.id}` },
+          ],
+          [{ text: "➡️ Send to the Guide", callback_data: `ev:2g:${ev.id}` }],
+        ],
       },
     );
   }
