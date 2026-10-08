@@ -405,6 +405,15 @@ async function handleCallback(cb: any) {
     return;
   }
 
+  // "Send to the Guide": this gig suits thebuzzguide.co.uk better. Hand it to
+  // the Guide's import queue (a separate app/db) over the internal endpoint,
+  // then drop it from the Kids queue.
+  const toGuide = data.match(/^ev:2g:([0-9a-f-]{36})$/i);
+  if (toGuide) {
+    await handleSendToGuide(toGuide[1], cb, answer);
+    return;
+  }
+
   const m = data.match(/^(ev|ar|rv|sg|vn|og|vc|ac|ag):(ap|rj|hd|dn|ok|del|tx|di|ad):([0-9a-f-]{36})$/i);
   if (!m) {
     await answer("Unknown action.");
@@ -491,6 +500,93 @@ async function handleCallback(cb: any) {
     `${icon} <b>${tgEsc(actionLabel)}</b>${result.label ? ` — ${tgEsc(result.label)}` : ""}\nBy ${tgEsc(who)}`,
     { replyTo: messageId, silent: true },
   );
+}
+
+/**
+ * Hand a Kids gig over to The Buzz Guide. Posts it to the Guide's internal
+ * import-queue endpoint (separate app + database), then rejects it on the
+ * Kids side so it leaves this queue. The Guide admin picks the Guide venue
+ * and approves it there.
+ */
+async function handleSendToGuide(
+  eventId: string,
+  cb: any,
+  answer: (text: string, alert?: boolean) => any,
+) {
+  const secret = process.env.INTERNAL_HANDOFF_SECRET;
+  if (!secret) {
+    await answer("Guide handoff isn't set up yet (missing secret).", true);
+    return;
+  }
+
+  const sb = createServiceClient();
+  const { data: evData } = await sb
+    .from("events")
+    .select(
+      "id, title, start_time, end_time, description, ticket_url, image_url, location_name, city_id, venue:venues(name)",
+    )
+    .eq("id", eventId)
+    .maybeSingle();
+  const ev = evData as any;
+  if (!ev) {
+    await answer("Can't find that event any more.", true);
+    return;
+  }
+
+  const venueHint = ev.location_name || ev.venue?.name || null;
+  let citySlug: string | null = null;
+  if (ev.city_id) {
+    const { data: city } = await sb.from("cities").select("slug").eq("id", ev.city_id).maybeSingle();
+    citySlug = city?.slug ?? null;
+  }
+
+  const url =
+    process.env.GUIDE_HANDOFF_URL ?? "https://www.thebuzzguide.co.uk/api/internal/kids-handoff";
+  let ok = false;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-handoff-secret": secret },
+      body: JSON.stringify({
+        kidsEventId: ev.id,
+        title: ev.title,
+        startTime: ev.start_time,
+        endTime: (ev as any).end_time ?? null,
+        description: (ev as any).description ?? null,
+        ticketUrl: (ev as any).ticket_url ?? null,
+        imageUrl: (ev as any).image_url ?? null,
+        venueHint,
+        citySlug,
+      }),
+    });
+    const json = await res.json().catch(() => null);
+    ok = res.ok && json?.ok === true;
+  } catch {
+    ok = false;
+  }
+
+  if (!ok) {
+    await answer("Couldn't reach the Guide. Try again shortly.", true);
+    return;
+  }
+
+  // It's going to the Guide, so take it out of the Kids queue.
+  const reviewerId = await resolveDefaultReviewerId();
+  if (reviewerId) await rejectEventCore(reviewerId, eventId);
+
+  await answer("Sent to The Buzz Guide ✅");
+  await tgApi("editMessageReplyMarkup", {
+    chat_id: cb.message.chat.id,
+    message_id: cb.message.message_id,
+    reply_markup: { inline_keyboard: [] },
+  });
+  const who = [cb.from?.first_name, cb.from?.last_name].filter(Boolean).join(" ") || cb.from?.username || "an admin";
+  await sendTelegram(
+    `➡️ <b>Sent to The Buzz Guide</b>: ${tgEsc(ev.title)}\n` +
+    `It's in the Guide's import queue for approval. Removed from the Kids queue.\nBy ${tgEsc(who)}`,
+    { replyTo: cb.message.message_id, silent: true },
+  );
+  try { revalidatePath("/admin/queue"); } catch { /* ok */ }
 }
 
 // ---------------------------------------------------------------------------
