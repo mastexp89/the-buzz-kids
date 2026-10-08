@@ -582,7 +582,7 @@ async function handleSendToGuide(
   });
   const who = [cb.from?.first_name, cb.from?.last_name].filter(Boolean).join(" ") || cb.from?.username || "an admin";
   await sendTelegram(
-    `➡️ <b>Sent to The Buzz Guide</b> — ${tgEsc(ev.title)}\n` +
+    `➡️ <b>Sent to The Buzz Guide</b>: ${tgEsc(ev.title)}\n` +
     `It's in the Guide's import queue for approval. Removed from the Kids queue.\nBy ${tgEsc(who)}`,
     { replyTo: cb.message.message_id, silent: true },
   );
