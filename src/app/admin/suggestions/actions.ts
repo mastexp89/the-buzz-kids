@@ -112,17 +112,32 @@ export async function createFromSuggestion(
       if (!clash) break;
       slug = `${slugBase}-${n}`;
     }
+    // Reuse the photo the submitter sent in, if any (marked 'upload' so the
+    // legal-image sweep never overwrites their own picture).
+    const { data: sug } = await sb
+      .from("edit_suggestions")
+      .select("image_url")
+      .eq("id", p.suggestionId)
+      .maybeSingle();
+    const photo = typeof sug?.image_url === "string" && sug.image_url.trim() ? sug.image_url.trim() : null;
+
+    const insertRow: Record<string, unknown> = {
+      name: p.title.trim(),
+      slug,
+      description: p.description ?? null,
+      address: p.address ?? null,
+      city_id: p.cityId,
+      // Creating from a reviewed suggestion publishes it straight to the site.
+      approved: true,
+    };
+    if (photo) {
+      insertRow.cover_photo_url = photo;
+      insertRow.image_source = "upload";
+    }
+
     const { data, error } = await sb
       .from("venues")
-      .insert({
-        name: p.title.trim(),
-        slug,
-        description: p.description ?? null,
-        address: p.address ?? null,
-        city_id: p.cityId,
-        // Created unapproved: it still wants a photo and a check before it's public.
-        approved: false,
-      })
+      .insert(insertRow)
       .select("id")
       .single();
     if (error) return { error: error.message };

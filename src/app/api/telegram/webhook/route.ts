@@ -439,7 +439,7 @@ async function handleCallback(cb: any) {
   else if (entity === "og" && verb === "ap") { result = await approveOrganiserCore(reviewerId, id); actionLabel = "Organiser approved"; }
   else if (entity === "rv" && verb === "ap") { result = await setReviewStatusCore(reviewerId, id, "approved"); actionLabel = "Review approved"; }
   else if (entity === "rv" && verb === "hd") { result = await setReviewStatusCore(reviewerId, id, "hidden"); actionLabel = "Review hidden"; positive = false; }
-  else if (entity === "sg" && verb === "ap") { result = await approveSuggestionCore(reviewerId, id); actionLabel = "Draft place created — add a photo + check the area on the site"; }
+  else if (entity === "sg" && verb === "ap") { result = await approveSuggestionCore(reviewerId, id); actionLabel = "Place published to the site"; }
   else if (entity === "sg" && verb === "dn") { result = await setSuggestionStatusCore(reviewerId, id, "done"); actionLabel = "Suggestion marked done"; }
   else if (entity === "sg" && verb === "del") { result = await deleteSuggestionCore(reviewerId, id); actionLabel = "Suggestion deleted"; positive = false; }
   else if (entity === "vc" && verb === "ap") { result = await approveVenueClaimCore(reviewerId, id); actionLabel = "Place claim approved"; }
@@ -497,7 +497,9 @@ async function handleCallback(cb: any) {
   const who = [cb.from?.first_name, cb.from?.last_name].filter(Boolean).join(" ") || cb.from?.username || "an admin";
   const icon = positive ? "✅" : "❌";
   await sendTelegram(
-    `${icon} <b>${tgEsc(actionLabel)}</b>${result.label ? ` — ${tgEsc(result.label)}` : ""}\nBy ${tgEsc(who)}`,
+    `${icon} <b>${tgEsc(actionLabel)}</b>${result.label ? ` — ${tgEsc(result.label)}` : ""}` +
+    (result.note ? `\n${tgEsc(result.note)}` : "") +
+    `\nBy ${tgEsc(who)}`,
     { replyTo: messageId, silent: true },
   );
 }
