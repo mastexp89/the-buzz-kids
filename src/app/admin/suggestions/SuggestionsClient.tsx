@@ -79,7 +79,7 @@ function DraftPanel({ id, citySlug, onDone }: { id: string; citySlug: string | n
         isFree: d.is_free === true, price: d.price,
       });
       if (r.error) { setErr(r.error); return; }
-      setOkMsg(d.kind === "place" ? "Place created (unapproved — add a photo)" : "Event created");
+      setOkMsg(d.kind === "place" ? "Place published to the site 🟢" : "Event created");
       onDone();
     } catch (e: any) { setErr(e?.message ?? "Failed"); }
     finally { setSaving(false); }

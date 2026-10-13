@@ -18,7 +18,7 @@ import {
 } from "@/lib/email";
 
 export type ModerationResult =
-  | { ok: true; label?: string; redundant?: boolean; paths?: string[] }
+  | { ok: true; label?: string; redundant?: boolean; paths?: string[]; note?: string }
   | { error: string; hasExistingOwner?: boolean };
 
 /**
@@ -641,7 +641,7 @@ export async function approveSuggestionCore(_reviewerId: string, suggestionId: s
   const sb = createServiceClient();
   const { data: sug } = await sb
     .from("edit_suggestions")
-    .select("id, target_type, target_name, details, reason, status")
+    .select("id, target_type, target_name, details, reason, status, image_url")
     .eq("id", suggestionId)
     .maybeSingle();
   if (!sug) return { error: "Suggestion not found." };
@@ -670,12 +670,13 @@ export async function approveSuggestionCore(_reviewerId: string, suggestionId: s
   const { data: cities } = await sb.from("cities").select("id, name, slug").eq("active", true);
   const town = String(draft?.town ?? "").toLowerCase();
   let cityId: string | null = null;
+  let cityMatched = false; // false => we fell back to the Dundee default (a guess)
   for (const c of cities ?? []) {
     const nm = String(c.name).toLowerCase();
-    if (town && (town.includes(nm) || nm.includes(town))) { cityId = c.id; break; }
+    if (town && (town.includes(nm) || nm.includes(town))) { cityId = c.id; cityMatched = true; break; }
   }
   if (!cityId) for (const c of cities ?? []) {
-    if (text.includes(String(c.name).toLowerCase())) { cityId = c.id; break; }
+    if (text.includes(String(c.name).toLowerCase())) { cityId = c.id; cityMatched = true; break; }
   }
   if (!cityId) cityId = (cities ?? []).find((c) => String(c.name).toLowerCase() === "dundee")?.id ?? (cities ?? [])[0]?.id ?? null;
   if (!cityId) return { error: "No active area to file this under." };
@@ -690,23 +691,44 @@ export async function approveSuggestionCore(_reviewerId: string, suggestionId: s
   }
 
   const address = draft?.address || sug.details || null;
+
+  // Use the photo the submitter uploaded, if any. Marked image_source
+  // 'upload' so the legal-image sweep never overwrites their own picture.
+  const photo = typeof sug.image_url === "string" && sug.image_url.trim() ? sug.image_url.trim() : null;
+
+  const insertRow: Record<string, unknown> = {
+    name: title,
+    slug,
+    description: draft?.description ?? null,
+    address: address ? String(address).slice(0, 300) : null,
+    city_id: cityId,
+    // Approving in Telegram / admin publishes the place straight to the site.
+    approved: true,
+  };
+  if (photo) {
+    insertRow.cover_photo_url = photo;
+    insertRow.image_source = "upload";
+  }
+
   const { data: made, error } = await sb
     .from("venues")
-    .insert({
-      name: title,
-      slug,
-      description: draft?.description ?? null,
-      address: address ? String(address).slice(0, 300) : null,
-      city_id: cityId,
-      // Unapproved: it still wants a photo + a check before it's public.
-      approved: false,
-    })
-    .select("id")
+    .insert(insertRow)
+    .select("id, slug")
     .single();
   if (error) return { error: error.message };
 
   await sb.from("edit_suggestions").update({ status: "done" }).eq("id", suggestionId);
-  return { ok: true, label: title, paths: ["/admin/suggestions", `/admin/places/${made.id}`] };
+
+  const city = (cities ?? []).find((c) => c.id === cityId);
+  const warnings: string[] = [];
+  if (!cityMatched) warnings.push(`area guessed as ${city?.name ?? "—"} — change it if wrong`);
+  if (!photo) warnings.push("no photo yet — add one on the site");
+  const note = `🟢 Live now${city?.name ? ` in ${city.name}` : ""}` + (warnings.length ? `\n⚠️ ${warnings.join("; ")}` : "");
+
+  const paths = ["/admin/suggestions", `/admin/places/${made.id}`];
+  if (city?.slug && made.slug) paths.push(`/${city.slug}/venues/${made.slug}`, `/${city.slug}`);
+
+  return { ok: true, label: title, note, paths };
 }
 
 export async function setSuggestionStatusCore(
