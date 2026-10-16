@@ -69,7 +69,10 @@ export default async function VenuePage({ params }: Props) {
     if (redirectRow?.new_slug) redirect(`/${citySlug}/venues/${redirectRow.new_slug}`);
     notFound();
   }
-  if ((venue.city as any).slug !== citySlug) notFound();
+  // Reached under the wrong region (e.g. a place corrected from Dundee to
+  // Fife): send the old region URL to the venue's current one instead of
+  // 404ing, so existing links keep working after a region change.
+  if ((venue.city as any).slug !== citySlug) redirect(`/${(venue.city as any).slug}/venues/${slug}`);
   if (!venue.approved) notFound();
 
   // Track the view (fire-and-forget, bot-filtered).
