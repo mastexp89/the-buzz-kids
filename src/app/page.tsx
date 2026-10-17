@@ -23,30 +23,29 @@ export default async function Home() {
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Top-rated real places — genuine photography + Google ratings.
-  const { data: topRated } = await supabase
+  // Top picks — real top-rated places that have a re-hosted (reliable) photo.
+  // Named venues keep their OWN photography; the design assets are never used
+  // for a specific business (see the photo pack README).
+  const { data: picksData } = await supabase
     .from("venues")
-    .select("id, name, slug, description, cover_photo_url, image_url, google_photo_url, google_rating, google_rating_count, city:cities(name, slug, active)")
+    .select("id, name, slug, description, cover_photo_url, image_url, city:cities(name, slug, active)")
     .eq("approved", true)
     .in("venue_type", ["attraction", "both"])
-    .not("google_rating", "is", null)
-    .gte("google_rating_count", 100)
-    .order("google_rating", { ascending: false })
-    .order("google_rating_count", { ascending: false })
-    .limit(16);
-
-  const favourites = (topRated ?? []).filter((v: any) => v.city?.active);
-  const photoOf = (v: any) => v?.cover_photo_url || v?.image_url || v?.google_photo_url || null;
-  const heroA = favourites.find((v: any) => photoOf(v)) ?? favourites[0];
-  const heroB = favourites.filter((v: any) => v.id !== heroA?.id).find((v: any) => photoOf(v)) ?? favourites[1];
-  const picks = favourites.filter((v: any) => v.id !== heroA?.id).slice(0, 5);
+    .not("cover_photo_url", "is", null)
+    .order("google_rating", { ascending: false, nullsFirst: false })
+    .order("google_rating_count", { ascending: false, nullsFirst: false })
+    .limit(12);
+  const picks = (picksData ?? [])
+    .filter((v: any) => v.city?.active && (v.cover_photo_url || v.image_url))
+    .slice(0, 5);
+  const photoOf = (v: any) => v.cover_photo_url || v.image_url;
 
   const cats = [
-    { title: "Things to Do", sub: "Activities, play, learn and more", href: "/browse", icon: "🔭", grad: "linear-gradient(155deg,#F978B6,#EC1E8C)", r: "34px 34px 34px 10px" },
-    { title: "Places to Go", sub: "Great days out for the whole family", href: "/browse", icon: "📍", grad: "linear-gradient(155deg,#48BEEA,#1689BC)", r: "34px 34px 10px 34px" },
-    { title: "What's On", sub: "Events, shows and activities", href: "/browse?tab=events", icon: "📅", grad: "linear-gradient(155deg,#FFC24A,#F9951B)", r: "34px 34px 34px 10px" },
-    { title: "Deals", sub: "Great value days out and offers", href: "/browse?tab=deals", icon: "🏷️", grad: "linear-gradient(155deg,#9AD24B,#5F9A12)", r: "34px 34px 10px 34px" },
-    { title: "Places to Stay", sub: "Family-friendly stays and getaways", href: "#", icon: "🛏️", grad: "linear-gradient(155deg,#48C9CE,#1E9AA0)", r: "34px 34px 34px 10px", soon: true },
+    { title: "Things to Do", sub: "Activities, play, learn and more", href: "/browse", icon: "🔭", img: "/images/category-things-to-do.webp", grad: "linear-gradient(155deg,#F978B6,#EC1E8C)", r: "34px 34px 34px 10px" },
+    { title: "Places to Go", sub: "Great days out for the whole family", href: "/browse", icon: "📍", img: "/images/category-places-to-go.webp", grad: "linear-gradient(155deg,#48BEEA,#1689BC)", r: "34px 34px 10px 34px" },
+    { title: "What's On", sub: "Events, shows and activities", href: "/browse?tab=events", icon: "📅", img: "/images/category-whats-on.webp", grad: "linear-gradient(155deg,#FFC24A,#F9951B)", r: "34px 34px 34px 10px" },
+    { title: "Deals", sub: "Great value days out and offers", href: "/browse?tab=deals", icon: "🏷️", img: "/images/category-deals.webp", grad: "linear-gradient(155deg,#9AD24B,#5F9A12)", r: "34px 34px 10px 34px" },
+    { title: "Places to Stay", sub: "Family-friendly stays and getaways", href: "#", icon: "🛏️", img: "/images/category-places-to-stay.webp", grad: "linear-gradient(155deg,#48C9CE,#1E9AA0)", r: "34px 34px 34px 10px", soon: true },
   ];
 
   const badges = [
@@ -65,11 +64,17 @@ export default async function Home() {
     { ic: "🌱", t: "Support local businesses" },
   ];
 
+  const seasonIdeas = [
+    { t: "Halloween trails", s: "Spooky family fun", img: "/images/bonus-halloween.webp" },
+    { t: "Autumn walks", s: "Crisp days outdoors", img: "/images/bonus-outdoor-walks.webp" },
+    { t: "Cosy indoor play", s: "Rainy-day rescue", img: "/images/bonus-indoor-play.webp" },
+  ];
+
   return (
     <div className={`${fredoka.variable} ${nunito.variable} ${caveat.variable}`} style={{ fontFamily: "var(--font-nunito)", fontWeight: 600 }}>
       {/* ---------------- HERO ---------------- */}
       <section className="container-page pt-10 sm:pt-14 pb-8">
-        <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-8 lg:gap-12 items-center">
+        <div className="grid lg:grid-cols-[1.02fr_0.98fr] gap-8 lg:gap-12 items-center">
           <div>
             <p className="eyebrow mb-3">Days out · Family fun · Across Scotland</p>
             <h1 style={DISPLAY} className="text-[2.7rem] sm:text-6xl lg:text-7xl font-bold leading-[0.98] tracking-tight text-buzz-text">
@@ -91,28 +96,27 @@ export default async function Home() {
             </div>
           </div>
 
-          {/* Hero visual — built from real top-rated place photography */}
-          <div className="relative w-full max-w-[460px] mx-auto aspect-square" aria-hidden>
+          {/* Hero visual — the design photo pack (kids running) + Scottish inset */}
+          <div className="relative w-full max-w-[520px] mx-auto" aria-hidden>
             <div
-              className="absolute inset-0 right-[6%] bottom-[8%] rounded-[36px_40px_44px_36px] bg-buzz-surface shadow-[0_30px_60px_-28px_rgba(22,120,190,0.6)] bg-cover bg-center"
-              style={photoOf(heroA) ? { backgroundImage: `url(${photoOf(heroA)})` } : { background: "linear-gradient(160deg,#9FD6F4,#2E8FD0)" }}
+              className="w-full aspect-[5/4] rounded-[32px] bg-cover shadow-[0_30px_60px_-28px_rgba(22,120,190,0.55)]"
+              style={{ backgroundImage: "url(/images/hero-desktop-text-safe.webp)", backgroundPosition: "72% center" }}
             />
             <div
-              className="absolute right-[-2%] bottom-[2%] w-[46%] aspect-[1.3/1] rounded-3xl border-4 border-white shadow-[0_20px_40px_-20px_rgba(0,0,0,0.4)] z-[3] bg-cover bg-center"
-              style={photoOf(heroB) ? { backgroundImage: `url(${photoOf(heroB)})` } : { background: "linear-gradient(160deg,#9AD6B0,#2E7D6B)" }}
+              className="absolute right-[-3%] bottom-[-6%] w-[44%] aspect-[1.35/1] rounded-3xl border-4 border-white shadow-[0_20px_40px_-20px_rgba(0,0,0,0.4)] z-[3] bg-cover bg-center"
+              style={{ backgroundImage: "url(/images/bonus-outdoor-walks.webp)" }}
             />
-            <div className="absolute left-[-3%] bottom-[14%] z-[4] bg-buzz-pink text-white text-center px-4 py-4 leading-tight shadow-[0_16px_30px_-14px_rgba(236,30,140,0.7)] -rotate-6" style={{ ...DISPLAY, borderRadius: "50% 46% 52% 48%" }}>
+            <div className="absolute left-[-3%] bottom-[16%] z-[4] bg-buzz-pink text-white text-center px-4 py-4 leading-tight shadow-[0_16px_30px_-14px_rgba(236,30,140,0.7)] -rotate-6" style={{ ...DISPLAY, borderRadius: "50% 46% 52% 48%" }}>
               BIG ADVENTURES<br />for little<br />explorers
             </div>
-            <div className="absolute top-[-4%] right-[4%] z-[4] text-buzz-accent2 text-center text-2xl rotate-6 leading-none" style={HAND}>
+            <div className="absolute top-[-6%] right-[2%] z-[4] text-buzz-accent2 text-center text-2xl rotate-6 leading-none" style={HAND}>
               Making<br />memories<br />across Scotland <span className="text-buzz-pink">♥</span>
             </div>
-            <div className="absolute bottom-[-5%] right-[14%] z-[4] text-buzz-pink text-center text-2xl -rotate-6 leading-none" style={HAND}>
+            <div className="absolute bottom-[-14%] right-[16%] z-[4] text-buzz-pink text-center text-2xl -rotate-6 leading-none" style={HAND}>
               Explore<br />discover<br />together ↘
             </div>
-            <span className="absolute top-[8%] left-[34%] z-[4] text-buzz-yellow text-xl">✦</span>
-            <span className="absolute top-[42%] right-[1%] z-[4] text-buzz-pink text-xl">✦</span>
-            <span className="absolute bottom-[30%] left-[8%] z-[4] text-buzz-lime text-xl">✦</span>
+            <span className="absolute top-[6%] left-[20%] z-[4] text-buzz-yellow text-xl">✦</span>
+            <span className="absolute top-[46%] right-[-2%] z-[4] text-buzz-pink text-xl">✦</span>
           </div>
         </div>
       </section>
@@ -141,16 +145,16 @@ export default async function Home() {
             <Link
               key={c.title}
               href={c.href}
-              className="relative overflow-hidden p-5 text-white min-h-[210px] flex flex-col hover:-translate-y-1 transition"
+              className="relative overflow-hidden p-4 text-white min-h-[240px] flex flex-col hover:-translate-y-1 transition"
               style={{ background: c.grad, borderRadius: c.r }}
             >
-              <div className="w-12 h-12 rounded-2xl bg-white/25 grid place-items-center text-2xl mb-3">{c.icon}</div>
+              <div className="w-11 h-11 rounded-2xl bg-white/25 grid place-items-center text-2xl mb-2.5">{c.icon}</div>
               <h3 style={DISPLAY} className="text-xl font-bold leading-tight">{c.title}</h3>
-              <p className="text-[13px] font-bold opacity-90 mt-1">{c.sub}</p>
+              <p className="text-[13px] font-bold opacity-90 mt-1 mb-3">{c.sub}</p>
               {c.soon && (
                 <span className="absolute top-4 right-4 rounded-full bg-white/90 text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1" style={{ color: "#1E9AA0" }}>Coming soon</span>
               )}
-              <span className="mt-auto text-2xl opacity-90">{c.icon}</span>
+              <div className="mt-auto h-[92px] rounded-2xl bg-cover bg-center" style={{ backgroundImage: `url(${c.img})` }} />
             </Link>
           ))}
         </div>
@@ -171,11 +175,7 @@ export default async function Home() {
               const photo = photoOf(v);
               return (
                 <article key={v.id} className="bg-white border border-buzz-border rounded-3xl overflow-hidden flex flex-col hover:-translate-y-1 hover:shadow-[0_22px_40px_-26px_rgba(22,32,42,0.45)] transition">
-                  <div
-                    className="relative aspect-[1.5/1] bg-buzz-surface bg-cover bg-center"
-                    style={photo ? { backgroundImage: `url(${photo})` } : undefined}
-                  >
-                    {!photo && <div className="absolute inset-0 grid place-items-center text-4xl opacity-50">🐝</div>}
+                  <div className="relative aspect-[1.5/1] bg-buzz-surface bg-cover bg-center" style={{ backgroundImage: `url(${photo})` }}>
                     <span className="absolute top-2.5 left-2.5 text-[10px] font-extrabold uppercase tracking-wide px-2.5 py-1 rounded-full" style={{ background: b.bg, color: b.fg }}>{b.label}</span>
                     <div className="absolute top-2 right-2">
                       <FavouriteButton targetType="venue" targetId={v.id} initialFavourited={false} signedIn={!!user} size="sm" />
@@ -200,16 +200,29 @@ export default async function Home() {
 
       {/* ---------------- SEASONAL FEATURE ---------------- */}
       <section className="container-page py-12">
-        <div className="relative overflow-hidden rounded-[34px] p-7 sm:p-9 grid lg:grid-cols-[1.1fr_1fr] gap-7 items-center" style={{ background: "linear-gradient(120deg,#FDE4E0 0%,#FCEFD6 55%,#F3E9F7 100%)" }}>
-          <div>
-            <p className="eyebrow !text-buzz-pink mb-1">This October</p>
-            <h2 style={DISPLAY} className="text-3xl sm:text-4xl font-bold text-buzz-text leading-tight">Spooky season &amp;<br />half-term fun.</h2>
-            <p className="mt-3 text-[#4a5560] max-w-md font-semibold">From Halloween trails and pumpkin patches to October-week holiday clubs, find the best family-friendly things to do across Scotland this month.</p>
-            <Link href="/browse?tab=events" style={DISPLAY} className="inline-flex items-center gap-2 mt-5 rounded-full bg-buzz-text text-white font-semibold px-6 py-3.5 hover:-translate-y-0.5 transition">Explore October ideas →</Link>
+        <div className="relative overflow-hidden rounded-[34px] p-6 sm:p-8 grid lg:grid-cols-[1.25fr_1fr] gap-6 items-center" style={{ background: "linear-gradient(120deg,#FDE4E0 0%,#FCEFD6 55%,#F3E9F7 100%)" }}>
+          <div className="grid sm:grid-cols-2 gap-6 items-center">
+            <div>
+              <p className="eyebrow !text-buzz-pink mb-1">This October</p>
+              <h2 style={DISPLAY} className="text-3xl sm:text-4xl font-bold text-buzz-text leading-tight">Spooky season &amp;<br />half-term fun.</h2>
+              <p className="mt-3 text-[#4a5560] max-w-md font-semibold">From Halloween trails to October-week holiday clubs, find the best family days out across Scotland this month.</p>
+              <Link href="/browse?tab=events" style={DISPLAY} className="inline-flex items-center gap-2 mt-5 rounded-full bg-buzz-text text-white font-semibold px-6 py-3.5 hover:-translate-y-0.5 transition">Explore October ideas →</Link>
+            </div>
+            <div className="relative rounded-3xl min-h-[190px] bg-cover bg-center overflow-hidden" style={{ backgroundImage: "url(/images/bonus-halloween.webp)" }}>
+              <div className="absolute top-3 right-3 bg-buzz-pink text-white text-center text-[13px] px-3.5 py-3 leading-tight rotate-6" style={{ ...DISPLAY, borderRadius: "50% 46% 52% 48%" }}>FAMILY FUN<br />THIS MONTH</div>
+            </div>
           </div>
-          <div className="relative rounded-3xl min-h-[200px] grid place-items-center text-6xl overflow-hidden" style={{ background: "linear-gradient(155deg,#FFC98A,#F79A3B 55%,#C9699B)" }}>
-            <span>🎃</span>
-            <div className="absolute top-3 right-3 bg-buzz-pink text-white text-center text-[13px] px-3.5 py-3 leading-tight rotate-6" style={{ ...DISPLAY, borderRadius: "50% 46% 52% 48%" }}>FAMILY FUN<br />THIS MONTH</div>
+          <div className="bg-white rounded-2xl p-2.5 shadow-[0_18px_40px_-24px_rgba(22,32,42,0.35)]">
+            {seasonIdeas.map((s) => (
+              <Link key={s.t} href="/browse?tab=events" className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-buzz-surface transition">
+                <span className="w-12 h-12 rounded-xl bg-cover bg-center shrink-0" style={{ backgroundImage: `url(${s.img})` }} />
+                <span className="min-w-0 flex-1">
+                  <span style={DISPLAY} className="block font-bold text-buzz-text leading-tight">{s.t}</span>
+                  <small className="text-buzz-mute font-bold">{s.s}</small>
+                </span>
+                <span className="text-buzz-accent">→</span>
+              </Link>
+            ))}
           </div>
         </div>
       </section>
