@@ -26,19 +26,23 @@ export default async function Home() {
   // Top picks — real top-rated places that have a re-hosted (reliable) photo.
   // Named venues keep their OWN photography; the design assets are never used
   // for a specific business (see the photo pack README).
+  // image_source 'commons' = a real Wikimedia PHOTOGRAPH of the actual place
+  // (never a logo / graphic), so these always show a proper photo. Most-
+  // reviewed flagship attractions first.
   const { data: picksData } = await supabase
     .from("venues")
-    .select("id, name, slug, description, cover_photo_url, image_url, city:cities(name, slug, active)")
+    .select("id, name, slug, description, cover_photo_url, city:cities(name, slug, active)")
     .eq("approved", true)
     .in("venue_type", ["attraction", "both"])
+    .eq("image_source", "commons")
     .not("cover_photo_url", "is", null)
-    .order("google_rating", { ascending: false, nullsFirst: false })
+    .gte("google_rating_count", 200)
     .order("google_rating_count", { ascending: false, nullsFirst: false })
-    .limit(12);
+    .limit(14);
   const picks = (picksData ?? [])
-    .filter((v: any) => v.city?.active && (v.cover_photo_url || v.image_url))
+    .filter((v: any) => v.city?.active && v.cover_photo_url)
     .slice(0, 5);
-  const photoOf = (v: any) => v.cover_photo_url || v.image_url;
+  const photoOf = (v: any) => v.cover_photo_url;
 
   const cats = [
     { title: "Things to Do", sub: "Activities, play, learn and more", href: "/browse", icon: "🔭", img: "/images/category-things-to-do.webp", grad: "linear-gradient(155deg,#F978B6,#EC1E8C)", r: "34px 34px 34px 10px" },
