@@ -299,6 +299,19 @@ export default async function VenuePage({ params }: Props) {
               placeId={(venue as any).google_place_id}
               name={venue.name}
             />
+            {/* Direct link to the place's Google reviews — for businesses whose
+                live rating isn't shown (e.g. service-area profiles the Places
+                API can't pull), families can still read the reviews. */}
+            {(venue as any).google_reviews_url && (
+              <a
+                href={(venue as any).google_reviews_url}
+                target="_blank"
+                rel="noopener nofollow"
+                className="inline-flex items-center gap-1.5 mt-2 text-sm font-semibold text-buzz-accent hover:text-buzz-accent2"
+              >
+                <span aria-hidden>⭐</span> Read our Google reviews →
+              </a>
+            )}
             {venue.description && (
               <p className="whitespace-pre-line text-buzz-text/90 leading-relaxed mt-2">{venue.description}</p>
             )}
