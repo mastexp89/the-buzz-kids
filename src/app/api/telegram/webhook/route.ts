@@ -6,6 +6,7 @@ import {
   resolveDefaultReviewerId,
   approveEventCore,
   rejectEventCore,
+  markEventWeeklyCore,
   approveArtistCore,
   approveVenueCore,
   approveOrganiserCore,
@@ -414,7 +415,7 @@ async function handleCallback(cb: any) {
     return;
   }
 
-  const m = data.match(/^(ev|ar|rv|sg|vn|og|vc|ac|ag):(ap|rj|hd|dn|ok|del|tx|di|ad):([0-9a-f-]{36})$/i);
+  const m = data.match(/^(ev|ar|rv|sg|vn|og|vc|ac|ag):(ap|rj|wk|hd|dn|ok|del|tx|di|ad):([0-9a-f-]{36})$/i);
   if (!m) {
     await answer("Unknown action.");
     return;
@@ -432,6 +433,7 @@ async function handleCallback(cb: any) {
   let positive = true;
   if (entity === "ev" && verb === "ap") { result = await approveEventCore(reviewerId, id); actionLabel = "Event approved"; }
   else if (entity === "ev" && verb === "rj") { result = await rejectEventCore(reviewerId, id); actionLabel = "Event rejected"; positive = false; }
+  else if (entity === "ev" && verb === "wk") { result = await markEventWeeklyCore(reviewerId, id); actionLabel = "Approved — every week"; }
   else if (entity === "ar" && verb === "ap") { result = await approveArtistCore(reviewerId, id); actionLabel = "Provider approved"; }
   else if (entity === "vn" && verb === "ap") { result = await approveVenueCore(reviewerId, id); actionLabel = "Place approved"; }
   else if (entity === "vn" && verb === "ok") { result = await approveVenueWithGigsCore(reviewerId, id); actionLabel = "Place + events approved"; }

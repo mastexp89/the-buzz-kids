@@ -152,6 +152,9 @@ export function tgDate(iso: string | null | undefined): string {
 export const CB = {
   approveEvent: (id: string) => `ev:ap:${id}`,
   rejectEvent: (id: string) => `ev:rj:${id}`,
+  // Approve AND mark it a weekly recurring event (for sessions that run
+  // every week — the display repeats it on that weekday).
+  weeklyEvent: (id: string) => `ev:wk:${id}`,
   sendToGuide: (id: string) => `ev:2g:${id}`,
   approveArtist: (id: string) => `ar:ap:${id}`,
   approveReview: (id: string) => `rv:ap:${id}`,
@@ -289,6 +292,7 @@ async function sendNewEventCard(opts: {
           { text: "✅ Approve", callback_data: CB.approveEvent(opts.eventId) },
           { text: "❌ Reject", callback_data: CB.rejectEvent(opts.eventId) },
         ],
+        [{ text: "🔁 This is every week", callback_data: CB.weeklyEvent(opts.eventId) }],
         [{ text: "➡️ Send to the Guide", callback_data: CB.sendToGuide(opts.eventId) }],
         wrongVenueRow,
       ]
