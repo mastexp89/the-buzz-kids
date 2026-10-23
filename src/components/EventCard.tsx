@@ -5,6 +5,7 @@ import { DistancePill } from "@/components/NearMeButton";
 import EventThumb from "@/components/EventThumb";
 import { AccessibilityBadges } from "@/components/AccessibilityBadges";
 import { recurrenceLabel } from "@/lib/recurrence";
+import { halloweenActive, isHalloweenEvent } from "@/lib/halloween";
 
 function isActive(iso: string | null | undefined) {
   return !!iso && new Date(iso).getTime() > Date.now();
@@ -46,6 +47,11 @@ export default function EventCard({ event, citySlug }: { event: EventWithVenue; 
   const highlighted = isActive(event.highlighted_until);
   const weekendBoost = isActive(event.weekend_boost_until);
 
+  // Seasonal spooky treatment — only while the Halloween window is open.
+  const spooky =
+    halloweenActive() &&
+    isHalloweenEvent({ title: event.title, description: (event as any).description, start_time: event.start_time });
+
   // Thumbnail: real event poster, otherwise an icon picked from genre
   // tags (with a title-based heuristic as a backup). Never assume "music"
   // for unknown categories — pickEventIcon falls through to 🎟️ instead.
@@ -69,14 +75,23 @@ export default function EventCard({ event, citySlug }: { event: EventWithVenue; 
       href={`/${citySlug}/events/${event.id}`}
       className={`card-hover group flex flex-col lift p-5 gap-3 h-full ${
         highlighted ? "border-buzz-accent shadow-[0_0_30px_rgba(253,185,19,0.25)]" : ""
-      } ${event.cancelled ? "opacity-70" : ""}`}
+      } ${spooky ? "spooky-card relative" : ""} ${event.cancelled ? "opacity-70" : ""}`}
     >
+      {spooky && <span className="spooky-bat" aria-hidden>🦇</span>}
       <div className="flex items-start gap-3">
         <div className="flex-1 min-w-0 flex flex-col gap-2">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="inline-flex items-center rounded-full bg-buzz-accent text-white text-[11px] font-bold uppercase tracking-wider px-2.5 py-1">
               {dateBadgeLabel(event)}
             </span>
+            {spooky && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5"
+                style={{ background: "linear-gradient(90deg,#7A2BD8,#F9731B)" }}
+              >
+                🎃 Halloween
+              </span>
+            )}
             {weekendBoost && (
               <span className="inline-flex items-center rounded-full bg-rose-500 text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
                 🔥 Weekend pick

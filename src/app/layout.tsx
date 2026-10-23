@@ -6,6 +6,8 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import HalloweenBanner from "@/components/HalloweenBanner";
+import { halloweenActive } from "@/lib/halloween";
 import { NearMeProvider } from "@/components/NearMeContext";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
@@ -60,6 +62,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${inter.variable} ${bebas.variable} ${pacifico.variable}`}>
       <body className="min-h-screen flex flex-col font-sans antialiased">
         <NearMeProvider>
+          {halloweenActive() && <HalloweenBanner />}
           <Navbar />
           <main className="flex-1">{children}</main>
           <Footer />
