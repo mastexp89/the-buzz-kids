@@ -42,7 +42,7 @@ export default function HalloweenBanner() {
       <span className="hw-bat" style={{ left: "78%", animationDelay: "0.5s" }} aria-hidden>🦇</span>
 
       <div className="container-page py-2.5 flex items-center justify-center gap-3 text-center relative z-10">
-        <Link href="/browse?tab=events" className="group inline-flex items-center gap-2 text-sm sm:text-base font-bold">
+        <Link href={`/browse?tab=events&when=${HALLOWEEN.day}`} className="group inline-flex items-center gap-2 text-sm sm:text-base font-bold">
           <span aria-hidden className="text-lg">🎃</span>
           Spooky season is here — find Halloween events &amp; days out near you
           <span aria-hidden className="inline-block group-hover:translate-x-1 transition">→</span>

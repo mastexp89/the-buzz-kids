@@ -8,6 +8,7 @@ import ConvertEventToOfferButton from "@/components/ConvertEventToOfferButton";
 import WeatherStrip, { type WeatherArea } from "@/components/WeatherStrip";
 import type { EventWithVenue } from "@/lib/types";
 import { isRecurring, recurrenceOccursInWindow } from "@/lib/recurrence";
+import { halloweenActive, isHalloweenEvent } from "@/lib/halloween";
 
 type City = { name: string; slug: string };
 // Pared back to four windows so the page never renders every upcoming event
@@ -90,6 +91,8 @@ export default function WhatsOnView({ events, cities, isAdmin }: { events: Event
     window.history.replaceState(window.history.state, "", url);
   }, [filter, picked, areas]);
 
+  const spookySeason = halloweenActive();
+
   const filtered = useMemo(() => {
     const todayStart = startOfDay(new Date());
     const range = rangeFor(filter, picked);
@@ -129,8 +132,17 @@ export default function WhatsOnView({ events, cities, isAdmin }: { events: Event
         }
         return true;
       })
-      .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
-  }, [events, filter, picked, areas]);
+      .sort((a, b) => {
+        // During the Halloween window, float spooky events to the top so the
+        // season's events lead What's On. Chronological within each group.
+        if (spookySeason) {
+          const ah = isHalloweenEvent(a as any) ? 0 : 1;
+          const bh = isHalloweenEvent(b as any) ? 0 : 1;
+          if (ah !== bh) return ah - bh;
+        }
+        return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
+      });
+  }, [events, filter, picked, areas, spookySeason]);
 
   // Weather: centre of each selected area, averaged from its events' venue
   // coords (cities don't store coords). Shown only when 1–3 areas are picked —

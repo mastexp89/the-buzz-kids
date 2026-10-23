@@ -10,6 +10,9 @@ export const HALLOWEEN = {
   // Bump this when you change the window so a new dismissible banner shows
   // again (the dismiss is remembered per season).
   season: "2026",
+  // Halloween day itself — the banner's "find Halloween events" link lands on
+  // this date in What's On.
+  day: "2026-10-31",
 };
 
 /** Are we inside the Halloween window right now? */
