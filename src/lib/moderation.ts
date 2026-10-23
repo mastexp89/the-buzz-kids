@@ -68,6 +68,30 @@ export async function rejectEventCore(reviewerId: string, eventId: string): Prom
   return { ok: true, label: ev?.title ?? undefined };
 }
 
+/**
+ * Approve a pending event AND mark it a weekly recurring session — for things
+ * that run every week (a Friday Bookbug, a Saturday football camp…). Stores
+ * recurrence_pattern "weekly"; the display infers the weekday from start_time
+ * and repeats it (see lib/recurrence.ts).
+ */
+export async function markEventWeeklyCore(reviewerId: string, eventId: string): Promise<ModerationResult> {
+  const sb = createServiceClient();
+  const { error } = await sb
+    .from("events")
+    .update({
+      recurrence_pattern: "weekly",
+      status: "approved",
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: reviewerId,
+    })
+    .eq("id", eventId);
+  if (error) return { error: error.message };
+  const { data: ev } = await sb.from("events").select("title, start_time").eq("id", eventId).maybeSingle();
+  const { recurrenceLabel } = await import("@/lib/recurrence");
+  const when = recurrenceLabel("weekly", ev?.start_time) ?? "Weekly";
+  return { ok: true, label: ev?.title ?? undefined, note: `🔁 ${when}` };
+}
+
 export async function approveArtistCore(_reviewerId: string, artistId: string): Promise<ModerationResult> {
   const sb = createServiceClient();
   const { error } = await sb.from("artists").update({ approved: true }).eq("id", artistId);
