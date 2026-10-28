@@ -47,10 +47,6 @@
     {
       "path": "/api/cron/welcome-emails",
       "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/cron/fb-daily-posts",
-      "schedule": "30 7 * * *"
     }
   ]
 }
