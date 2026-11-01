@@ -1,14 +1,28 @@
 // Rules for letting imported events skip the Telegram approval queue, and for
 // spotting queued events whose date has already gone.
 //
-// An imported event goes straight live when the AI read it confidently AND it
-// landed in at least one Buzz Kids category (a kids genre). Anything vague or
-// uncategorised still comes to the admins group for a human look.
+// An imported event goes straight live only when ALL of these hold:
+//   - the AI judged it genuinely aimed at kids/families (for_kids),
+//   - it landed in at least one Buzz Kids category,
+//   - the AI read it confidently,
+//   - it isn't age-gated above primary age.
+// Anything else still comes to the admins group for a human look.
 
 export const AUTO_APPROVE_MIN_CONFIDENCE = 0.7;
+export const AUTO_APPROVE_MAX_AGE_MIN = 12;
 
-export function shouldAutoApprove(opts: { genreCount: number; confidence: number | null | undefined }): boolean {
-  return opts.genreCount > 0 && (opts.confidence ?? 0) >= AUTO_APPROVE_MIN_CONFIDENCE;
+export function shouldAutoApprove(opts: {
+  forKids: boolean;
+  genreCount: number;
+  confidence: number | null | undefined;
+  ageMin: number | null | undefined;
+}): boolean {
+  return (
+    opts.forKids &&
+    opts.genreCount > 0 &&
+    (opts.confidence ?? 0) >= AUTO_APPROVE_MIN_CONFIDENCE &&
+    (opts.ageMin == null || opts.ageMin <= AUTO_APPROVE_MAX_AGE_MIN)
+  );
 }
 
 /** True when an event (one-off, multi-day run or recurring series) is finished. */
