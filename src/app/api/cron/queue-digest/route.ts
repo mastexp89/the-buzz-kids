@@ -35,16 +35,19 @@ export async function GET(req: Request) {
     }
   }
 
-  // 1) Clear queued events whose date has already gone — they'd only ever be
-  //    rejected, so don't make anyone tap through them.
+  // 1) Clear queued events that would only ever be rejected, so nobody has to
+  //    tap through them: the date has already gone, or there's no venue
+  //    (house rule — no-venue events are always declined).
   let expired = 0;
   if (!dry) {
     const { data: pend } = await sb
       .from("events")
-      .select("id, start_time, end_time, end_date, recurrence_pattern, recurrence_until")
+      .select("id, venue_id, start_time, end_time, end_date, recurrence_pattern, recurrence_until")
       .eq("status", "pending")
       .limit(2000);
-    const over = (pend ?? []).filter((e: any) => eventIsOver(e)).map((e: any) => e.id as string);
+    const over = (pend ?? [])
+      .filter((e: any) => !e.venue_id || eventIsOver(e))
+      .map((e: any) => e.id as string);
     for (let i = 0; i < over.length; i += 200) {
       await sb
         .from("events")
@@ -82,7 +85,9 @@ export async function GET(req: Request) {
         autoApproved > 0
           ? `✅ <b>${autoApproved} new event${autoApproved === 1 ? "" : "s"} auto-approved</b> overnight — upcoming, in Buzz Kids categories and read confidently, so they're live.`
           : null,
-        expired > 0 ? `🗑 Cleared ${expired} queued event${expired === 1 ? "" : "s"} whose date had already passed.` : null,
+        expired > 0
+          ? `🗑 Declined ${expired} queued event${expired === 1 ? "" : "s"} that had no venue or whose date had already passed.`
+          : null,
       ].filter(Boolean);
       telegramOk = await sendTelegram(lines.join("\n"), {
         silent: true,

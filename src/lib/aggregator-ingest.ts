@@ -2,7 +2,8 @@
 //
 // For each active portal feed: sweep its detail links, skip ones we've already
 // processed (aggregator_seen), AI-extract the NEW ones, and drop events into
-// the REVIEW QUEUE (events.status = 'pending', standalone) + attractions into
+// the events table as DECLINED rows (no venue = always declined; the row just
+// stops re-imports) + attractions into
 // edit_suggestions as new-place requests. Everything is reviewed by a human —
 // "hands off" means no manual triggering, not auto-publish.
 
@@ -135,7 +136,7 @@ export async function runAggregatorImport(opts: { batch?: number; dry?: boolean 
 
       const poster = page.imageUrls[0] ?? null;
 
-      // Events → standalone pending rows in the review queue.
+      // Events → standalone rows, filed as declined (no linked venue).
       if (extraction.events.length > 0 && cityId) {
         if (!dry) {
           const rows = extraction.events.map((e: ExtractedEvent) => ({
@@ -147,7 +148,12 @@ export async function runAggregatorImport(opts: { batch?: number; dry?: boolean 
             end_time: e.ends_at,
             end_date: e.end_date || null,
             description: (e.description ?? "").slice(0, 2000) || null,
-            status: "pending",
+            // Listings-site events never carry a linked venue, and events with
+            // no venue are always declined — so file them as rejected rather
+            // than queueing them. Keeping the row stops the same listing being
+            // re-imported next week.
+            status: "rejected",
+            reviewed_at: new Date().toISOString(),
             auto_imported_from: "aggregator",
             auto_import_confidence: e.confidence,
             auto_import_source_url: raw.finalUrl,
