@@ -68,6 +68,7 @@ export async function sendPendingEventButtons(limit = 5, offset = 0): Promise<nu
             { text: "✅ Approve", callback_data: `ev:ap:${ev.id}` },
             { text: "❌ Reject", callback_data: `ev:rj:${ev.id}` },
           ],
+          [{ text: "🔁 This is every week", callback_data: `ev:wk:${ev.id}` }],
           [{ text: "➡️ Send to the Guide", callback_data: `ev:2g:${ev.id}` }],
         ],
       },

@@ -22,6 +22,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { scrapeVenueWebsite } from "@/lib/scrape-website";
 import { extractEvents, type ExtractedEvent } from "@/lib/extraction";
+import { shouldAutoApprove } from "@/lib/auto-approve";
 
 // Cap AI extraction calls per venue. Most venues are homepage + 1–2 event
 // pages; 3 keeps Anthropic cost predictable on a 900-site sweep.
@@ -231,6 +232,12 @@ export async function scrapeAndIngestVenueWebsite(opts: WebsiteIngestOptions): P
           titlesByHour.set(hk, sameHour);
 
           const poster = matchImageToTitle(e.title, contexts, usedImages) ?? singlePagePoster;
+          // Confident reads that land in a Buzz Kids category go straight live;
+          // the rest wait in the Telegram queue.
+          const autoApprove = shouldAutoApprove({
+            genreCount: (e.categories ?? []).filter((s) => genreSlugToId.has(s)).length,
+            confidence: e.confidence,
+          });
           rows.push({
             venue_id: v.id,
             city_id: v.city_id,
@@ -239,7 +246,8 @@ export async function scrapeAndIngestVenueWebsite(opts: WebsiteIngestOptions): P
             end_time: e.ends_at,
             end_date: e.end_date || null,
             description: (e.description ?? "").slice(0, 2000) || null,
-            status: "pending",
+            status: autoApprove ? "approved" : "pending",
+            reviewed_at: autoApprove ? new Date().toISOString() : null,
             auto_imported_from: "website",
             auto_import_confidence: e.confidence,
             auto_import_source_url: page.url,
