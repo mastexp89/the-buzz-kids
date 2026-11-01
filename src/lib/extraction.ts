@@ -125,6 +125,10 @@ export type ExtractedEvent = {
   setting: "indoor" | "outdoor" | "both" | null;
   // Accessibility / sensory facets explicitly stated (from ACCESSIBILITY_FACETS).
   accessibility: AccessibilityFacet[];
+  // Genuinely aimed at children / families (not an adult class, gig, talk or
+  // playback that a child could merely attend). Gates auto-approval only —
+  // false never drops the event, it just goes to the admins for a look.
+  for_kids: boolean;
   confidence: number;
   evidence: string;
   // 0-based index into the input images that is the FLYER / POSTER for this
@@ -214,6 +218,7 @@ Return ONLY a JSON object of this shape:
       "setting": "indoor | outdoor | both | null",
       "accessibility": ["autism-friendly", "..."],
       "description": "one neutral sentence",
+      "for_kids": true or false,
       "confidence": 0.0-1.0,
       "evidence": "brief quote of where you got the date/time from",
       "poster_image_index": 0,
@@ -271,6 +276,7 @@ CATEGORIES
 
 AGE SUITABILITY (the #1 parent filter — extract whenever stated or clearly implied)
 - age_min / age_max are WHOLE YEARS. age_min 0 = suitable from birth (babies).
+- for_kids: true ONLY when the event is genuinely aimed at children or families — kids' shows, panto, family days, holiday clubs, story times, farm/animal experiences, trails, Santa grottos, family workshops. false for things that are really for adults even if a child could tag along: adult fitness/wellness classes (e.g. chair yoga), album playbacks, adult gigs and tribute bands, talks and lectures, adult-only scare attractions, wine/food tastings, grown-up workshops. If unsure, false.
 - "Ages 4–8" → 4, 8.  "Suitable 5+" → 5, null.  "Under 5s" → 0, 4.  "Up to 12" → null, 12.
 - "Toddlers" → 1, 3.  "Babies" / "0–18 months" → 0, 1.  "Pre-school" → 2, 4.  "Primary age" → 5, 11.  "Teens" → 12, 17.
 - "All ages" / "family" / "all the family" → null, null (no restriction).
@@ -768,6 +774,8 @@ function normalizeExtractedEvent(raw: any): ExtractedEvent {
     accessibility: Array.isArray(raw?.accessibility)
       ? (Array.from(new Set(raw.accessibility.filter((s: any) => ACCESSIBILITY_SET.has(s)))) as AccessibilityFacet[])
       : [],
+    // Missing → false: unknown events wait for a human rather than going live.
+    for_kids: raw?.for_kids === true,
     confidence: conf === null ? 0 : Math.max(0, Math.min(1, conf)),
     evidence: str(raw?.evidence) ?? "",
     poster_image_index: Number.isInteger(raw?.poster_image_index) ? raw.poster_image_index : null,

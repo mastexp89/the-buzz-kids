@@ -235,8 +235,10 @@ export async function scrapeAndIngestVenueWebsite(opts: WebsiteIngestOptions): P
           // Confident reads that land in a Buzz Kids category go straight live;
           // the rest wait in the Telegram queue.
           const autoApprove = shouldAutoApprove({
+            forKids: e.for_kids,
             genreCount: (e.categories ?? []).filter((s) => genreSlugToId.has(s)).length,
             confidence: e.confidence,
+            ageMin: e.age_min,
           });
           rows.push({
             venue_id: v.id,
