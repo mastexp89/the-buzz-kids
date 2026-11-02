@@ -5,6 +5,7 @@ import { trackPageView } from "@/lib/track";
 import HeroSearch from "@/components/HeroSearch";
 import NewsletterInline from "@/components/NewsletterInline";
 import FavouriteButton from "@/components/FavouriteButton";
+import { seasonalFeature } from "@/lib/seasonal-feature";
 
 // Redesign preview: rounded, friendly display face (Fredoka) + warm body
 // (Nunito) + a handwritten accent (Caveat), replacing the condensed-caps look.
@@ -39,8 +40,18 @@ export default async function Home() {
     .gte("google_rating_count", 200)
     .order("google_rating_count", { ascending: false, nullsFirst: false })
     .limit(14);
+  // One card per photo — a mis-matched listing can carry another place's
+  // picture (e.g. Museum of Edinburgh had the National Museum's), so never
+  // show the same image twice.
+  const seenPhotos = new Set<string>();
   const picks = (picksData ?? [])
-    .filter((v: any) => v.city?.active && v.cover_photo_url)
+    .filter((v: any) => {
+      if (!v.city?.active || !v.cover_photo_url) return false;
+      const key = String(v.cover_photo_url).split("?")[0];
+      if (seenPhotos.has(key)) return false;
+      seenPhotos.add(key);
+      return true;
+    })
     .slice(0, 5);
   const photoOf = (v: any) => v.cover_photo_url;
 
@@ -68,11 +79,8 @@ export default async function Home() {
     { ic: "🌱", t: "Support local businesses" },
   ];
 
-  const seasonIdeas = [
-    { t: "Halloween trails", s: "Spooky family fun", img: "/images/bonus-halloween.webp" },
-    { t: "Autumn walks", s: "Crisp days outdoors", img: "/images/bonus-outdoor-walks.webp" },
-    { t: "Cosy indoor play", s: "Rainy-day rescue", img: "/images/bonus-indoor-play.webp" },
-  ];
+  // Seasonal band picks itself from the calendar (lib/seasonal-feature.ts).
+  const season = seasonalFeature();
 
   return (
     <div className={`${fredoka.variable} ${nunito.variable} ${caveat.variable}`} style={{ fontFamily: "var(--font-nunito)", fontWeight: 600 }}>
@@ -182,7 +190,7 @@ export default async function Home() {
                   <div className="relative aspect-[1.5/1] bg-buzz-surface bg-cover bg-center" style={{ backgroundImage: `url(${photo})` }}>
                     <span className="absolute top-2.5 left-2.5 text-[10px] font-extrabold uppercase tracking-wide px-2.5 py-1 rounded-full" style={{ background: b.bg, color: b.fg }}>{b.label}</span>
                     <div className="absolute top-2 right-2">
-                      <FavouriteButton targetType="venue" targetId={v.id} initialFavourited={false} signedIn={!!user} size="sm" />
+                      <FavouriteButton targetType="venue" targetId={v.id} initialFavourited={false} signedIn={!!user} size="sm" showLabel={false} />
                     </div>
                   </div>
                   <div className="p-4 flex flex-col gap-1 flex-1">
@@ -207,18 +215,18 @@ export default async function Home() {
         <div className="relative overflow-hidden rounded-[34px] p-6 sm:p-8 grid lg:grid-cols-[1.25fr_1fr] gap-6 items-center" style={{ background: "linear-gradient(120deg,#FDE4E0 0%,#FCEFD6 55%,#F3E9F7 100%)" }}>
           <div className="grid sm:grid-cols-2 gap-6 items-center">
             <div>
-              <p className="eyebrow !text-buzz-pink mb-1">This October</p>
-              <h2 style={DISPLAY} className="text-3xl sm:text-4xl font-bold text-buzz-text leading-tight">Spooky season &amp;<br />half-term fun.</h2>
-              <p className="mt-3 text-[#4a5560] max-w-md font-semibold">From Halloween trails to October-week holiday clubs, find the best family days out across Scotland this month.</p>
-              <Link href="/browse?tab=events" style={DISPLAY} className="inline-flex items-center gap-2 mt-5 rounded-full bg-buzz-text text-white font-semibold px-6 py-3.5 hover:-translate-y-0.5 transition">Explore October ideas →</Link>
+              <p className="eyebrow !text-buzz-pink mb-1">{season.eyebrow}</p>
+              <h2 style={DISPLAY} className="text-3xl sm:text-4xl font-bold text-buzz-text leading-tight">{season.headline[0]}<br />{season.headline[1]}</h2>
+              <p className="mt-3 text-[#4a5560] max-w-md font-semibold">{season.body}</p>
+              <Link href={season.href} style={DISPLAY} className="inline-flex items-center gap-2 mt-5 rounded-full bg-buzz-text text-white font-semibold px-6 py-3.5 hover:-translate-y-0.5 transition">{season.cta} →</Link>
             </div>
-            <div className="relative rounded-3xl min-h-[190px] bg-cover bg-center overflow-hidden" style={{ backgroundImage: "url(/images/bonus-halloween.webp)" }}>
-              <div className="absolute top-3 right-3 bg-buzz-pink text-white text-center text-[13px] px-3.5 py-3 leading-tight rotate-6" style={{ ...DISPLAY, borderRadius: "50% 46% 52% 48%" }}>FAMILY FUN<br />THIS MONTH</div>
+            <div className="relative rounded-3xl min-h-[190px] bg-cover bg-center overflow-hidden" style={{ backgroundImage: `url(${season.image})` }}>
+              <div className="absolute top-3 right-3 bg-buzz-pink text-white text-center text-[13px] px-3.5 py-3 leading-tight rotate-6" style={{ ...DISPLAY, borderRadius: "50% 46% 52% 48%" }}>{season.blob[0]}<br />{season.blob[1]}</div>
             </div>
           </div>
           <div className="bg-white rounded-2xl p-2.5 shadow-[0_18px_40px_-24px_rgba(22,32,42,0.35)]">
-            {seasonIdeas.map((s) => (
-              <Link key={s.t} href="/browse?tab=events" className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-buzz-surface transition">
+            {season.ideas.map((s) => (
+              <Link key={s.t} href={season.href} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-buzz-surface transition">
                 <span className="w-12 h-12 rounded-xl bg-cover bg-center shrink-0" style={{ backgroundImage: `url(${s.img})` }} />
                 <span className="min-w-0 flex-1">
                   <span style={DISPLAY} className="block font-bold text-buzz-text leading-tight">{s.t}</span>
@@ -250,19 +258,6 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* ---------------- PRE-FOOTER HILLS ---------------- */}
-      <div className="relative">
-        <div className="container-page flex justify-end pr-6">
-          <span style={HAND} className="text-buzz-accent text-2xl text-right leading-none -rotate-3">Happier family<br />days in Scotland</span>
-        </div>
-        <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="w-full h-16 sm:h-20 -mt-2" aria-hidden>
-          <circle cx="1030" cy="40" r="16" fill="#FFD23F" />
-          <path d="M0 120 Q200 60 440 80 T860 70 T1200 92 V120 Z" fill="#8CC63F" />
-          <path d="M0 120 Q320 78 640 96 T1200 100 V120 Z" fill="#6FA713" />
-          <rect x="560" y="56" width="20" height="28" fill="#9FB0BC" />
-          <rect x="565" y="46" width="10" height="12" fill="#9FB0BC" />
-        </svg>
-      </div>
     </div>
   );
 }
