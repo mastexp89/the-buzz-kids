@@ -48,14 +48,14 @@ export default function MobileMenu({
       {/* Backdrop */}
       {open && (
         <div
-          className="sm:hidden fixed inset-0 top-16 z-40 bg-black/40"
+          className="sm:hidden fixed inset-0 top-[72px] z-40 bg-black/40"
           onClick={() => setOpen(false)}
         />
       )}
 
       {/* Drawer */}
       <nav
-        className={`sm:hidden fixed top-16 right-0 bottom-0 z-50 w-72 bg-buzz-bg border-l border-buzz-border flex flex-col p-6 gap-1 text-lg transition-transform ${
+        className={`sm:hidden fixed top-[72px] right-0 bottom-0 z-50 w-72 bg-buzz-bg border-l border-buzz-border flex flex-col p-6 gap-1 text-lg transition-transform ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
         onClick={(e) => e.stopPropagation()}
