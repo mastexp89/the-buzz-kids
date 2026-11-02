@@ -32,7 +32,7 @@ export default async function Home() {
   // reviewed flagship attractions first.
   const { data: picksData } = await supabase
     .from("venues")
-    .select("id, name, slug, description, cover_photo_url, city:cities(name, slug, active)")
+    .select("id, name, slug, description, cover_photo_url, google_rating_count, city:cities(name, slug, active)")
     .eq("approved", true)
     .in("venue_type", ["attraction", "both"])
     .eq("image_source", "commons")
@@ -47,7 +47,9 @@ export default async function Home() {
   const picks = (picksData ?? [])
     .filter((v: any) => {
       if (!v.city?.active || !v.cover_photo_url) return false;
-      const key = String(v.cover_photo_url).split("?")[0];
+      // Same Google review count = same Google place (a mis-matched listing
+      // copies another place's photo AND its rating), so key on that.
+      const key = v.google_rating_count != null ? `g${v.google_rating_count}` : String(v.cover_photo_url).split("?")[0];
       if (seenPhotos.has(key)) return false;
       seenPhotos.add(key);
       return true;
