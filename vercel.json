@@ -47,6 +47,10 @@
     {
       "path": "/api/cron/welcome-emails",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/import-ticketsolve",
+      "schedule": "0 18 * * 1"
     }
   ]
 }
